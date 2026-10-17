@@ -1,0 +1,9 @@
+{
+  "name": "devoprotect-web",
+  "private": true,
+  "type": "module",
+  "description": "Pyodide for the DevoProtect site build; node_modules stays out of git",
+  "dependencies": {
+    "pyodide": "314.0.7"
+  }
+}
