@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+.ruff_cache/
+build/
+dist/
+*.spec
+engine/pjass.exe
+engine/pjass
+*_protected*.w3x
+*_protected*.w3m
+*_protected*.w3n
+*_ids.tsv
+*_ids/
+cache/
+web/node_modules/
+web/wheels/
+*.log
