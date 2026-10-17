@@ -1,0 +1,7 @@
+Reading {0}...
+Protected {0} file(s). Saved to {1}
+Protection failed - see the report.
+invalid option: {0}
+map not found: {0}
+{0}: skipped
+Everything runs in your browser: your map is never uploaded.
