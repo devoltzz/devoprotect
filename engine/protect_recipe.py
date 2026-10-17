@@ -289,6 +289,9 @@ def _recipe(
     tmp = os.path.abspath(tmp or output + '.work')
     tsv = os.path.abspath(tsv or os.path.splitext(output)[0] + '_ids.tsv')
     _check_paths(entry, output, tmp, tsv, None if backup is None else os.path.abspath(backup or output + '.backup'))
+    if mpqadd.format(entry) != 0:
+        raise SystemExit('ABORT: the MPQ header of this map is not a normal MPQ v1 header (a map already protected by '
+                         'another tool?): use the original map, as the World Editor saves it')
     if previous:
         previous = os.path.abspath(previous)
         if 'shuffle' in skip:
@@ -388,7 +391,20 @@ def _recipe(
             details['steps'].append({'step': 'lua', 'status': 'skipped (%s)' % why})
             log('[lua] skipped: %s' % why)
         else:
+            owned = jass_to_lua.map_blizzard(lambda n: editor_lock._read(a, n))
+            if owned:
+                raise SystemExit(
+                    'ABORT at step lua: the map has its own %s; in Lua mode the game does not read it, and its '
+                    'functions would be gone' % owned
+                )
             lua, r = jass_to_lua.converte(script_j.decode('utf-8', 'surrogateescape'), ref=ref, log=silent)
+            waits = r.get('waits_in_callbacks') or {}
+            warning = ('; WARNING: %d function(s) with a wait called back outside the trigger thread (%s): JASS '
+                       'ignores that wait, in Lua it can stop the function' % (
+                         len(waits), ', '.join('%s by %s' % (f, '/'.join(v)) for f, v in list(waits.items())[:4]))
+                       if waits else '')
+            if warning:
+                log('[lua] ' + warning[2:])
             if not r['ok']:
                 raise SystemExit('ABORT at step lua: %s' % '; '.join(str(v) for v in r['gates'].values()))
             new_w3i, w3i_reason = jass_to_lua.w3i_lua(editor_lock._read(a, 'war3map.w3i'))
@@ -409,8 +425,9 @@ def _recipe(
                 raise SystemExit('ABORT at step lua: something else changed (%s)' % ', '.join(sorted(outside)))
             on_close('lua', 'ok', t0, last, 'lua', {
                 'gates': r['gates'],
-                'summary': '%s -> war3map.lua (%d B); w3i: %s; %s' % (
-                    j_name, len(lua_bytes), w3i_reason, '; '.join(str(v) for v in r['gates'].values()))})
+                'waits_in_callbacks': waits,
+                'summary': '%s -> war3map.lua (%d B); w3i: %s; %s%s' % (
+                    j_name, len(lua_bytes), w3i_reason, '; '.join(str(v) for v in r['gates'].values()), warning)})
             current, last = new, 'lua'
 
     if convert_dds and 'dds' not in skip:
@@ -804,6 +821,9 @@ def _campaign(
     _check_paths(
         entry, output, tmp, ids_folder, None if backup is None else os.path.abspath(backup or output + '.backup')
     )
+    if mpqadd.format(entry) != 0:
+        raise SystemExit('ABORT: the MPQ header of this campaign is not a normal MPQ v1 header (already protected by '
+                         'another tool?): use the original campaign, as the World Editor saves it')
     if previous:
         previous = os.path.abspath(previous)
         if not os.path.isdir(previous):
