@@ -1,4 +1,5 @@
 # Checks GitHub for a newer release and replaces the executable when the user agrees.
+import hashlib
 import json
 import os
 import re
@@ -31,9 +32,13 @@ def latest_release():
     assets = data.get('assets', [])
     exe = next((a for a in assets if a.get('name', '').lower() == PROGRAM.lower()), {})
     index = next((a for a in assets if a.get('name', '').lower() == INDEX), {})
+    sums = next((a for a in assets if a.get('name', '') == 'SHA256SUMS.txt'), {})
+    cli = next((a for a in assets if a.get('name', '') == 'DevoProtect-cli.exe'), {})
     return {'version': data.get('tag_name', ''), 'page': data.get('html_url', ''),
             'exe': exe.get('browser_download_url'), 'size': exe.get('size'),
-            'index': index.get('browser_download_url'), 'index_size': index.get('size')}
+            'index': index.get('browser_download_url'), 'index_size': index.get('size'),
+            'sums': sums.get('browser_download_url'), 'cli': cli.get('browser_download_url'),
+            'cli_size': cli.get('size')}
 
 
 def index_path():
@@ -83,6 +88,23 @@ def _download(url, target, size, minimum):
     return part
 
 
+def _verify(path, name, release):
+    if not release.get('sums'):
+        return
+    request = urllib.request.Request(release['sums'], headers={'User-Agent': 'DevoProtect'})
+    with urllib.request.urlopen(request, timeout=60) as response:
+        sums = response.read().decode('utf-8', 'replace')
+    expected = next((line.split()[0].lower() for line in sums.splitlines()
+                     if len(line.split()) == 2 and line.split()[1] == name), None)
+    digest = hashlib.sha256()
+    with open(path, 'rb') as f:
+        for block in iter(lambda: f.read(1 << 20), b''):
+            digest.update(block)
+    if digest.hexdigest() != expected:
+        os.remove(path)
+        raise OSError('the download of %s does not match SHA256SUMS.txt' % name)
+
+
 def download_index(release):
     part = _download(release['index'], index_path(), release.get('index_size'), 1)
     try:
@@ -97,6 +119,7 @@ def install(release):
         open_page(release)
         return False
     new = _download(release['exe'], exe, release.get('size'), 1 << 20)
+    _verify(new, PROGRAM, release)
     old = exe + '.old'
     if os.path.exists(old):
         os.remove(old)
@@ -104,6 +127,14 @@ def install(release):
     os.replace(new, exe)
     if not sys.platform.startswith('win'):
         os.chmod(exe, 0o755)
+    cli = os.path.join(os.path.dirname(exe), 'DevoProtect-cli.exe')
+    if sys.platform.startswith('win') and release.get('cli') and os.path.isfile(cli):
+        try:
+            part = _download(release['cli'], cli, release.get('cli_size'), 1 << 20)
+            _verify(part, 'DevoProtect-cli.exe', release)
+            os.replace(part, cli)
+        except OSError:
+            pass
     subprocess.Popen([exe], close_fds=True)
     return True
 
