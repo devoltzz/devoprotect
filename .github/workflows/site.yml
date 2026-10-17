@@ -1,0 +1,51 @@
+# Builds the site of a release and attaches it to the release.
+name: site
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release tag to build the site of
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  PJASS_COMMIT: 378a1ca
+  TAG: ${{ github.event.release.tag_name || inputs.tag }}
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  site:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Tools
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q flex bison
+          python -m pip install -q ziglang==0.16.0 pillow
+          npm ci --prefix web
+      - name: pjass as WebAssembly
+        run: |
+          git clone -q https://github.com/lep/pjass.git "$RUNNER_TEMP/pjass"
+          git -C "$RUNNER_TEMP/pjass" checkout -q "$PJASS_COMMIT"
+          python web/build_pjass.py --src="$RUNNER_TEMP/pjass" --out="$RUNNER_TEMP/pjass-out"
+          node web/check_pjass.mjs "$RUNNER_TEMP/pjass-out/pjass.wasm" "$RUNNER_TEMP/pjass"
+      - name: Site
+        run: |
+          python web/build_site.py --engine=. --out="$RUNNER_TEMP/site" --pjass="$RUNNER_TEMP/pjass-out/pjass.wasm" \
+            --wheels="$RUNNER_TEMP/wheels" --repository="${{ github.repository }}" --zip="$RUNNER_TEMP/site-$TAG.zip"
+      - name: Attach to the release
+        run: gh release upload "$TAG" "$RUNNER_TEMP/site-$TAG.zip" "$RUNNER_TEMP/site-$TAG.zip.sha256" --clobber
