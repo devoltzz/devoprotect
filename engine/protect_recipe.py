@@ -39,6 +39,14 @@ def contents(file_path, name_list=None):
     return out
 
 
+def _digest_of(v):
+    return v if isinstance(v, tuple) else (len(v), hashlib.blake2b(v, digest_size=16).digest())
+
+
+def _size_of(v):
+    return None if v is None else v[0] if isinstance(v, tuple) else len(v)
+
+
 def difference(before, after_diag):
     out = {}
     for n in set(before) | set(after_diag):
@@ -46,11 +54,33 @@ def difference(before, after_diag):
         if x == y:
             continue
         if x is None or y is None:
-            out[n] = (len(x) if x is not None else None, len(y) if y is not None else None, None)
+            out[n] = (_size_of(x), _size_of(y), None)
+        elif isinstance(x, tuple) or isinstance(y, tuple):
+            rx, ry = _digest_of(x), _digest_of(y)
+            if rx != ry:
+                out[n] = (rx[0], ry[0], None if rx[0] == ry[0] else abs(ry[0] - rx[0]))
         else:
             chg = (sum(1 for p, q in zip(x, y) if p != q) if len(x) == len(y) else abs(len(y) - len(x)))
             out[n] = (len(x), len(y), chg)
     return out
+
+
+class _Stages(dict):
+    def __init__(self, *a, **k):
+        super().__init__(*a, **k)
+        self._order = list(self)
+        self._digested = set()
+
+    def __setitem__(self, hash_key, field_value):
+        if hash_key in self._order:
+            self._order.remove(hash_key)
+        self._order.append(hash_key)
+        self._digested.discard(hash_key)
+        dict.__setitem__(self, hash_key, field_value)
+        for old in self._order[:-2]:
+            if old not in self._digested:
+                dict.__setitem__(self, old, dict((n, _digest_of(v)) for n, v in dict.__getitem__(self, old).items()))
+                self._digested.add(old)
 
 
 def count_pjass(body_text):
@@ -318,7 +348,7 @@ def _recipe(
         log('backup: %s (sha256 checked)' % copy)
     current = os.path.join(tmp, '0_input.w3x')
     shutil.copyfile(entry, current)
-    stages = {'entry': contents(current)}
+    stages = _Stages({'entry': contents(current)})
     ref_names = list(stages['entry'])
     last = 'entry'
 
