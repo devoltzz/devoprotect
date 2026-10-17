@@ -62,7 +62,8 @@ sudo dnf install webkit2gtk4.1         # Fedora
 ```
 
 Give it a map and an output name and it runs as the command line instead. On Windows the command line is
-`DevoProtect-cli.exe`. Both check for a new version when they start.
+`DevoProtect-cli.exe`. The window checks for a new version when it opens, and when you update it, it also replaces
+`DevoProtect-cli.exe` if that sits in the same folder. Every download is checked against the release's SHA256SUMS.txt.
 
 ## Command line
 
