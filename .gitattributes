@@ -1,0 +1,6 @@
+* text=auto eol=lf
+*.ico binary
+*.png binary
+engine/ref/*/* -text
+engine/ref/** linguist-vendored
+engine/game_triggerdata.txt -text linguist-vendored
