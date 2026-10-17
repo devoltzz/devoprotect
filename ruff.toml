@@ -1,0 +1,7 @@
+line-length = 120
+
+[lint]
+ignore = ["E402", "BLE001"]
+
+[format]
+quote-style = "preserve"
