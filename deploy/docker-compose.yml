@@ -1,0 +1,40 @@
+# The site on a server: nginx and the release sync, behind a Cloudflare tunnel.
+name: devoprotect-site
+
+services:
+  site:
+    image: nginx:1.31-alpine
+    container_name: protect-site
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    volumes:
+      - /opt/devoprotect-site/www:/srv/www:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./headers.conf:/etc/nginx/snippets/devo_headers.conf:ro
+    networks: [devo]
+
+  sync:
+    image: python:3.14-alpine
+    container_name: protect-sync
+    restart: unless-stopped
+    read_only: true
+    user: "10101:10101"
+    environment:
+      REPOSITORY: devoltzz/devoprotect
+      WWW: /srv/www
+      INTERVAL: "900"
+      KEEP: "3"
+    volumes:
+      - /opt/devoprotect-site/www:/srv/www
+      - ./sync.py:/app/sync.py:ro
+    command: ["python", "-u", "/app/sync.py"]
+    networks: [devo]
+
+networks:
+  devo:
+    name: devo-site
+    external: true
