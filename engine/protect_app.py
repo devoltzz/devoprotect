@@ -11,6 +11,7 @@ APP = 'DevoProtect'
 
 STEPS = {
     'shuffle': 'Shuffling the object IDs...',
+    'lua': 'Converting the script to Lua...',
     'obfuscate': 'Obfuscating the script...',
     'lock_editor': 'Removing the editor-only files...',
     'decoy': 'Writing the decoy files...',
@@ -21,6 +22,7 @@ STEPS = {
 }
 DONE = {
     'shuffle': 'Object IDs shuffled.',
+    'lua': 'Script converted to Lua.',
     'obfuscate': 'Script obfuscated.',
     'lock_editor': 'Editor-only files removed.',
     'decoy': 'Decoy files written.',
@@ -223,7 +225,11 @@ class Api:
         import updater
         if not self._release:
             return False
-        if updater.install(self._release):
+        try:
+            installed = updater.install(self._release)
+        except OSError:
+            return False
+        if installed:
             self._window.destroy()
             return True
         return False
