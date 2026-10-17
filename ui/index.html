@@ -1,0 +1,437 @@
+<!doctype html>
+<!-- The DevoProtect window: the map, the protection steps and the report. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DevoProtect</title>
+<style>
+  :root{
+    --bg:#0b0d10; --card:#0f1319; --card2:#151b23; --line:#232c38; --text:#e9eef5; --muted:#9aa6b5;
+    --accent:#7cc4ff; --accent2:#4f9fe0; --ok:#73d99a; --bad:#ff8a8a; --warn:#ffcf6b;
+    --mono:'Consolas','SF Mono',ui-monospace,monospace;
+    --sans:system-ui,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--sans);color:var(--text);background:var(--bg);min-height:100vh}
+  .wrap{max-width:760px;margin:0 auto;padding:22px 18px 0}
+  header{display:flex;align-items:baseline;gap:12px;padding-bottom:14px;margin-bottom:16px;border-bottom:1px solid var(--line)}
+  h1{font-size:20px;letter-spacing:.12em;margin:0}
+  .ver{color:var(--muted);font:12px/1 var(--mono)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:12px}
+  .row{display:flex;align-items:center;gap:12px}
+  .row + .row{margin-top:10px}
+  .lbl{color:var(--muted);font-size:12px;min-width:52px}
+  .name{font:13px/1.3 var(--mono);color:var(--muted);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  button{font-family:var(--sans);cursor:pointer;border-radius:7px;border:1px solid var(--line);background:var(--card2);
+    color:var(--text);padding:9px 14px;font-size:13px;transition:background .15s,border-color .15s}
+  button:hover:not(:disabled){border-color:var(--accent2);background:#1a222c}
+  button:disabled{opacity:.5;cursor:default}
+  button.small{padding:5px 10px;font-size:12px}
+  button.go{background:var(--accent2);border-color:var(--accent);color:#06121d;font-weight:600;padding:11px 26px}
+  fieldset{border:0;margin:0;padding:0;min-width:0}
+  .seg{display:flex;flex-wrap:wrap;gap:6px}
+  .seg label{flex:1 1 140px;border:1px solid var(--line);border-radius:8px;padding:9px 12px;cursor:pointer;
+    font-size:13px;background:var(--card2);display:flex;align-items:center;gap:8px}
+  .seg input{accent-color:var(--accent);margin:0}
+  .seg label:has(input:checked){border-color:var(--accent2);background:#16222f}
+  #modes label:first-child{flex-basis:230px;white-space:nowrap}
+  .seg em{color:var(--ok);font-style:normal;font-size:11px}
+  .hint{color:var(--muted);font-size:12px;line-height:1.45;margin-top:10px}
+  .step{padding:12px 0;border-top:1px solid var(--line)}
+  .step:first-child{border-top:0;padding-top:2px}
+  .step:last-child{padding-bottom:2px}
+  .sw{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;cursor:pointer}
+  .sw input,.tog input{accent-color:var(--accent);width:15px;height:15px;margin:0}
+  .title{font-size:14px;font-weight:600;margin-bottom:8px}
+  .desc{color:var(--muted);font-size:12px;margin:4px 0 0 25px;line-height:1.45}
+  details{margin:8px 0 0 25px}
+  summary{cursor:pointer;color:var(--accent);font-size:12px;user-select:none}
+  .tog{display:flex;align-items:center;gap:9px;padding:5px 0;font-size:13px;cursor:pointer}
+  details .tog{padding-left:4px}
+  .keyrow{display:flex;align-items:center;gap:8px;margin:6px 0 2px 4px}
+  .keyrow .name{font-size:11.5px}
+  .gated{color:var(--warn)}
+  .step .seg{margin-left:25px}
+  .step .seg label{flex:1 1 150px;padding:7px 10px;font-size:12.5px}
+  details.card{padding:12px 16px;margin:0 0 12px}
+  details.card summary{font-size:13px;color:var(--text);font-weight:600}
+  details.card summary .gated{font-weight:400;font-size:12px;margin-left:6px}
+  details.card .tog{padding-left:2px}
+  .exp-body{margin-top:8px}
+  .bar{position:sticky;bottom:0;background:linear-gradient(transparent,var(--bg) 18%);padding:18px 0 16px;
+    display:flex;align-items:center;gap:14px}
+  .sum{color:var(--muted);font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #log{background:#080a0d;border:1px solid var(--line);border-radius:10px;padding:14px;margin:0 0 18px;
+    font:12.5px/1.55 var(--mono);white-space:pre-wrap;max-height:320px;overflow:auto}
+  #log .info{color:var(--text)} #log .bad{color:var(--bad)} #log .ok{color:var(--ok)}
+  #log .title{color:var(--accent);font-weight:600;font-size:inherit;margin:0} #log .prog{color:var(--muted)}
+  [hidden]{display:none !important}
+  .lang{margin-left:auto;background:var(--card2);color:var(--muted);border:1px solid var(--line);border-radius:6px;
+    padding:4px 6px;font:12px var(--sans)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>DEVOPROTECT</h1>
+    <span class="ver" id="ver"></span>
+    <select class="lang" id="lang" aria-label="Language" translate="no"></select>
+  </header>
+
+  <section class="card row" id="update" hidden>
+    <span class="name" id="updatetext"></span>
+    <button class="small" id="updatebtn">Update</button>
+  </section>
+
+  <section class="card">
+    <div class="row">
+      <button id="pick">Choose a map...</button>
+      <span class="name" id="mapname">no map selected (.w3x, .w3m, .w3n)</span>
+    </div>
+    <div class="row">
+      <span class="lbl">Save to</span>
+      <span class="name" id="outname">-</span>
+      <button class="small" id="pickout" disabled>Change...</button>
+    </div>
+  </section>
+
+  <fieldset id="form">
+    <section class="card">
+      <div class="seg" id="modes">
+        <label><input type="radio" name="mode" value="full" checked> Full protection <em>recommended</em></label>
+        <label><input type="radio" name="mode" value="script"> Script only</label>
+        <label><input type="radio" name="mode" value="archive"> Archive only</label>
+        <label><input type="radio" name="mode" value="custom"> Custom</label>
+      </div>
+      <div class="hint" id="modehint"></div>
+    </section>
+
+    <section class="card" id="steps" hidden>
+      <div class="step">
+        <label class="sw"><input type="checkbox" data-opt="shuffle"> Shuffle object IDs</label>
+        <div class="desc">Custom IDs (h000, A00B...) become meaningless ones everywhere. The key (.tsv) is saved next to the output and stays with you.</div>
+        <details>
+          <summary>Advanced</summary>
+          <div class="keyrow">
+            <button class="small" id="pickkey">Previous key...</button>
+            <span class="name" id="keyname">none: every ID is drawn anew</span>
+            <button class="small" id="clearkey" title="Forget the previous key" hidden>Clear</button>
+          </div>
+          <div class="hint">The key of this map's previous release: objects in both keep their IDs, so save codes keep working. A campaign takes the keys folder.</div>
+          <label class="tog"><input type="checkbox" data-opt="non_ascii_ids"> non-printable IDs</label>
+        </details>
+      </div>
+      <div class="step">
+        <label class="sw"><input type="checkbox" data-opt="obfuscate"> Obfuscate the script</label>
+        <div class="desc">Names, strings and rawcodes of the JASS or Lua script become unreadable; the map behaves the same.</div>
+        <details>
+          <summary>Advanced</summary>
+          <label class="tog"><input type="checkbox" data-opt="to_lua"> convert a JASS script to Lua first (the map then needs Warcraft III 1.31 or newer)</label>
+        </details>
+      </div>
+      <div class="step">
+        <label class="sw"><input type="checkbox" data-opt="block"> Remove editor-only files</label>
+        <div class="desc">What only the World Editor uses goes out: the map no longer opens there as a normal map.</div>
+        <details>
+          <summary>Advanced</summary>
+          <label class="tog"><input type="checkbox" data-opt="block_w3i"> w3i counters</label>
+          <label class="tog"><input type="checkbox" data-opt="block_wtg"> triggers (wtg+wct)</label>
+          <label class="tog"><input type="checkbox" data-opt="block_extra"> extra (w3c/w3s/imp)</label>
+          <label class="tog"><input type="checkbox" data-opt="block_units"> unit placement (units.doo)</label>
+          <label class="tog"><input type="checkbox" data-opt="block_doo"> doodads (war3map.doo, only if the script creates every one)</label>
+        </details>
+      </div>
+      <div class="step">
+        <label class="sw"><input type="checkbox" data-opt="optimize"> Optimize size</label>
+        <div class="desc" id="optdesc"></div>
+        <details>
+          <summary>Optimize options</summary>
+          <label class="tog"><input type="checkbox" data-opt="opt_recompress"> recompress (best stream per sector)</label>
+          <label class="tog"><input type="checkbox" data-opt="opt_blp"> re-optimize BLP textures (lossless)</label>
+          <label class="tog"><input type="checkbox" data-opt="opt_dedup"> store identical files once</label>
+          <label class="tog"><input type="checkbox" data-opt="opt_lossy"> <span class="gated">lossy, only above the game's 512 MiB limit: half-size textures, mono 22 kHz sound</span></label>
+        </details>
+      </div>
+      <div class="step">
+        <div class="title">Final pack</div>
+        <div class="seg" id="packs">
+          <label><input type="radio" name="pack" value="protect"> Protect (sector 512)</label>
+          <label><input type="radio" name="pack" value="none"> None</label>
+        </div>
+        <div class="desc" id="packdesc"></div>
+        <details>
+          <summary>Extras</summary>
+          <label class="tog"><input type="checkbox" data-opt="dds"> Convert DDS textures to BLP (smaller, native)</label>
+        </details>
+      </div>
+    </section>
+
+    <details class="card" id="experimental" hidden>
+      <summary>Decoys and markers</summary>
+      <div class="exp-body">
+        <div class="hint" style="margin-top:0">Fake files and malformed-MPQ markers. The markers only apply to the sector-512 pack, and add no barrier of their own: MPQ Editor already refuses that archive.</div>
+        <label class="tog"><input type="checkbox" data-opt="decoy_wtg"> decoy triggers (fake wtg+wct)</label>
+        <label class="tog"><input type="checkbox" data-opt="decoy_listfile"> lying file list</label>
+        <label class="tog"><input type="checkbox" data-opt="decoy_imp"> decoy imports</label>
+        <label class="tog"><input type="checkbox" data-opt="decoy_fill"> fill the hash table with decoys (no new file can be added)</label>
+        <label class="tog"><input type="checkbox" data-opt="variant_header"> variant: header size</label>
+        <label class="tog"><input type="checkbox" data-opt="variant_high_sector"> variant: sector high byte</label>
+        <label class="tog"><input type="checkbox" data-opt="variant_bit31"> variant: block table bit31</label>
+      </div>
+    </details>
+  </fieldset>
+
+  <div class="bar">
+    <button class="go" id="run" disabled>Protect</button>
+    <span class="sum" id="summary"></span>
+    <button class="small" id="togglelog" hidden>Show details</button>
+  </div>
+  <pre id="log" hidden></pre>
+</div>
+
+<script src="i18n_data.js"></script>
+<script src="i18n.js"></script>
+<script>
+  var MAP = null, OUT = null, OPTIONS = {}, RUNNING = false;
+  var logEl = document.getElementById('log'), sumEl = document.getElementById('summary');
+  var logBtn = document.getElementById('togglelog');
+
+  var JOB = null;
+  var KEY = null, KEY_CAMPAIGN = false;
+  function api(){ return (window.pywebview && window.pywebview.api) || window._fakeApi; }
+  function $(id){ return document.getElementById(id); }
+  function opt(k){ return document.querySelector('input[data-opt="' + k + '"]'); }
+  function isCampaign(p){ return !!p && /\.w3n$/i.test(p); }
+  function baseName(p){ return String(p).split(/[\\/]/).pop(); }
+  var WEB = !!window.DEVOPROTECT_WEB;
+  function shown(p){ return WEB ? baseName(p) : p; }
+  function defaultOut(p){ return p.replace(/(\.[^.\\/]+)?$/, function(ext){ return '_protected' + (ext || ''); }); }
+
+  function setRunnable(){
+    $('run').disabled = !MAP || RUNNING;
+    $('pick').disabled = RUNNING;
+    $('pickout').disabled = !MAP || RUNNING;
+    $('form').disabled = RUNNING;
+    $('pickkey').disabled = RUNNING || !OPTIONS['shuffle'];
+  }
+
+  function setKey(path){
+    KEY = path || null;
+    if(KEY){ OPTIONS['previous_key'] = KEY; }else{ delete OPTIONS['previous_key']; }
+    $('keyname').textContent = KEY || 'none: every ID is drawn anew';
+    $('clearkey').hidden = !KEY;
+  }
+
+  function setOut(path){
+    OUT = path || null;
+    $('outname').textContent = MAP ? shown(OUT || defaultOut(MAP)) : '-';
+  }
+
+  function showLog(on){
+    logEl.hidden = !on;
+    logBtn.textContent = on ? 'Hide details' : 'Show details';
+  }
+  function clearLog(){ logEl.innerHTML = ''; logBtn.hidden = true; showLog(false); }
+  function addLine(style, text){
+    var d = document.createElement('div');
+    d.className = style || 'info';
+    d.textContent = text;
+    logEl.appendChild(d);
+    logEl.scrollTop = logEl.scrollHeight;
+    logBtn.hidden = false;
+  }
+  logBtn.addEventListener('click', function(){ showLog(logEl.hidden); });
+
+  var MODES = {
+    full: {shuffle: true, obfuscate: true, block: true, optimize: false, pack: 'protect',
+           hint: 'The recommended set: shuffled IDs, obfuscated script, editor-only files removed, sector-512 pack.'},
+    script: {shuffle: true, obfuscate: true, block: false, optimize: false, pack: 'none',
+             hint: 'Only the script and the object IDs: no editor-only file is removed and the archive stays a normal one.'},
+    archive: {shuffle: false, obfuscate: false, block: true, optimize: false, pack: 'protect',
+              hint: 'Only the archive: editor-only files removed and the sector-512 pack; the script stays readable.'},
+    custom: {hint: 'Pick each step below. Changing the mode again resets the main steps.'}
+  };
+  var MAIN = ['shuffle', 'obfuscate', 'block', 'optimize'];
+  function applyMode(mode){
+    var m = MODES[mode] || MODES.custom;
+    MAIN.forEach(function(k){
+      if(k in m){ OPTIONS[k] = m[k]; opt(k).checked = m[k]; }
+    });
+    if(m.pack){ setPack(m.pack); }
+    $('modehint').textContent = m.hint;
+    $('steps').hidden = mode !== 'custom';
+    $('experimental').hidden = mode !== 'custom';
+    setRunnable();
+  }
+  function modeOf(o){
+    var p = packOf(o);
+    for(var k in MODES){
+      var m = MODES[k];
+      if(m.pack && m.pack === p && MAIN.every(function(x){ return m[x] === !!o[x]; })){
+        return k;
+      }
+    }
+    return 'custom';
+  }
+
+  var VARIANTES = ['variant_header', 'variant_high_sector', 'variant_bit31'];
+  var DO_512 = ['opt_recompress', 'opt_dedup'];
+  var ANTES = {};
+  var PACK_DESC = {
+    protect: 'Rebuilds the archive with 512-byte sectors: the game reads it, MPQ Editor and StormLib tools refuse it.',
+    none: 'A normal archive that MPQ tools open. Only the live files are kept, so the old copies the steps replaced '
+      + '(the original script included) are left out.'
+  };
+  var OPT_DESC = {
+    protect: 'Smaller content before the pack: BLP textures rewritten without loss (same pixels). The sector-512 pack '
+      + 'already recompresses every sector and stores identical files once, but stays bigger than a 64 KB repack.',
+    none: 'The smallest map: repacked with 64 KB sectors and the best stream per sector, BLP textures rewritten '
+      + 'without loss, identical files stored once.'
+  };
+  function lock(k, locked, value){
+    var el = opt(k);
+    el.disabled = locked;
+    if(locked){
+      if(!(k in ANTES)){ ANTES[k] = el.checked; }
+      el.checked = value; OPTIONS[k] = value;
+    }else if(k in ANTES){
+      el.checked = ANTES[k]; OPTIONS[k] = el.checked; delete ANTES[k];
+    }
+  }
+  function packOf(o){ return o.pack ? 'protect' : 'none'; }
+  function setPack(pack){
+    var on = pack === 'protect';
+    OPTIONS['pack'] = on;
+    document.querySelectorAll('input[name="pack"]').forEach(function(r){ r.checked = r.value === pack; });
+    $('packdesc').textContent = PACK_DESC[pack];
+    $('optdesc').textContent = OPT_DESC[pack];
+    VARIANTES.forEach(function(k){ lock(k, !on, false); });
+    DO_512.forEach(function(k){ lock(k, on, true); });
+  }
+
+  function bindControls(){
+    document.querySelectorAll('input[data-opt]').forEach(function(el){
+      var k = el.getAttribute('data-opt');
+      el.checked = !!OPTIONS[k];
+      el.addEventListener('change', function(){
+        OPTIONS[k] = el.checked;
+        if(k === 'shuffle') setRunnable();
+      });
+    });
+    document.querySelectorAll('input[name="pack"]').forEach(function(r){
+      r.addEventListener('change', function(){ if(r.checked) setPack(r.value); });
+    });
+    document.querySelectorAll('input[name="mode"]').forEach(function(r){
+      r.addEventListener('change', function(){ if(r.checked) applyMode(r.value); });
+    });
+  }
+
+  async function init(){
+    var a = api(); if(!a) return;
+    var h = await a.hello();
+    $('ver').textContent = 'v' + String(h.version || '');
+    OPTIONS = h.options || {};
+    bindControls();
+    setPack(packOf(OPTIONS));
+    var mode = modeOf(OPTIONS);
+    document.querySelectorAll('input[name="mode"]').forEach(function(r){ r.checked = r.value === mode; });
+    applyMode(mode);
+    setKey(OPTIONS['previous_key'] || null);
+    setRunnable();
+    if(h.map){ setMap(h.map); }
+    if(a.check_update){
+      a.check_update().then(function(r){
+        if(!r) return;
+        $('updatetext').textContent = 'Version ' + r.version + ' is out.';
+        $('update').hidden = false;
+      });
+      $('updatebtn').addEventListener('click', function(){
+        $('updatebtn').disabled = true;
+        $('updatetext').textContent = 'Updating...';
+        a.update();
+      });
+    }
+  }
+
+  function setMap(path){
+    MAP = path;
+    $('mapname').textContent = shown(path);
+    setOut(null);
+    sumEl.textContent = ''; clearLog();
+    var camp = isCampaign(path);
+    $('pickkey').textContent = camp ? 'Previous keys folder...' : 'Previous key...';
+    if(KEY && camp !== KEY_CAMPAIGN){
+      setKey(null);
+      sumEl.textContent = 'Previous key cleared: ' + (camp ? 'a campaign takes the keys folder.' : 'a map takes its .tsv key.');
+    }
+    setRunnable();
+  }
+
+  $('pick').addEventListener('click', async function(){
+    var p = await api().pick_map();
+    if(p) setMap(p);
+  });
+  $('pickout').addEventListener('click', async function(){
+    var p = await api().pick_save(baseName(OUT || defaultOut(MAP)));
+    if(p) setOut(p);
+  });
+  $('pickkey').addEventListener('click', async function(){
+    var camp = isCampaign(MAP);
+    var p = await api().pick_key(camp);
+    if(p){ KEY_CAMPAIGN = camp; setKey(p); }
+  });
+  $('clearkey').addEventListener('click', function(){ setKey(null); });
+
+  $('run').addEventListener('click', async function(){
+    if(!MAP || RUNNING) return;
+    RUNNING = true; setRunnable();
+    clearLog(); sumEl.textContent = 'Working...';
+    JOB = null;
+    try{
+      JOB = await api().start({map: MAP, out: OUT, options: OPTIONS});
+      if(!JOB){ throw new Error('busy: a job is already running'); }
+    }catch(e){
+      addLine('bad', 'ERROR: ' + (e && e.message ? e.message : e));
+      showLog(true);
+      sumEl.textContent = 'Failed.'; RUNNING = false; setRunnable();
+    }
+  });
+
+  window.onJob = function(payload){
+    var ev; try{ ev = JSON.parse(payload); }catch(e){ return; }
+    if(JOB && ev.job && ev.job !== JOB){ return; }
+    if(ev.type === 'progress'){ if(ev.text){ addLine('prog', ev.text); sumEl.textContent = ev.text; } }
+    else if(ev.type === 'error'){
+      addLine('bad', 'ERROR: ' + (ev.message||'')); showLog(true);
+      sumEl.textContent = 'Failed.'; RUNNING = false; setRunnable();
+    }
+    else if(ev.type === 'result'){
+      (ev.lines||[]).forEach(function(l){ addLine(l[0], (l[0]==='bad'?'! ':'') + l[1]); });
+      var s = ev.summary || '';
+      if(ev.out && !WEB){ s += '  ->  ' + ev.out; }
+      sumEl.textContent = s;
+      if(ev.ok && ev.key){ addLine('info', 'key (keep it, not in the map): ' + ev.key); }
+      if(!ev.ok){ showLog(true); }
+      RUNNING=false; setRunnable();
+    }
+  };
+
+  function languagePicker(){
+    var i18n = window.pageI18n, sel = $('lang');
+    if(!i18n || !sel){ if(sel){ sel.hidden = true; } return; }
+    Object.keys(i18n.langs).forEach(function(code){
+      var o = document.createElement('option');
+      o.value = code; o.textContent = i18n.langs[code];
+      sel.appendChild(o);
+    });
+    sel.value = i18n.lang;
+    sel.addEventListener('change', function(){ i18n.setLang(sel.value); });
+  }
+  languagePicker();
+
+  window.addEventListener('pywebviewready', init);
+  if(window._fakeApi){ init(); }
+</script>
+</body>
+</html>
