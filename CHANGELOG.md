@@ -3,6 +3,15 @@
 What each version of DevoProtect brought, the newest first. The downloads are on the
 [Releases](https://github.com/devoltzz/devoprotect/releases) page.
 
+## 0.1.2 (2026-10-17)
+
+- Big maps no longer break the site. To check each step, DevoProtect kept a full copy of the map's files after every
+  step, and on a large map with many options on, the browser ran out of memory during the final pack ("RangeError:
+  invalid or out-of-range index"). Now only the last two steps are kept in full and the older ones as a checksum per
+  file, so the check is the same and the memory use is much lower: a 157 MB map with everything on went from 2.2 GB
+  to 1.7 GB. The Windows and Linux programs use less memory too.
+- The site still has a limit of about 2 GB of memory. For very large maps with every option on, use the program.
+
 ## 0.1.1 (2026-10-17)
 
 Fixes after a review of the JASS to Lua option and of the updater.
