@@ -3,6 +3,23 @@
 What each version of DevoProtect brought, the newest first. The downloads are on the
 [Releases](https://github.com/devoltzz/devoprotect/releases) page.
 
+## 0.1.1 (2026-10-17)
+
+Fixes after a review of the JASS to Lua option and of the updater.
+
+- JASS to Lua now refuses two kinds of map it can't convert: a script that declares natives the game doesn't have
+  (the ones from KK, YDWE, DzAPI and other platforms), and a map that carries its own `Blizzard.j` or `common.j`.
+  The job stops with a message that says why, instead of giving you a map that won't load.
+- If a function with a wait (`TriggerSleepAction`, `PolledWait`) runs as a callback outside the trigger's own thread,
+  for example inside a group loop or a timer, the map is still converted but the log lists those functions. JASS
+  skips the wait there, Lua can stop the function with an error, so they're worth a look.
+- A map whose archive header isn't MPQ version 1 is refused at the start, with a clear message. Before, it failed
+  halfway through.
+- Updates are checked: every download has to match the release's `SHA256SUMS.txt` before anything is replaced. The
+  window now also updates `DevoProtect-cli.exe` when it sits in the same folder, and if an update fails, the program
+  you have stays as it was.
+- The progress list shows the JASS to Lua step, in all the page's languages.
+
 ## 0.1.0 (2026-10-17)
 
 First public release.
