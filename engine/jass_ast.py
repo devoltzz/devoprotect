@@ -1858,6 +1858,17 @@ _STACKED.update({
 })
 
 
+def walk(node):
+    stack = [node]
+    pop, extend, stacked = stack.pop, stack.extend, _STACKED.__getitem__
+    while stack:
+        n = pop()
+        yield n
+        f = stacked(type(n))
+        if f is not None:
+            extend(f(n))
+
+
 _ASSOCIATIVE = frozenset(('+', '*', 'and', 'or'))
 
 
