@@ -70,6 +70,16 @@ def _known_pairs(name_list):
     return out
 
 
+def format(path):
+    try:
+        off = _ML.header_offset(path)
+        with open(path, 'rb') as f:
+            f.seek(off)
+            return struct.unpack('<4sIIH', f.read(14))[3]
+    except (Exception, SystemExit):
+        return None
+
+
 ATTRIBUTES = '(attributes)'
 ATTR_CRC32, ATTR_FILETIME, ATTR_MD5, ATTR_PATCH = 1, 2, 4, 8
 
