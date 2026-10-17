@@ -1,0 +1,6 @@
+numpy>=1.24
+pillow>=10.0
+pywebview>=6.2
+pyinstaller>=6.0
+zopfli==0.4.3
+lupa==2.8
