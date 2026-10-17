@@ -1,0 +1,30 @@
+{
+ "entry": "DevoProtect.py",
+ "engine_dir": "engine",
+ "icon": "assets/devoprotect.ico",
+ "config_var": "DEVOPROTECT_WEB",
+ "inject_before": "<script src=\"i18n_data.js\"></script>",
+ "inject": [
+  "config.js",
+  "ponte.js"
+ ],
+ "head_anchor": "</head>",
+ "web_files": [
+  "ponte.js",
+  "worker.js",
+  "worker.py",
+  "wasi_mini.js",
+  "fs_windows.js",
+  "mpqcrypt.js"
+ ],
+ "manifest": {
+  "name": "DevoProtect",
+  "short_name": "DevoProtect",
+  "description": "Protect Warcraft III maps from casual editing, in the browser."
+ },
+ "cache_prefix": "devoprotect",
+ "size_limit_mb": 250,
+ "mpqcrypt_c": "engine/mpqcrypt.c",
+ "inline_script": "page.js",
+ "after": []
+}
