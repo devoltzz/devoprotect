@@ -1,5 +1,6 @@
 # Converts a JASS map script to Lua with the same behavior, and sets the Lua flag of the map.
 import os
+import re
 
 import jass_ast
 import lua_ast
@@ -369,9 +370,69 @@ class Translator(object):
         raise TypeError('in JASS: %r' % (s,))
 
 
+MAP_OWN_FILES = ('Scripts\\Blizzard.j', 'Scripts\\common.j')
+RX_NATIVE_DECL = re.compile(r'(?m)^\s*(?:constant\s+)?native\s+(\w+)')
+WAITS = frozenset(('TriggerSleepAction', 'PolledWait', 'TriggerWaitForSound', 'WaitForSoundBJ'))
+NOT_CALLBACK = frozenset(('TriggerAddAction', 'ExecuteFunc'))
+
+
+def map_blizzard(ler):
+    for fname in MAP_OWN_FILES:
+        try:
+            if ler(fname):
+                return fname
+        except Exception:
+            pass
+    return None
+
+
+def game_natives(ref):
+    out = set()
+    for fname in ('common.j', 'common.ai'):
+        p = ref_file(ref, fname)
+        if os.path.isfile(p):
+            with open(p, encoding='utf-8', errors='replace') as f:
+                out |= set(RX_NATIVE_DECL.findall(f.read()))
+    return out
+
+
+def waits_in_callbacks(script):
+    called, expect, passed_to = {}, set(), {}
+    for f in script.functions:
+        tgt = called.setdefault(f.name, set())
+        for n in jass_ast.walk(f):
+            if type(n) is not jass_ast.Call:
+                continue
+            if n.name in WAITS:
+                expect.add(f.name)
+            tgt.add(n.name)
+            if n.name not in NOT_CALLBACK:
+                for x in n.args:
+                    while type(x) is jass_ast.Paren:
+                        x = x.inner
+                    if type(x) is jass_ast.FuncRef:
+                        passed_to.setdefault(x.name, set()).add(n.name)
+    changed = True
+    while changed:
+        changed = False
+        for f, targets in called.items():
+            if f not in expect and targets & expect:
+                expect.add(f)
+                changed = True
+    return dict((f, sorted(v)) for f, v in sorted(passed_to.items()) if f in expect)
+
+
 def converte(body_text, ref=None, log=print):
     script = jass_ast.parse(body_text)
     ref = ref or DEFAULT_REF
+    game = game_natives(ref)
+    outside = sorted(set(f.name for f in script.natives) - game)
+    if outside:
+        raise SystemExit(
+            'ABORT: the script declares %d native(s) the game does not have (platform ones: %s%s); in Lua they '
+            'do not exist and the map would break'
+            % (len(outside), ', '.join(outside[:8]), '...' if len(outside) > 8 else '')
+        )
     sig = signatures([ref_file(ref, 'common.j'), ref_file(ref, 'blizzard.j')], strict=True)
     types = Types(script, sig)
     name_list = renomeia(script, set(sig[0]) | set(sig[1]))
@@ -445,6 +506,12 @@ def converte(body_text, ref=None, log=print):
                'mid_returns': tr.mid_returns, 'integers_as_real': tr.real_blocks, 'concat_with_null': tr.jcat,
                'renamed': dict(name_list), 'functions_with_table_locals': n_table,
                'without_type': tr.without_type[:5], 'gates': {'G0 ref': 'ok (common.j and blizzard.j from %s)' % ref}}
+    details['waits_in_callbacks'] = waits_in_callbacks(script)
+    if details['waits_in_callbacks']:
+        log('WARNING: %d function(s) with a wait (TriggerSleepAction/PolledWait) called back outside the trigger '
+            'thread: %s. JASS ignores that wait; in Lua it can raise an error and stop the function' % (
+                len(details['waits_in_callbacks']), ', '.join('%s (by %s)' % (f, '/'.join(v)) for f, v in
+                                                            list(details['waits_in_callbacks'].items())[:6])))
     try:
         lua_ast.parse(output)
     except lua_ast.LuaSyntaxError as e:
