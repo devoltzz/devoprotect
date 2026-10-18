@@ -103,5 +103,9 @@
  "Cutting the hash table...": "Ořezávám hashovací tabulku...",
  "Hash table cut.": "Hashovací tabulka byla ořezána.",
  "extract-all bombs (a full extract balloons on disk; the game never reads them)": "bomby pro extrakci všeho (úplná extrakce zaplní disk; hra je nikdy nečte)",
- "cut the hash table (MPQ Editor opens read-only: list and extract, no edit)": "ořezat hashovací tabulku (MPQ Editor otevře mapu jen pro čtení: výpis a extrakce, žádné úpravy)"
+ "cut the hash table (MPQ Editor opens read-only: list and extract, no edit)": "ořezat hashovací tabulku (MPQ Editor otevře mapu jen pro čtení: výpis a extrakce, žádné úpravy)",
+ "&mdash; desktop only: the browser cannot read your game": "&mdash; jen v desktopové aplikaci: prohlížeč vaši hru přečíst nemůže",
+ "Converting object data to SLK tables...": "Převádím data objektů na tabulky SLK...",
+ "Object data converted to SLK tables.": "Data objektů byla převedena na tabulky SLK.",
+ "convert object data to SLK tables (fewer objects are built on load, which helps Reforged; needs Warcraft III installed)": "převést data objektů na tabulky SLK (při načtení se vytvoří méně objektů, což Reforged pomáhá; vyžaduje nainstalovaný Warcraft III)"
 }
