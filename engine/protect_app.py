@@ -18,6 +18,7 @@ STEPS = {
     'protect': 'Repacking the archive...',
     'optimize': 'Optimizing the size...',
     'dds': 'Converting DDS textures to BLP...',
+    'slk': 'Converting object data to SLK tables...',
     'bulk': 'Writing the extract-all bombs...',
     'cut_step': 'Cutting the hash table...',
     'clean': 'Dropping the old copies the steps replaced...',
@@ -31,6 +32,7 @@ DONE = {
     'protect': 'Archive repacked.',
     'optimize': 'Size optimized.',
     'dds': 'DDS textures converted to BLP.',
+    'slk': 'Object data converted to SLK tables.',
     'bulk': 'Extract-all bombs written.',
     'cut_step': 'Hash table cut.',
     'clean': 'Old copies dropped.',
@@ -75,6 +77,8 @@ def recipe_kwargs(options):
         'lua_layers': int(o.get('lua_layers', 2)),
         'blp': bool(o.get('blp')),
         'convert_dds': bool(o.get('dds')),
+        'convert_slk': bool(o.get('to_slk')),
+        'slk_game': (str(o['game']).strip() or None) if o.get('game') else None,
         'convert_lua': bool(o.get('to_lua')),
         'optimization': optimize,
         'bulk': _bulk_default() if o.get('bombs') else None,
@@ -89,7 +93,7 @@ def default_options():
             'block_w3i': True, 'block_wtg': True, 'block_extra': True, 'block_units': True, 'block_doo': True,
             'block_w3r': False, 'lua_layers': 2,
             'optimize': False, 'opt_recompress': True, 'opt_blp': True, 'opt_dedup': True, 'opt_lossy': False,
-            'dds': False, 'bombs': False, 'cut_hash': False}
+            'dds': False, 'bombs': False, 'cut_hash': False, 'to_slk': False}
 
 
 def run_job(job, emit):
