@@ -97,5 +97,11 @@
  "variant: header size": "variante : taille de l'en-tête",
  "variant: sector high byte": "variante : octet de poids fort du secteur",
  "w3i counters": "compteurs w3i",
- "{0}: skipped": "{0} : ignoré"
+ "{0}: skipped": "{0} : ignoré",
+ "Writing the extract-all bombs...": "Écriture des bombes d'extraction totale...",
+ "Extract-all bombs written.": "Bombes d'extraction totale écrites.",
+ "Cutting the hash table...": "Découpe de la table de hachage...",
+ "Hash table cut.": "Table de hachage découpée.",
+ "extract-all bombs (a full extract balloons on disk; the game never reads them)": "bombes d'extraction totale (une extraction complète fait exploser l'espace disque ; le jeu ne les lit jamais)",
+ "cut the hash table (MPQ Editor opens read-only: list and extract, no edit)": "couper la table de hachage (MPQ Editor s'ouvre en lecture seule : lister et extraire, sans modifier)"
 }
