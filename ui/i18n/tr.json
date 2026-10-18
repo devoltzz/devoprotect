@@ -103,5 +103,9 @@
  "Cutting the hash table...": "Karma tablosu kesiliyor...",
  "Hash table cut.": "Karma tablosu kesildi.",
  "extract-all bombs (a full extract balloons on disk; the game never reads them)": "tümünü çıkarma bombaları (tam çıkarma diski şişirir; oyun bunları asla okumaz)",
- "cut the hash table (MPQ Editor opens read-only: list and extract, no edit)": "karma tablosunu kes (MPQ Editor salt okunur açar: listeler ve çıkarır, düzenleme yok)"
+ "cut the hash table (MPQ Editor opens read-only: list and extract, no edit)": "karma tablosunu kes (MPQ Editor salt okunur açar: listeler ve çıkarır, düzenleme yok)",
+ "&mdash; desktop only: the browser cannot read your game": "&mdash; yalnızca masaüstü: tarayıcı oyununuzu okuyamaz",
+ "Converting object data to SLK tables...": "Nesne verileri SLK tablolarına dönüştürülüyor...",
+ "Object data converted to SLK tables.": "Nesne verileri SLK tablolarına dönüştürüldü.",
+ "convert object data to SLK tables (fewer objects are built on load, which helps Reforged; needs Warcraft III installed)": "nesne verilerini SLK tablolarına dönüştür (yükleme sırasında daha az nesne oluşturulur, bu Reforged'a yardımcı olur; Warcraft III kurulu olmalı)"
 }
