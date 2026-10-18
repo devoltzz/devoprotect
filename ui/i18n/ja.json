@@ -103,5 +103,9 @@
  "Cutting the hash table...": "ハッシュテーブルを切り詰め中...",
  "Hash table cut.": "ハッシュテーブルを切り詰めました。",
  "extract-all bombs (a full extract balloons on disk; the game never reads them)": "全抽出用の爆弾ファイル(すべて抽出するとディスクが膨れ上がります。ゲームは読み込みません)",
- "cut the hash table (MPQ Editor opens read-only: list and extract, no edit)": "ハッシュテーブルを切り詰める(MPQ Editor では読み取り専用で開きます: 一覧表示と抽出のみ、編集不可)"
+ "cut the hash table (MPQ Editor opens read-only: list and extract, no edit)": "ハッシュテーブルを切り詰める(MPQ Editor では読み取り専用で開きます: 一覧表示と抽出のみ、編集不可)",
+ "&mdash; desktop only: the browser cannot read your game": "&mdash; デスクトップ版のみ: ブラウザではお使いのゲームを読み込めません",
+ "Converting object data to SLK tables...": "オブジェクトデータを SLK テーブルに変換中...",
+ "Object data converted to SLK tables.": "オブジェクトデータを SLK テーブルに変換しました。",
+ "convert object data to SLK tables (fewer objects are built on load, which helps Reforged; needs Warcraft III installed)": "オブジェクトデータを SLK テーブルに変換する(読み込み時に作られるオブジェクトが減り、Reforged で有利になります。Warcraft III のインストールが必要)"
 }
