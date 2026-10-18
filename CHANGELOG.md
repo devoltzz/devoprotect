@@ -3,6 +3,16 @@
 What each version of DevoProtect brought, the newest first. The downloads are on the
 [Releases](https://github.com/devoltzz/devoprotect/releases) page.
 
+## 0.1.4 (2026-10-18)
+
+- Convert object data to SLK tables. In Custom, under "Remove editor-only files", you can turn the map's units, items
+  and abilities into the game's own tables (`Units\*.slk` and the profile `.txt` files), the way W3Optimizer and
+  w3x2lni do. Fewer objects are built when the map loads, which helps with Reforged disconnects on maps with hundreds
+  of abilities, and the World Editor no longer shows the custom objects. In the command line it is `--to-slk`. The map
+  grows (it carries the game's tables), and the conversion is still to be proven in game, so it is off by default.
+- It needs Warcraft III installed to read the game's tables. On Windows the game is found automatically; on Linux pass
+  `--game=<folder>`. In the browser the option is turned off, because the page cannot read your game.
+
 ## 0.1.3 (2026-10-17)
 
 Two new layers against the tools that unpack maps, both in the command line and in Custom under "Decoys and markers".
