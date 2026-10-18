@@ -97,5 +97,11 @@
  "variant: header size": "варіант: розмір заголовка",
  "variant: sector high byte": "варіант: старший байт сектора",
  "w3i counters": "лічильники w3i",
- "{0}: skipped": "{0}: пропущено"
+ "{0}: skipped": "{0}: пропущено",
+ "Writing the extract-all bombs...": "Запис бомб для «видобути все»...",
+ "Extract-all bombs written.": "Бомби для «видобути все» записано.",
+ "Cutting the hash table...": "Обрізання хеш-таблиці...",
+ "Hash table cut.": "Хеш-таблицю обрізано.",
+ "extract-all bombs (a full extract balloons on disk; the game never reads them)": "бомби для «видобути все» (повне видобування роздуває диск; гра їх ніколи не читає)",
+ "cut the hash table (MPQ Editor opens read-only: list and extract, no edit)": "обрізати хеш-таблицю (MPQ Editor відкриває лише для читання: перегляд і видобування, без редагування)"
 }
