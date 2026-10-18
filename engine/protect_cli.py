@@ -21,6 +21,12 @@ Options (each toggle of each step; default: full protection, ASCII IDs, no decoy
     --variant=header,high-sector,bit31         malformed-MPQ header markers. No extra barrier:
                                                they ride on the sector-512 pack, which MPQ Editor already refuses
                                                to open; ignored with --skip=pack
+    --bombs                                    extract-all defense: decoy files with a huge declared size, so a
+                                               tool that extracts everything balloons on disk; the game never
+                                               reads them. Not with --variant=bit31
+    --cut-hash                                 cut the hash table: MPQ Editor and StormLib open the map read-only
+                                               (they list and extract, but cannot edit it); the game plays it
+                                               unchanged. Not with --variant=bit31
     --ids-non-ascii                            non-printable object IDs (control characters)
     --to-lua                                   convert a JASS script to Lua first (the map then needs 1.31+)
     --lua-layers=N                             loader layers for Lua maps (default 2)
@@ -51,20 +57,8 @@ def _opt(argv, name, default=None):
 
 
 VALUE_FLAGS = ('skip', 'block', 'decoys', 'variant', 'lua-layers', 'seed', 'previous-key')
-BARE_FLAGS = (
-    'ids-non-ascii',
-    'to-lua',
-    'blp',
-    'optimize',
-    'no-recompress',
-    'no-dedup',
-    'no-blp-opt',
-    'lossy',
-    'dds',
-    'cli',
-    'help',
-    'version',
-)
+BARE_FLAGS = ('ids-non-ascii', 'to-lua', 'blp', 'optimize', 'no-recompress', 'no-dedup', 'no-blp-opt', 'lossy', 'dds',
+          'bombs', 'cut-hash', 'cli', 'help', 'version')
 
 
 def positional(argv):
@@ -124,6 +118,8 @@ def parse_options(argv, extra_value=(), extra_bare=()):
     o['to_lua'] = '--to-lua' in argv
     o['blp'] = '--blp' in argv
     o['dds'] = '--dds' in argv
+    o['bombs'] = '--bombs' in argv
+    o['cut_hash'] = '--cut-hash' in argv
     if '--optimize' in argv:
         o['optimize'] = True
         o['opt_recompress'] = '--no-recompress' not in argv
@@ -142,7 +138,7 @@ def parse_options(argv, extra_value=(), extra_bare=()):
     return o, warnings
 
 
-def main(argv=None, version='0.1.2'):
+def main(argv=None, version='0.1.3'):
     import protect_app
     argv = sys.argv[1:] if argv is None else list(argv)
     try:
