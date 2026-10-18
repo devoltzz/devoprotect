@@ -29,6 +29,11 @@ Options (each toggle of each step; default: full protection, ASCII IDs, no decoy
                                                unchanged. Not with --variant=bit31
     --ids-non-ascii                            non-printable object IDs (control characters)
     --to-lua                                   convert a JASS script to Lua first (the map then needs 1.31+)
+    --to-slk                                   convert the object data to the game's SLK tables (fewer objects are
+                                               built on load, which helps Reforged; the editor no longer shows the
+                                               custom objects). Needs Warcraft III installed; on Windows it is found
+                                               automatically, on Linux pass --game
+    --game=<folder>                            the Warcraft III folder, for --to-slk on Linux (Windows finds it)
     --lua-layers=N                             loader layers for Lua maps (default 2)
     --blp                                      lossless BLP re-optimization in the protect pack (sector 512)
     --seed=N                                   shuffle seed (default: from the map's sha256)
@@ -56,9 +61,24 @@ def _opt(argv, name, default=None):
     return default
 
 
-VALUE_FLAGS = ('skip', 'block', 'decoys', 'variant', 'lua-layers', 'seed', 'previous-key')
-BARE_FLAGS = ('ids-non-ascii', 'to-lua', 'blp', 'optimize', 'no-recompress', 'no-dedup', 'no-blp-opt', 'lossy', 'dds',
-          'bombs', 'cut-hash', 'cli', 'help', 'version')
+VALUE_FLAGS = ('skip', 'block', 'decoys', 'variant', 'lua-layers', 'seed', 'previous-key', 'game')
+BARE_FLAGS = (
+    'ids-non-ascii',
+    'to-lua',
+    'to-slk',
+    'blp',
+    'optimize',
+    'no-recompress',
+    'no-dedup',
+    'no-blp-opt',
+    'lossy',
+    'dds',
+    'bombs',
+    'cut-hash',
+    'cli',
+    'help',
+    'version',
+)
 
 
 def positional(argv):
@@ -120,6 +140,9 @@ def parse_options(argv, extra_value=(), extra_bare=()):
     o['dds'] = '--dds' in argv
     o['bombs'] = '--bombs' in argv
     o['cut_hash'] = '--cut-hash' in argv
+    o['to_slk'] = '--to-slk' in argv
+    if _opt(argv, 'game') is not None:
+        o['game'] = _opt(argv, 'game')
     if '--optimize' in argv:
         o['optimize'] = True
         o['opt_recompress'] = '--no-recompress' not in argv
@@ -138,7 +161,7 @@ def parse_options(argv, extra_value=(), extra_bare=()):
     return o, warnings
 
 
-def main(argv=None, version='0.1.3'):
+def main(argv=None, version='0.1.4'):
     import protect_app
     argv = sys.argv[1:] if argv is None else list(argv)
     try:
