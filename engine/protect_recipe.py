@@ -11,7 +11,19 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ARCHIVE_ROOT = os.path.normpath(os.path.join(HERE, '..', '..'))
 DEFAULT_REF = next((p for p in (os.path.join(ARCHIVE_ROOT, 'common', 'ref', '3.0'), os.path.join(HERE, 'ref', '3.0'))
                     if os.path.isfile(os.path.join(p, 'common.j'))), os.path.join(ARCHIVE_ROOT, 'common', 'ref', '3.0'))
-STEPS = ('shuffle', 'lua', 'dds', 'obfuscate', 'slk', 'lock_editor', 'decoy', 'protect', 'bulk', 'cut_step')
+STEPS = (
+    'anticheat',
+    'shuffle',
+    'lua',
+    'dds',
+    'obfuscate',
+    'slk',
+    'lock_editor',
+    'decoy',
+    'protect',
+    'bulk',
+    'cut_step',
+)
 NO_CONTENTS = ('(listfile)', '(attributes)', '(signature)')
 
 
@@ -300,6 +312,7 @@ def _recipe(
     convert_lua=False,
     bulk=None,
     cut_step=False,
+    anticheat=None,
 ):
     import editor_lock
     import id_shuffle
@@ -318,6 +331,9 @@ def _recipe(
             'unknown mechanism in --block: %s (valid: %s)'
             % (sorted(mechanisms - valid_ids), ', '.join(sorted(valid_ids)))
         )
+    if anticheat is not None:
+        import anticheat as _anticheat
+        anticheat = _anticheat.normalize(anticheat)
     entry, output = os.path.abspath(entry), os.path.abspath(output)
     if same_file(entry, output):
         raise SystemExit('the output must be another file (the input never changes)')
@@ -370,6 +386,69 @@ def _recipe(
 
     def next_steps(fname):
         return os.path.join(tmp, '%d_%s.w3x' % (STEPS.index(fname) + 1, fname))
+
+    keep_for_obfuscator = []
+
+    def anticheat_step(origin, previous):
+        import anticheat as _ac
+        t0 = time.time()
+        a = mpqread.Archive(origin)
+        lua_bytes = editor_lock._read(a, 'war3map.lua')
+        fname, script = ('war3map.lua', lua_bytes) if lua_bytes else editor_lock._script(a)
+        lang = 'lua' if script is not None and fname.endswith('.lua') else 'jass'
+        if script is None or (lang == 'jass' and b'function main' not in script):
+            why = ('no script in the map' if script is None else
+                   'the war3map.j (%d B) has no `function main`: the real script is not in it' % len(script))
+            details['steps'].append({'step': 'anticheat', 'status': 'skipped (%s)' % why})
+            log('[anticheat] skipped: %s' % why)
+            return origin, previous
+        new_t, r = _ac.applies(script, lang, ref=ref, **anticheat)
+        if not r['applied']:
+            why = 'no piece applied: %s' % '; '.join(r['line_list'])[:200]
+            details['steps'].append({'step': 'anticheat', 'status': 'skipped (%s)' % why, 'pieces': {
+                k: v['status'] for k, v in r['pieces'].items()}})
+            log('[anticheat] skipped: %s' % why)
+            return origin, previous
+        if lang == 'jass':
+            j_before, j_after = os.path.join(tmp, 'anticheat_before.j'), os.path.join(tmp, 'anticheat_after.j')
+            with open(j_before, 'wb') as f:
+                f.write(script)
+            with open(j_after, 'wb') as f:
+                f.write(new_t)
+            pj_before, _s = pjass_run(j_before, ref, os.path.join(tmp, 'pj_ac_before'), verbose)
+            pj_after, _s = pjass_run(j_after, ref, os.path.join(tmp, 'pj_ac_after'), verbose)
+            if pj_before is not None and pj_after is not None and (pj_after[0] > pj_before[0] or
+                                                                   sum(pj_after) > sum(pj_before)):
+                raise SystemExit('ABORT at step anticheat: pjass finds %s with the anti-cheat and %s without it'
+                                 % (pj_after, pj_before))
+        new = next_steps('anticheat')
+        shutil.copyfile(origin, new)
+        mpqadd.add_files(new, [(fname, new_t)], log=lambda *x: None)
+        if mpqread.Archive(new).read(fname) != new_t:
+            raise SystemExit('ABORT at step anticheat: the script written in the map is not the injected one')
+        stages['anticheat'] = contents(new, ref_names)
+        outside = set(difference(stages[previous], stages['anticheat'])) - {fname.lower()}
+        if outside:
+            raise SystemExit('ABORT at step anticheat: something else changed (%s)' % ', '.join(sorted(outside)))
+        keep_for_obfuscator.extend(r['keep_names'])
+        on_close('anticheat', 'ok', t0, previous, 'anticheat', {
+            'script': fname, 'language': lang, 'pieces': dict((k, v['status']) for k, v in r['pieces'].items()),
+            'action_codes': r['action_codes'], 'keep_names': list(r['keep_names']), 'extra_bytes': r['bytes'],
+            'summary': '%s +%d B; %s' % (fname, r['bytes'], '; '.join(r['line_list']))})
+        return new, 'anticheat'
+
+    anticheat_deferred = False
+    if anticheat and 'anticheat' not in skip:
+        _language0 = mpqread.Archive(current)
+        _lua0 = editor_lock._read(_language0, 'war3map.lua')
+        _name0, _script0 = ('war3map.lua', _lua0) if _lua0 else editor_lock._script(_language0)
+        anticheat_deferred = bool(convert_lua and 'lua' not in skip and _script0 is not None
+                                  and not _name0.endswith('.lua'))
+        if not anticheat_deferred:
+            current, last = anticheat_step(current, last)
+    elif anticheat:
+        details['steps'].append({'step': 'anticheat', 'status': 'skipped'})
+        log('[anticheat] skipped')
 
     if 'shuffle' in skip:
         details['steps'].append({'step': 'shuffle', 'status': 'skipped'})
@@ -466,6 +545,9 @@ def _recipe(
                     j_name, len(lua_bytes), w3i_reason, '; '.join(str(v) for v in r['gates'].values()), warning)})
             current, last = new, 'lua'
 
+    if anticheat_deferred:
+        current, last = anticheat_step(current, last)
+
     if convert_dds and 'dds' not in skip:
         t0 = time.time()
         new = next_steps('dds')
@@ -532,7 +614,8 @@ def _recipe(
                     '--blizzard=' + os.path.join(ref, 'blizzard.j'),
                     '--map_path=' + os.path.join(tmp, 'obfuscate_map.json'),
                     '--verification=' + os.path.join(tmp, 'obfuscate_check.lua'),
-                ],
+                ]
+                + (['--keep_names=' + ','.join(keep_for_obfuscator)] if keep_for_obfuscator else []),
                 verbose,
             )
             if code_part:
@@ -946,6 +1029,7 @@ def _campaign(
     convert_lua=False,
     bulk=None,
     cut_step=False,
+    anticheat=None,
 ):
     if bulk is not None or cut_step:
         raise SystemExit('campaign: --bulk and --cut-hash only work on a SINGLE MAP (the .w3x): in a campaign the '
@@ -1062,6 +1146,7 @@ def _campaign(
             convert_lua=convert_lua,
             ref=ref,
             backup=None,
+            anticheat=anticheat,
             tmp=os.path.join(tmp, '%d_work' % i),
             retains=retains,
             verbose=verbose,
