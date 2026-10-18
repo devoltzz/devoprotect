@@ -179,9 +179,9 @@ def _apply_model(model, prefix, hook_name, jump, only_one, techs_jass, techs_lua
         t = t.replace('DEVOAC_', prefix)
     t = t.replace('ACHOOKFN', hook_name)
     if language == 'jass':
-        t = re.sub(r'(' + re.escape(prefix) + r'SALTO\s*=\s*)\d+', r'\g<1>%d' % int(jump), t, count=1)
+        t = re.sub(r'(' + re.escape(prefix) + r'JUMP\s*=\s*)\d+', r'\g<1>%d' % int(jump), t, count=1)
         t = re.sub(
-            r'(' + re.escape(prefix) + r'SO_UM\s*=\s*)(?:true|false)',
+            r'(' + re.escape(prefix) + r'ONLY_ONE\s*=\s*)(?:true|false)',
             r'\g<1>%s' % ('true' if only_one else 'false'),
             t,
             count=1,
@@ -192,8 +192,8 @@ def _apply_model(model, prefix, hook_name, jump, only_one, techs_jass, techs_lua
         line_list.append('    set %sNTECH = %d' % (prefix, len(techs_jass)))
         t = t.replace('    //<TECHS>', '\n'.join(line_list))
     else:
-        t = re.sub(r'(local SALTO\s*=\s*)\d+', r'\g<1>%d' % int(jump), t, count=1)
-        t = re.sub(r'(local SO_UM\s*=\s*)(?:true|false)', r'\g<1>%s' % ('true' if only_one else 'false'), t, count=1)
+        t = re.sub(r'(local JUMP\s*=\s*)\d+', r'\g<1>%d' % int(jump), t, count=1)
+        t = re.sub(r'(local ONLY_ONE\s*=\s*)(?:true|false)', r'\g<1>%s' % ('true' if only_one else 'false'), t, count=1)
         if techs_lua:
             block_body = 'techs = {' + ', '.join("FourCC('%s')" % x for x in techs_lua) + '}'
         else:
