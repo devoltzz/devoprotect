@@ -18,6 +18,8 @@ STEPS = {
     'protect': 'Repacking the archive...',
     'optimize': 'Optimizing the size...',
     'dds': 'Converting DDS textures to BLP...',
+    'bulk': 'Writing the extract-all bombs...',
+    'cut_step': 'Cutting the hash table...',
     'clean': 'Dropping the old copies the steps replaced...',
 }
 DONE = {
@@ -29,6 +31,8 @@ DONE = {
     'protect': 'Archive repacked.',
     'optimize': 'Size optimized.',
     'dds': 'DDS textures converted to BLP.',
+    'bulk': 'Extract-all bombs written.',
+    'cut_step': 'Hash table cut.',
     'clean': 'Old copies dropped.',
 }
 
@@ -43,6 +47,11 @@ STEP_KEYS = {
 BLOCKS = ('w3i', 'wtg', 'extra', 'units', 'doo', 'w3r')
 DECOYS = {'wtg': 'wtg', 'listfile': 'listfile', 'imp': 'imp', 'preview': 'preview', 'fill': 'fill'}
 VARIANTS = {'header': 'header_text', 'high_sector': 'high-sector', 'bit31': 'bit31'}
+
+
+def _bulk_default():
+    import decoy_files
+    return ','.join('%s:%d' % (field_id, field_value) for field_id, field_value in decoy_files.bulk_spec('').items())
 
 
 def recipe_kwargs(options):
@@ -68,6 +77,8 @@ def recipe_kwargs(options):
         'convert_dds': bool(o.get('dds')),
         'convert_lua': bool(o.get('to_lua')),
         'optimization': optimize,
+        'bulk': _bulk_default() if o.get('bombs') else None,
+        'cut_step': bool(o.get('cut_hash')),
         'seed': None if o.get('seed') is None or str(o['seed']).strip() == '' else int(o['seed']),
         'previous': (str(o['previous_key']).strip() or None) if o.get('previous_key') else None,
     }
@@ -78,7 +89,7 @@ def default_options():
             'block_w3i': True, 'block_wtg': True, 'block_extra': True, 'block_units': True, 'block_doo': True,
             'block_w3r': False, 'lua_layers': 2,
             'optimize': False, 'opt_recompress': True, 'opt_blp': True, 'opt_dedup': True, 'opt_lossy': False,
-            'dds': False}
+            'dds': False, 'bombs': False, 'cut_hash': False}
 
 
 def run_job(job, emit):
