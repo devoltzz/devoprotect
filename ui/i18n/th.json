@@ -97,5 +97,11 @@
  "variant: header size": "รูปแบบ: ขนาดเฮดเดอร์",
  "variant: sector high byte": "รูปแบบ: ไบต์สูงของเซกเตอร์",
  "w3i counters": "ตัวนับ w3i",
- "{0}: skipped": "{0}: ข้าม"
+ "{0}: skipped": "{0}: ข้าม",
+ "Writing the extract-all bombs...": "กำลังเขียนระเบิดสำหรับการแตกไฟล์ทั้งหมด...",
+ "Extract-all bombs written.": "เขียนระเบิดสำหรับการแตกไฟล์ทั้งหมดแล้ว",
+ "Cutting the hash table...": "กำลังตัดตารางแฮช...",
+ "Hash table cut.": "ตัดตารางแฮชแล้ว",
+ "extract-all bombs (a full extract balloons on disk; the game never reads them)": "ระเบิดสำหรับการแตกไฟล์ทั้งหมด (การแตกไฟล์ทั้งหมดจะทำให้ดิสก์เต็มบวม ส่วนเกมไม่เคยอ่านไฟล์เหล่านี้)",
+ "cut the hash table (MPQ Editor opens read-only: list and extract, no edit)": "ตัดตารางแฮช (MPQ Editor เปิดได้แบบอ่านอย่างเดียว: แสดงรายการและแตกไฟล์ได้ แต่แก้ไขไม่ได้)"
 }
