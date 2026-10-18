@@ -3,6 +3,11 @@
 What each version of DevoProtect brought, the newest first. The downloads are on the
 [Releases](https://github.com/devoltzz/devoprotect/releases) page.
 
+## 0.1.6 (2026-10-18)
+
+- The anti-cheat's script templates and the code that reads them now use English names only. The checks and what
+  they do are the same as in 0.1.5; a protected map comes out with different scrambled names, nothing else.
+
 ## 0.1.5 (2026-10-18)
 
 - In-game anti-cheat, off by default. In Custom there is a new card, and in the command line it is `--anti-cheat`.
