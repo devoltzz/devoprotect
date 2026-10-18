@@ -51,6 +51,24 @@ Options (each toggle of each step; default: full protection, ASCII IDs, no decoy
     --lossy                                    only for a map above the game's 512 MiB limit: textures at half size
                                                and WAV sounds mono 22 kHz, until it fits
     --dds                                      convert .dds textures to BLP (smaller, native) and repoint references
+
+  In-game anti-cheat (off by default; NOT yet proven in the game: a probe map has to be played first):
+    --anti-cheat[=ledger,codes,names,bj]       add it. Pieces (default: all four): ledger = gold, lumber, hero
+                                               level, attributes, skill points, XP handicap and research that no call
+                                               of the map explains are undone and reported; codes = the game's own
+                                               cheat codes, in single player; names = decoy names of the public cheat
+                                               packs, so a pack pasted by hand does not compile (JASS); bj = Lua
+                                               guard: the engine functions a Lua cheat pack replaces are restored and a
+                                               replaced main is reported (Lua)
+    --anti-cheat-actions=warn,nosave,defeat,end   what to do when a cheat is found (default: warn). warn = tell
+                                               everyone; nosave = the map's PreloadGenEnd calls write nothing for the
+                                               cheater; defeat = defeat the cheater; end = end the game. When the map
+                                               itself was modified nobody can be singled out: nosave blocks every
+                                               save and defeat defeats every human player
+    --anti-cheat-gold-jump=N                   the gold or lumber jump with no event that counts as a cheat (400)
+    --anti-cheat-codes-mode=auto|humans|reload|humans+reload   when the cheat-code detector arms (auto)
+  A map can ask the result: declare `function DevoProtect_CheatUsed takes player p returns boolean` (a stub that
+  returns false); the protector fills it in (true once that player, or the map, was reported).
 """
 
 
@@ -61,7 +79,9 @@ def _opt(argv, name, default=None):
     return default
 
 
-VALUE_FLAGS = ('skip', 'block', 'decoys', 'variant', 'lua-layers', 'seed', 'previous-key', 'game')
+VALUE_FLAGS = ('skip', 'block', 'decoys', 'variant', 'lua-layers', 'seed', 'previous-key', 'game',
+               'anti-cheat-actions', 'anti-cheat-gold-jump', 'anti-cheat-codes-mode')
+OPTIONAL_VALUE_FLAGS = ('anti-cheat',)
 BARE_FLAGS = (
     'ids-non-ascii',
     'to-lua',
@@ -92,7 +112,7 @@ def parse_options(argv, extra_value=(), extra_bare=()):
         if a == '-h' or not a.startswith('-'):
             continue
         name, has_value = a[2:].split('=', 1)[0], '=' in a
-        if not a.startswith('--') or name not in value_flags + bare_ok:
+        if not a.startswith('--') or name not in value_flags + bare_ok + OPTIONAL_VALUE_FLAGS:
             raise ValueError('unknown option %s (see --help)' % a)
         if name in value_flags and not has_value:
             raise ValueError('--%s needs a value: --%s=...' % (name, name))
@@ -111,6 +131,35 @@ def parse_options(argv, extra_value=(), extra_bare=()):
     block = names_of('block', protect_app.BLOCKS)
     decoys = names_of('decoys', tuple(protect_app.DECOYS))
     variant = names_of('variant', tuple(k.replace('_', '-') for k in protect_app.VARIANTS))
+    ac_flags = [a for a in argv if a.startswith('--anti-cheat-')]
+    anti_cheat = any(a == '--anti-cheat' or a.startswith('--anti-cheat=') for a in argv)
+    if ac_flags and not anti_cheat:
+        raise ValueError('%s only works with --anti-cheat' % ac_flags[0].split('=')[0])
+    if anti_cheat:
+        parts = [x for x in (_opt(argv, 'anti-cheat', '') or '').split(',') if x]
+        bad = [x for x in parts if x not in protect_app.AC_PARTS]
+        if bad:
+            raise ValueError('--anti-cheat: unknown %s (valid: %s)' % (', '.join(bad), ', '.join(protect_app.AC_PARTS)))
+        actions = [x for x in (_opt(argv, 'anti-cheat-actions', 'warn') or '').split(',') if x]
+        bad = [x for x in actions if x not in protect_app.AC_ACTIONS]
+        if bad:
+            raise ValueError('--anti-cheat-actions: unknown %s (valid: %s)' % (', '.join(bad),
+                                                                              ', '.join(protect_app.AC_ACTIONS)))
+        mode = _opt(argv, 'anti-cheat-codes-mode', 'auto')
+        if mode not in protect_app.AC_CODES_MODES:
+            raise ValueError(
+                '--anti-cheat-codes-mode: %s is not one of %s' % (mode, ', '.join(protect_app.AC_CODES_MODES))
+            )
+        jump = _opt(argv, 'anti-cheat-gold-jump', '400')
+        if not jump.isdigit() or int(jump) < 1:
+            raise ValueError('--anti-cheat-gold-jump needs a whole number of 1 or more, not %r' % jump)
+        o['anti_cheat'] = True
+        for k in protect_app.AC_PARTS:
+            o['ac_' + k] = not parts or k in parts
+        for k in protect_app.AC_ACTIONS:
+            o['ac_' + k] = k in actions
+        o['ac_gold_jump'] = int(jump)
+        o['ac_codes_mode'] = mode
     if _opt(argv, 'lua-layers'):
         o['lua_layers'] = int(_opt(argv, 'lua-layers'))
     if _opt(argv, 'seed'):
@@ -161,7 +210,7 @@ def parse_options(argv, extra_value=(), extra_bare=()):
     return o, warnings
 
 
-def main(argv=None, version='0.1.4'):
+def main(argv=None, version='0.1.5'):
     import protect_app
     argv = sys.argv[1:] if argv is None else list(argv)
     try:
