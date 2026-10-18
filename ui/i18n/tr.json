@@ -97,5 +97,11 @@
  "variant: header size": "varyant: başlık boyutu",
  "variant: sector high byte": "varyant: sektör üst baytı",
  "w3i counters": "w3i sayaçları",
- "{0}: skipped": "{0}: atlandı"
+ "{0}: skipped": "{0}: atlandı",
+ "Writing the extract-all bombs...": "Tümünü çıkarma bombaları yazılıyor...",
+ "Extract-all bombs written.": "Tümünü çıkarma bombaları yazıldı.",
+ "Cutting the hash table...": "Karma tablosu kesiliyor...",
+ "Hash table cut.": "Karma tablosu kesildi.",
+ "extract-all bombs (a full extract balloons on disk; the game never reads them)": "tümünü çıkarma bombaları (tam çıkarma diski şişirir; oyun bunları asla okumaz)",
+ "cut the hash table (MPQ Editor opens read-only: list and extract, no edit)": "karma tablosunu kes (MPQ Editor salt okunur açar: listeler ve çıkarır, düzenleme yok)"
 }
