@@ -103,5 +103,9 @@
  "Cutting the hash table...": "해시 테이블을 자르는 중...",
  "Hash table cut.": "해시 테이블을 잘랐습니다.",
  "extract-all bombs (a full extract balloons on disk; the game never reads them)": "전체 추출 폭탄 (전체 추출 시 디스크 용량이 폭증함, 게임은 읽지 않음)",
- "cut the hash table (MPQ Editor opens read-only: list and extract, no edit)": "해시 테이블 자르기 (MPQ Editor가 읽기 전용으로 열림: 목록 보기와 추출만 가능, 편집 불가)"
+ "cut the hash table (MPQ Editor opens read-only: list and extract, no edit)": "해시 테이블 자르기 (MPQ Editor가 읽기 전용으로 열림: 목록 보기와 추출만 가능, 편집 불가)",
+ "&mdash; desktop only: the browser cannot read your game": "&mdash; 데스크톱 프로그램 전용: 브라우저는 게임을 읽을 수 없습니다",
+ "Converting object data to SLK tables...": "오브젝트 데이터를 SLK 테이블로 변환하는 중...",
+ "Object data converted to SLK tables.": "오브젝트 데이터를 SLK 테이블로 변환했습니다.",
+ "convert object data to SLK tables (fewer objects are built on load, which helps Reforged; needs Warcraft III installed)": "오브젝트 데이터를 SLK 테이블로 변환 (로드 시 생성되는 오브젝트가 줄어 Reforged에 도움이 됨, Warcraft III 설치 필요)"
 }
