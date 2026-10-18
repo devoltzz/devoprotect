@@ -4,6 +4,7 @@ WARCRAFT_EXTS = frozenset(e.encode() for e in (
     'mdx mdl blp tga dds jpg jpeg png gif bmp psd ico tif tiff webp '
     'wav mp3 flac ogg mid midi dls aif aiff avi ttf otf fnt woff '
     'j ai lua txt slk fdf toc pld wts wai ini html htm xml json csv js css md cfg log lst '
+    'ts '
     'w3a w3b w3c w3d w3e w3f w3g w3h w3i w3l w3m w3n w3o w3q w3r w3s w3t w3u w3x w3z w3grp '
     'wct wtg wpm doo mmp shd imp mpq frag vert material mrf ifl flt m3d '
     'exe dll asi mix bin dat db jc key sign gid ccd ax b00 bak cmd clh exp jx lnk pkg was xlsx 3ds xxx iniconfig '
