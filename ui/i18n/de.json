@@ -103,5 +103,9 @@
  "Cutting the hash table...": "Hashtabelle wird abgeschnitten...",
  "Hash table cut.": "Hashtabelle abgeschnitten.",
  "extract-all bombs (a full extract balloons on disk; the game never reads them)": "Extract-All-Bomben (ein vollständiges Entpacken bläht die Festplatte auf; das Spiel liest sie nie)",
- "cut the hash table (MPQ Editor opens read-only: list and extract, no edit)": "Hashtabelle abschneiden (MPQ Editor öffnet nur schreibgeschützt: auflisten und entpacken, kein Bearbeiten)"
+ "cut the hash table (MPQ Editor opens read-only: list and extract, no edit)": "Hashtabelle abschneiden (MPQ Editor öffnet nur schreibgeschützt: auflisten und entpacken, kein Bearbeiten)",
+ "&mdash; desktop only: the browser cannot read your game": "&mdash; nur Desktop: Der Browser kann dein Spiel nicht lesen",
+ "Converting object data to SLK tables...": "Objektdaten werden in SLK-Tabellen umgewandelt...",
+ "Object data converted to SLK tables.": "Objektdaten in SLK-Tabellen umgewandelt.",
+ "convert object data to SLK tables (fewer objects are built on load, which helps Reforged; needs Warcraft III installed)": "Objektdaten in SLK-Tabellen umwandeln (beim Laden werden weniger Objekte aufgebaut, was Reforged hilft; Warcraft III muss installiert sein)"
 }
