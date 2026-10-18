@@ -3,6 +3,19 @@
 What each version of DevoProtect brought, the newest first. The downloads are on the
 [Releases](https://github.com/devoltzz/devoprotect/releases) page.
 
+## 0.1.3 (2026-10-17)
+
+Two new layers against the tools that unpack maps, both in the command line and in Custom under "Decoys and markers".
+
+- Extract-all bombs: a few decoy files are written with a huge declared size. A tool that extracts everything in the
+  map has to write that size out in zeros, so a full extract balloons to gigabytes on disk, while the real files and
+  the game are untouched (the game never reads the decoys). In the CLI it is `--bombs`.
+- Cut the hash table: the map's file index is trimmed so MPQ Editor and other StormLib tools open it read-only. They
+  can still list and extract, but they cannot edit, add or delete a file. The game plays the map unchanged. In the CLI
+  it is `--cut-hash`. Proven in game on Lost Temple.
+- Neither combines with the "block table bit31" variant (the repack that places those layers would move the tables and
+  lose the mark); the run stops and says so.
+
 ## 0.1.2 (2026-10-17)
 
 - Big maps no longer break the site. To check each step, DevoProtect kept a full copy of the map's files after every
