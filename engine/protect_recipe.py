@@ -11,7 +11,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ARCHIVE_ROOT = os.path.normpath(os.path.join(HERE, '..', '..'))
 DEFAULT_REF = next((p for p in (os.path.join(ARCHIVE_ROOT, 'common', 'ref', '3.0'), os.path.join(HERE, 'ref', '3.0'))
                     if os.path.isfile(os.path.join(p, 'common.j'))), os.path.join(ARCHIVE_ROOT, 'common', 'ref', '3.0'))
-STEPS = ('shuffle', 'lua', 'dds', 'obfuscate', 'lock_editor', 'decoy', 'protect', 'bulk', 'cut_step')
+STEPS = ('shuffle', 'lua', 'dds', 'obfuscate', 'slk', 'lock_editor', 'decoy', 'protect', 'bulk', 'cut_step')
 NO_CONTENTS = ('(listfile)', '(attributes)', '(signature)')
 
 
@@ -285,6 +285,10 @@ def _recipe(
     non_ascii_ids=False,
     optimization=None,
     convert_dds=False,
+    convert_slk=False,
+    slk_game=None,
+    slk_txt='full',
+    slk_max_level=None,
     ref=None,
     backup=None,
     tmp=None,
@@ -568,6 +572,59 @@ def _recipe(
                 },
             )
             current, last = new, 'obfuscate'
+
+    if convert_slk and 'slk' not in skip:
+        t0 = time.time()
+        import obj2slk
+        import objects as _ob_slk
+        import slk_objects as _so_slk
+        a = mpqread.Archive(current)
+        _le_slk = lambda n: editor_lock._read(a, n)
+        try:
+            base_slk = _ob_slk.GameBase(game=slk_game, balance=_so_slk.balance_of(_le_slk('war3map.w3i')))
+        except Exception as e:
+            raise SystemExit(
+                'ABORT at step slk: the game tables are needed and could not be read (%s). On '
+                'Windows the installed Warcraft III is found on its own; on Linux pass --game=<folder of the '
+                'Warcraft III>' % str(e)[:90]
+            )
+        slk_rep = obj2slk.convert(_le_slk, base_slk, list(ref_names), txt=slk_txt,
+                                  max_level=slk_max_level or obj2slk.MAX_LEVEL)
+        if not slk_rep['files']:
+            why = '; '.join('%s: %s' % kv for kv in slk_rep['skipped'].items()) or 'nothing to convert'
+            details['steps'].append({'step': 'slk', 'status': 'skipped (%s)' % why})
+            log('[slk] skipped: %s' % why)
+        else:
+            new = next_steps('slk')
+            shutil.copyfile(current, new)
+            arquivos_slk = list(slk_rep['files'])
+            lf = _le_slk('(listfile)')
+            if lf is not None:
+                present = set(x.strip().replace('/', '\\').lower()
+                              for x in lf.decode('utf-8', 'surrogateescape').splitlines())
+                missing_items = [n for n, _b in arquivos_slk if n.lower() not in present]
+                if missing_items:
+                    sep = b'' if not lf or lf.endswith(b'\n') else b'\r\n'
+                    arquivos_slk.append(('(listfile)', lf + sep
+                                         + '\r\n'.join(missing_items).encode('utf-8', 'surrogateescape') + b'\r\n'))
+            mpqadd.add_files(new, arquivos_slk, grow=list(ref_names), log=lambda *x: None)
+            b = mpqread.Archive(new)
+            for n, by in slk_rep['files']:
+                if n != '(listfile)' and editor_lock._read(b, n) != by:
+                    raise SystemExit('ABORT at step slk: the table %s written is not the converted one' % n)
+            for n, _b in arquivos_slk:
+                if n.lower() not in [x.lower() for x in ref_names]:
+                    ref_names.append(n)
+            stages['slk'] = contents(new, ref_names)
+            summary = '; '.join('%s: %d new, %d changed, %d left in the object file'
+                                % (s, x.get('new', 0), x.get('originals', 0), x['objects_left'])
+                                for s, x in slk_rep['report'].items())
+            skipped = '; '.join('%s skipped (%s)' % kv for kv in slk_rep['skipped'].items())
+            on_close('slk', 'ok', t0, last, 'slk', {
+                'report': slk_rep['report'], 'skipped': slk_rep['skipped'], 'balance': base_slk.balance,
+                'summary': 'object data -> game tables (%s profiles, layer %s); %s%s'
+                          % (slk_txt, base_slk.balance, summary, ('; ' + skipped) if skipped else '')})
+            current, last = new, 'slk'
 
     if 'lock_editor' in skip:
         details['steps'].append({'step': 'lock_editor', 'status': 'skipped'})
@@ -875,6 +932,10 @@ def _campaign(
     non_ascii_ids=False,
     optimization=None,
     convert_dds=False,
+    convert_slk=False,
+    slk_game=None,
+    slk_txt='full',
+    slk_max_level=None,
     ref=None,
     backup=None,
     tmp=None,
@@ -890,6 +951,11 @@ def _campaign(
         raise SystemExit('campaign: --bulk and --cut-hash only work on a SINGLE MAP (the .w3x): in a campaign the '
                          'embedded maps go through _clean_map (only the live blocks) and the .w3n through protect; the '
                          'bulk in a campaign is left for the queue (the window parity, when the page covers it)')
+    if convert_slk:
+        raise SystemExit(
+            'campaign: --to-slk works only on a SINGLE MAP (the .w3x): each map of the campaign would have to '
+            'convert with the game base, and it is left for the queue'
+        )
     import campaign_info
     import editor_lock
     import mpqadd
