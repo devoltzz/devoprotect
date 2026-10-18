@@ -3,6 +3,20 @@
 What each version of DevoProtect brought, the newest first. The downloads are on the
 [Releases](https://github.com/devoltzz/devoprotect/releases) page.
 
+## 0.1.5 (2026-10-18)
+
+- In-game anti-cheat, off by default. In Custom there is a new card, and in the command line it is `--anti-cheat`.
+  It adds a ledger that undoes gold, lumber and hero changes no part of the map explains, a detector for the game's
+  cheat codes in single player, decoy function names so a cheat pack pasted by hand stops the map from loading, and
+  for Lua maps a guard against the packs that replace engine functions. When it finds a cheat it can warn everyone,
+  block the cheater's saves, defeat the cheater or end the game. A map can ask what it found by declaring
+  `DevoProtect_CheatUsed`.
+- I tested it in game in single player: `greedisgood` is undone and reported once, normal play (harvesting, killing
+  creeps) reports nothing, and the end action closes the game. Multiplayer games, cheat packs and Lua maps are still
+  to be proven in game, so it stays off by default. Test it on your map before a release.
+- Maps that already carry a pasted cheat pack can be protected now. Two of its function names that differ only in
+  letter case used to stop the JASS step.
+
 ## 0.1.4 (2026-10-18)
 
 - Convert object data to SLK tables. In Custom, under "Remove editor-only files", you can turn the map's units, items
