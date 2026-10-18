@@ -10,6 +10,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 APP = 'DevoProtect'
 
 STEPS = {
+    'anticheat': 'Adding the anti-cheat...',
     'shuffle': 'Shuffling the object IDs...',
     'lua': 'Converting the script to Lua...',
     'obfuscate': 'Obfuscating the script...',
@@ -24,6 +25,7 @@ STEPS = {
     'clean': 'Dropping the old copies the steps replaced...',
 }
 DONE = {
+    'anticheat': 'Anti-cheat added.',
     'shuffle': 'Object IDs shuffled.',
     'lua': 'Script converted to Lua.',
     'obfuscate': 'Script obfuscated.',
@@ -49,6 +51,9 @@ STEP_KEYS = {
 BLOCKS = ('w3i', 'wtg', 'extra', 'units', 'doo', 'w3r')
 DECOYS = {'wtg': 'wtg', 'listfile': 'listfile', 'imp': 'imp', 'preview': 'preview', 'fill': 'fill'}
 VARIANTS = {'header': 'header_text', 'high_sector': 'high-sector', 'bit31': 'bit31'}
+AC_PARTS = {'ledger': 'ledger', 'codes': 'codes', 'names': 'decoys', 'bj': 'bj'}
+AC_ACTIONS = ('warn', 'nosave', 'defeat', 'end')
+AC_CODES_MODES = {'auto': 'auto', 'humans': 'humans', 'reload': 'reload', 'humans+reload': 'humans+reload'}
 
 
 def _bulk_default():
@@ -68,7 +73,16 @@ def recipe_kwargs(options):
     if o.get('optimize'):
         optimize = {'recompress': o.get('opt_recompress', True), 'blp': o.get('opt_blp', True),
                     'dedup': o.get('opt_dedup', True), 'lossy': bool(o.get('opt_lossy'))}
+    anti_cheat = None
+    if o.get('anti_cheat'):
+        anti_cheat = {
+            'pieces': [internal for public, internal in AC_PARTS.items() if o.get('ac_' + public, True)],
+            'action_codes': [a for a in AC_ACTIONS if o.get('ac_' + a, a == 'warn')],
+            'gold_jump': o.get('ac_gold_jump') or 400,
+            'codes_mode': AC_CODES_MODES.get(o.get('ac_codes_mode') or 'auto', 'auto'),
+        }
     return {
+        'anticheat': anti_cheat,
         'skip': skip,
         'lock_editor': blocks,
         'decoys': tuple(decoys),
@@ -93,7 +107,10 @@ def default_options():
             'block_w3i': True, 'block_wtg': True, 'block_extra': True, 'block_units': True, 'block_doo': True,
             'block_w3r': False, 'lua_layers': 2,
             'optimize': False, 'opt_recompress': True, 'opt_blp': True, 'opt_dedup': True, 'opt_lossy': False,
-            'dds': False, 'bombs': False, 'cut_hash': False, 'to_slk': False}
+            'dds': False, 'bombs': False, 'cut_hash': False, 'to_slk': False,
+            'anti_cheat': False, 'ac_ledger': True, 'ac_codes': True, 'ac_names': True, 'ac_bj': True,
+            'ac_warn': True, 'ac_nosave': False, 'ac_defeat': False, 'ac_end': False, 'ac_gold_jump': 400,
+            'ac_codes_mode': 'auto'}
 
 
 def run_job(job, emit):
