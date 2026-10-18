@@ -103,5 +103,9 @@
  "Cutting the hash table...": "Обрізання хеш-таблиці...",
  "Hash table cut.": "Хеш-таблицю обрізано.",
  "extract-all bombs (a full extract balloons on disk; the game never reads them)": "бомби для «видобути все» (повне видобування роздуває диск; гра їх ніколи не читає)",
- "cut the hash table (MPQ Editor opens read-only: list and extract, no edit)": "обрізати хеш-таблицю (MPQ Editor відкриває лише для читання: перегляд і видобування, без редагування)"
+ "cut the hash table (MPQ Editor opens read-only: list and extract, no edit)": "обрізати хеш-таблицю (MPQ Editor відкриває лише для читання: перегляд і видобування, без редагування)",
+ "&mdash; desktop only: the browser cannot read your game": "&mdash; лише для комп'ютерної програми: браузер не може прочитати вашу гру",
+ "Converting object data to SLK tables...": "Перетворення даних об'єктів на таблиці SLK...",
+ "Object data converted to SLK tables.": "Дані об'єктів перетворено на таблиці SLK.",
+ "convert object data to SLK tables (fewer objects are built on load, which helps Reforged; needs Warcraft III installed)": "перетворити дані об'єктів на таблиці SLK (під час завантаження створюється менше об'єктів, що допомагає Reforged; потрібен встановлений Warcraft III)"
 }
