@@ -140,6 +140,7 @@
           <label class="tog"><input type="checkbox" data-opt="block_extra"> extra (w3c/w3s/imp)</label>
           <label class="tog"><input type="checkbox" data-opt="block_units"> unit placement (units.doo)</label>
           <label class="tog"><input type="checkbox" data-opt="block_doo"> doodads (war3map.doo, only if the script creates every one)</label>
+          <label class="tog" id="slkrow"><input type="checkbox" data-opt="to_slk"> convert object data to SLK tables (fewer objects are built on load, which helps Reforged; needs Warcraft III installed)<span class="gated" id="slknote" hidden> &mdash; desktop only: the browser cannot read your game</span></label>
         </details>
       </div>
       <div class="step">
@@ -335,6 +336,11 @@
     $('ver').textContent = 'v' + String(h.version || '');
     OPTIONS = h.options || {};
     bindControls();
+    if(WEB){
+      var slk = opt('to_slk');
+      if(slk){ slk.checked = false; slk.disabled = true; OPTIONS['to_slk'] = false; }
+      if($('slknote')){ $('slknote').hidden = false; }
+    }
     setPack(packOf(OPTIONS));
     var mode = modeOf(OPTIONS);
     document.querySelectorAll('input[name="mode"]').forEach(function(r){ r.checked = r.value === mode; });
