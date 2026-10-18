@@ -86,6 +86,17 @@ def _lines_of(body_text, f):
     return '\n'.join(body_text.split('\n')[f.line - 1:f.end_line]) + '\n'
 
 
+NAMES_EN = {'KK_CH_N': 'KK_CH_N', 'KK_ch_code': 'KK_ch_code', 'KK_ch_trigger': 'KK_ch_trigger',
+            'KK_cheat_arm': 'KK_cheat_arm', 'KK_cheat_chat': 'KK_cheat_chat',
+            'KK_cheat_contains': 'KK_cheat_contains', 'KK_cheat_detected': 'KK_cheat_detected',
+            'KK_cheat_save_free': 'KK_cheat_save_free', 'KK_cheat_used': 'KK_cheat_used', 'end_pos': 'last'}
+
+
+def in_english(body_text):
+    rx = re.compile(r'\b(%s)\b' % '|'.join(re.escape(n) for n in sorted(NAMES_EN, key=len, reverse=True)))
+    return rx.sub(lambda m: NAMES_EN[m.group(1)], body_text)
+
+
 def _call(f, fname):
     return any(isinstance(n, jass_ast.Call) and n.name == fname for n in jass_ast.walk(f))
 
@@ -94,7 +105,7 @@ def read_source(source=None):
     import layer
     import anticheat_ledger
     with open(source or SOURCE, encoding='ascii') as f:
-        raw_bytes = anticheat_ledger.without_comments(f.read(), 'jass')
+        raw_bytes = in_english(anticheat_ledger.without_comments(f.read(), 'jass'))
     globals_block, rest = layer.split_globals(raw_bytes)
     body_text = 'globals\n' + '\n'.join(globals_block) + '\nendglobals\n' + rest
     tree = jass_ast.parse(body_text)
