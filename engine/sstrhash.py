@@ -14,13 +14,6 @@ def sstrhash2(body_text):
     return sstrhash2_bytes(body_text.encode('utf-8', 'surrogateescape'))
 
 
-def stringhash_reforged(body_text, dobra=True):
-    if dobra:
-        body_text = ''.join(chr(ord(ch) - 0x20) if 'a' <= ch <= 'z' else ('\\' if ch == '/' else ch)
-                            for ch in body_text)
-    return _lookup2(body_text.encode('utf-16-le', 'surrogatepass'))
-
-
 MEASURED_IN_GAME = (('掉落总数', -1970465554), ('JN_DATA_1', 1234034213), ('1', 1132341824),
                     ('devoltz#11953', 461077761), ('test', -310027398))
 
