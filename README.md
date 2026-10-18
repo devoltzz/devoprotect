@@ -62,6 +62,7 @@ What the steps do:
 | **Remove editor files** | Strips what only the World Editor uses (triggers, unit placement, editor counters), so the map won't open there as a normal map. Anything the game still reads stays. Optionally the object data becomes the game's own SLK tables. |
 | **Decoys and markers** | Fake trigger files, a lying file list, fake imports, a hash table filled so no file can be added later, extract-all bombs, a cut hash table, and malformed-header markers. |
 | **Optimize size** | Lossless texture recompression, identical files stored once, DDS textures to BLP. |
+| **Anti-cheat** | Off by default; tested in game in single player, multiplayer still to prove. Adds checks that run while the map plays: a ledger that undoes gold, lumber and hero changes no part of the map explains, a detector for the game's own cheat codes in single player, decoy function names so a cheat pack pasted by hand does not compile, and for Lua maps a guard that restores the engine functions a cheat pack replaces. When it finds something it can warn everyone, block the cheater's saves, defeat the cheater or end the game. |
 | **Pack** | Repacks the archive with 512-byte sectors. The game loads it fine; MPQ Editor and other StormLib tools refuse to open it. |
 
 After each step the map is read back and every file is compared with what that step was supposed to write. If
@@ -95,6 +96,10 @@ abilities. The map grows, because it carries the game's tables, and it still has
 default. It reads your installed Warcraft III: on Windows the game is found automatically, on Linux pass
 `--game=<folder>`. The browser can't read your game, so the site doesn't offer it.
 
+**What does the anti-cheat need from my map?** Nothing, but a map can ask what it found. Declare `function DevoProtect_CheatUsed takes player p returns boolean` and have it return `false`; the protector fills it in, and it returns `true` for a player who was reported, or for everyone when the map itself was modified (in a Lua map it is the global function of the same name). Use it to refuse a save code or hold back a reward. Block saves works on the map's own calls to `PreloadGenEnd`, the native that writes a Preload file.
+
+**Does the anti-cheat stop cheaters?** It stops the easy ones. A cheat that changes the map's own values is undone and reported, a cheat pack pasted by hand is refused by the decoy names, and the game's cheat codes are reported in single player. A player who edits the game's memory with no effect on those values is not seen. The defeat action does nothing against the strengthandhonor code, because that code stops the game from defeating anyone; use the end action for that. I tested it in game in single player (the game's `greedisgood` is undone and reported, normal play reports nothing); multiplayer games, cheat packs and Lua maps are still to be proven in game, so test it on your map before a release.
+
 **Is my map sent anywhere?** No. Everything runs on your computer, or inside the page on the site. The program only asks
 GitHub whether a new version is out. On the site, very big maps with every option on can run out of the browser's
 memory (about 2 GB); use the program for those.
@@ -122,6 +127,10 @@ DevoProtect-cli <map.w3x|campaign.w3n> [out.w3x] [options]
 | `--seed=N` | Shuffle seed (default: taken from the map). |
 | `--optimize` | Lossless recompression and dedup (`--no-recompress`, `--no-dedup`, `--no-blp-opt` turn a part off; `--lossy` is only for maps over the game's 512 MiB limit). |
 | `--dds` | Convert DDS textures to BLP and update the references. |
+| `--anti-cheat[=ledger,codes,names,bj]` | Add the in-game anti-cheat (all four pieces without a value). |
+| `--anti-cheat-actions=warn,nosave,defeat,end` | What to do when a cheat is found (default: `warn`). |
+| `--anti-cheat-gold-jump=N` | The gold or lumber jump with no event that counts as a cheat (default 400). |
+| `--anti-cheat-codes-mode=auto\|humans\|reload\|humans+reload` | When the cheat code detector arms (default `auto`). |
 | `--blp` | Lossless BLP re-optimization inside the 512-sector pack. |
 
 `--help` shows everything. On Linux the program takes the same options after it:
