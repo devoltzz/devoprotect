@@ -183,6 +183,36 @@
         <label class="tog"><input type="checkbox" data-opt="cut_hash"> cut the hash table (MPQ Editor opens read-only: list and extract, no edit)</label>
       </div>
     </details>
+    <details class="card" id="anticheat" hidden>
+      <summary>In-game anti-cheat (not proven in the game yet)</summary>
+      <div class="exp-body">
+        <label class="sw"><input type="checkbox" data-opt="anti_cheat"> Add the in-game anti-cheat</label>
+        <div class="hint" style="margin-top:4px">It watches the map while it runs, undoes what no part of the map explains and acts on it. It was built and tested in a simulated game and has not been played yet, so it is off by default.</div>
+        <div id="acbody">
+          <div class="title" style="margin-top:12px">What it watches</div>
+          <label class="tog"><input type="checkbox" data-opt="ac_ledger"> ledger: gold, lumber, hero level, attributes, skill points, XP handicap and research that no call of the map explains are undone</label>
+          <label class="tog"><input type="checkbox" data-opt="ac_codes"> the game's own cheat codes, in single player only</label>
+          <label class="tog"><input type="checkbox" data-opt="ac_names"> decoy names: a cheat pack pasted by hand does not compile (JASS maps)</label>
+          <label class="tog"><input type="checkbox" data-opt="ac_bj"> Lua guard: restores the engine functions a Lua cheat pack replaces and reports a replaced main (Lua maps)</label>
+          <div class="title" style="margin-top:12px">When a cheat is found</div>
+          <label class="tog"><input type="checkbox" data-opt="ac_warn"> tell every player</label>
+          <label class="tog"><input type="checkbox" data-opt="ac_nosave"> block saves: the save code of the cheater is not written</label>
+          <label class="tog"><input type="checkbox" data-opt="ac_defeat"> defeat the cheater</label>
+          <label class="tog"><input type="checkbox" data-opt="ac_end"> end the game</label>
+          <div class="hint">When the map itself was modified nobody can be singled out: blocking saves blocks every save, and defeat defeats every human player.</div>
+          <div class="title" style="margin-top:12px">Measures</div>
+          <label class="tog">gold or lumber jump with no event that counts as a cheat <input type="number" min="1" step="1" style="width:80px" data-optv="ac_gold_jump"></label>
+          <label class="tog">the cheat codes are watched
+            <select data-optv="ac_codes_mode">
+              <option value="auto">automatically</option>
+              <option value="humans">when one human plays</option>
+              <option value="reload">when the game reloads from disk</option>
+              <option value="humans+reload">when both say single player</option>
+            </select></label>
+          <div class="hint">A map can ask for the result: see DevoProtect_CheatUsed in the readme.</div>
+        </div>
+      </div>
+    </details>
   </fieldset>
 
   <div class="bar">
@@ -217,6 +247,7 @@
     $('pickout').disabled = !MAP || RUNNING;
     $('form').disabled = RUNNING;
     $('pickkey').disabled = RUNNING || !OPTIONS['shuffle'];
+    setAntiCheat();
   }
 
   function setKey(path){
@@ -265,9 +296,12 @@
     $('modehint').textContent = m.hint;
     $('steps').hidden = mode !== 'custom';
     $('experimental').hidden = mode !== 'custom';
+    $('anticheat').hidden = mode !== 'custom';
+    if(mode !== 'custom'){ OPTIONS['anti_cheat'] = false; opt('anti_cheat').checked = false; setAntiCheat(); }
     setRunnable();
   }
   function modeOf(o){
+    if(o.anti_cheat){ return 'custom'; }
     var p = packOf(o);
     for(var k in MODES){
       var m = MODES[k];
@@ -313,6 +347,11 @@
     DO_512.forEach(function(k){ lock(k, on, true); });
   }
 
+  function setAntiCheat(){
+    var on = !!OPTIONS['anti_cheat'];
+    document.querySelectorAll('#acbody input, #acbody select').forEach(function(el){ el.disabled = !on || RUNNING; });
+  }
+
   function bindControls(){
     document.querySelectorAll('input[data-opt]').forEach(function(el){
       var k = el.getAttribute('data-opt');
@@ -320,6 +359,14 @@
       el.addEventListener('change', function(){
         OPTIONS[k] = el.checked;
         if(k === 'shuffle') setRunnable();
+        if(k === 'anti_cheat') setAntiCheat();
+      });
+    });
+    document.querySelectorAll('[data-optv]').forEach(function(el){
+      var k = el.getAttribute('data-optv');
+      if(k in OPTIONS){ el.value = OPTIONS[k]; }
+      el.addEventListener('change', function(){
+        OPTIONS[k] = el.type === 'number' ? (parseInt(el.value, 10) || 400) : el.value;
       });
     });
     document.querySelectorAll('input[name="pack"]').forEach(function(r){
