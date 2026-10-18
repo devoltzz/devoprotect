@@ -6,7 +6,17 @@ import jass_ast
 import lua_ast
 
 
-DEFAULT_REF = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'ref', '3.0'))
+DEFAULT_REF = next(
+    (
+        p
+        for p in (
+            os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'ref', '3.0')),
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ref', '3.0'),
+        )
+        if os.path.isfile(os.path.join(p, 'common.j'))
+    ),
+    os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'ref', '3.0')),
+)
 LOLER = {'!=': '~='}
 HELPERS = frozenset(('FourCC', 'JDiv', 'JCat', '__jarray'))
 LIBRARY = frozenset(('_G', '_ENV', '_VERSION', 'assert', 'collectgarbage', 'coroutine', 'debug', 'dofile', 'error',
