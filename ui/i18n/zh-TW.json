@@ -103,5 +103,9 @@
  "Cutting the hash table...": "正在裁切雜湊表...",
  "Hash table cut.": "雜湊表已裁切。",
  "extract-all bombs (a full extract balloons on disk; the game never reads them)": "全部解壓縮炸彈檔（完整解壓縮時會撐爆磁碟；遊戲不會讀取它們）",
- "cut the hash table (MPQ Editor opens read-only: list and extract, no edit)": "裁切雜湊表（MPQ Editor 僅以唯讀方式開啟：可列出與解壓縮，無法編輯）"
+ "cut the hash table (MPQ Editor opens read-only: list and extract, no edit)": "裁切雜湊表（MPQ Editor 僅以唯讀方式開啟：可列出與解壓縮，無法編輯）",
+ "&mdash; desktop only: the browser cannot read your game": "&mdash; 僅限桌面版：瀏覽器無法讀取您的遊戲",
+ "Converting object data to SLK tables...": "正在將物件資料轉換為 SLK 表格...",
+ "Object data converted to SLK tables.": "物件資料已轉換為 SLK 表格。",
+ "convert object data to SLK tables (fewer objects are built on load, which helps Reforged; needs Warcraft III installed)": "將物件資料轉換為 SLK 表格（載入時需建立的物件較少，有助於 Reforged；需要已安裝 Warcraft III）"
 }
