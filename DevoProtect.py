@@ -8,7 +8,7 @@ ENGINE = os.path.join(getattr(sys, '_MEIPASS', HERE), 'engine')
 if ENGINE not in sys.path:
     sys.path.insert(0, ENGINE)
 
-VERSION = '0.1.3'
+VERSION = '0.1.4'
 
 
 def _no_console():
