@@ -1,5 +1,6 @@
 {
  "frases": [
+  "&mdash; desktop only: the browser cannot read your game",
   "A normal archive that MPQ tools open. Only the live files are kept, so the old copies the steps replaced (the original script included) are left out.",
   "Advanced",
   "Archive only",
@@ -9,6 +10,7 @@
   "Clear",
   "Convert DDS textures to BLP (smaller, native)",
   "Converting DDS textures to BLP...",
+  "Converting object data to SLK tables...",
   "Converting the script to Lua...",
   "Custom",
   "Custom IDs (h000, A00B...) become meaningless ones everywhere. The key (.tsv) is saved next to the output and stays with you.",
@@ -33,6 +35,7 @@
   "Obfuscate the script",
   "Obfuscating the script...",
   "Object IDs shuffled.",
+  "Object data converted to SLK tables.",
   "Old copies dropped.",
   "Only the archive: editor-only files removed and the sector-512 pack; the script stays readable.",
   "Only the script and the object IDs: no editor-only file is removed and the archive stays a normal one.",
@@ -70,6 +73,7 @@
   "Writing the extract-all bombs...",
   "busy: a job is already running",
   "convert a JASS script to Lua first (the map then needs Warcraft III 1.31 or newer)",
+  "convert object data to SLK tables (fewer objects are built on load, which helps Reforged; needs Warcraft III installed)",
   "cut the hash table (MPQ Editor opens read-only: list and extract, no edit)",
   "decoy imports",
   "decoy triggers (fake wtg+wct)",
