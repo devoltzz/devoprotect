@@ -614,6 +614,84 @@ def protect_bytes(
     return out
 
 
+def _cut_gate(htab, btab, bcount):
+    hcount = len(htab) // 16
+    if hcount < 2:
+        raise SystemExit('cut-hash: the hash table has %d entry(ies), nothing to cut' % hcount)
+    bi = struct.unpack_from('<I', htab, (hcount - 1) * 16 + 12)[0]
+    bi_m = bi & 0x0FFFFFFF
+    if bi < 0xFFFFFFFE and bi_m < bcount and struct.unpack_from('<I', btab, bi_m * 16 + 12)[0] & MPQ_FILE_EXISTS:
+        raise SystemExit('cut-hash: the LAST entry of the hash table points at the live block %d (the cut '
+                         'would eat a real file): use another map' % bi_m)
+
+
+def cut_hash(b, to_verify=True, stats=None, log=_log):
+    t0 = time.time()
+    details = stats if stats is not None else {}
+    import mpqlib
+    off, field_list = header_text(b)
+    magic, hsize, asize, ver, bshift, hoff, boff, hcount, bcount = field_list
+    if ver != 0:
+        raise SystemExit('cut-hash: MPQ version %d: this cut only handles version 1' % (ver + 1))
+    if hcount & (hcount - 1):
+        raise SystemExit('cut-hash: the hash table is not a power of 2 (%d entries): the game probes with '
+                         '`size - 1`' % hcount)
+    hpos, bpos = (off + hoff) & 0xFFFFFFFF, (off + boff) & 0xFFFFFFFF
+    if bpos != hpos + hcount * 16:
+        raise SystemExit('cut-hash: the block table does not come right after the hash table (hash at 0x%x, block at '
+                         '0x%x): run it on an MPQ repacked by this script' % (hpos, bpos))
+    btab = decrypt(b[bpos:], hash_string('(block table)', 3))
+    htab = decrypt(b[hpos:bpos], hash_string('(hash table)', 3))
+    _cut_gate(htab, btab, bcount)
+    reg_hash = bytes(b[hpos:bpos])
+    reg_bt = bytes(b[bpos:])
+    log('cut-hash: %d declared entries, the last one (slot %d) dead: the BT goes where the hash was and '
+        'the hash stays at the end with (hash_n-1)*16' % (hcount, hcount - 1))
+    new = bytearray(b[:hpos])
+    new += reg_bt
+    hash_pos_rel = len(new) - off
+    new += reg_hash[:-16]
+    struct.pack_into('<I', new, off + 0x08, len(new) - off)
+    struct.pack_into('<I', new, off + 0x10, hash_pos_rel)
+    struct.pack_into('<I', new, off + 0x14, hpos - off)
+    out = bytes(new)
+    details.update({'entry': len(b), 'output': len(out), 'hash_n': hcount,
+                    'physical': (hcount - 1) * 16, 'cut_slot': hcount - 1,
+                    'seconds': round(time.time() - t0, 2)})
+    if to_verify:
+        hd2 = mpqlib.find_header(out, fname='cut.w3x')[0]
+        if hd2 is None or hd2.offset != off:
+            raise SystemExit('CHECK FAILED: the header of the cut map is not found by the scan (or it moved)')
+        if hd2.hash_n != hcount or hd2.hash_pos != (hpos + len(reg_bt)) - off:
+            raise SystemExit('CHECK FAILED: the header of the cut map says hash_n %d (was %d) or hash at 0x%x '
+                             '(was %d)' % (hd2.hash_n, hcount, hd2.hash_pos, (hpos + len(reg_bt)) - off))
+        _forbidden = sorted(set(range(off + 0x08, off + 0x0C)) | set(range(off + 0x10, off + 0x14))
+                            | set(range(off + 0x14, off + 0x18)))
+        if hd2.hash_n != hcount or hd2.hash_pos != (hpos + len(reg_bt)) - off:
+            raise SystemExit('CHECK FAILED: the header of the cut map says hash_n %d (was %d) or hash at 0x%x '
+                             '(was %d)' % (hd2.hash_n, hcount, hd2.hash_pos, (hpos + len(reg_bt)) - off))
+        data_region, bt_region, hash_region = out[off + 0x20:hpos], out[hpos:off + hd2.hash_pos], \
+            out[off + hd2.hash_pos:]
+        diff = [i for i in range(hpos) if out[i] != b[i]]
+        if not set(diff) <= set(_forbidden):
+            raise SystemExit('CHECK FAILED: the header changed outside the three fields of the surgery: %s'
+                             % [hex(i) for i in diff[:8]])
+        if hd2.archive_size != len(out) - off or hd2.block_abs != hpos:
+            raise SystemExit('CHECK FAILED: the header of the cut map says size %d (was %d) or block at '
+                             '0x%x (was 0x%x)' % (hd2.archive_size, len(out) - off, hd2.block_abs, hpos))
+        if data_region != b[off + 0x20:hpos] or bt_region != reg_bt or hash_region != reg_hash[:-16]:
+            raise SystemExit('CHECK FAILED: the surgery moved bytes beyond the table swap')
+        if len(hash_region) != (hcount - 1) * 16:
+            raise SystemExit('CHECK FAILED: the physical cut hash is %d B, not (hash_n-1)*16'
+                             % len(hash_region))
+        ht2 = decrypt(hash_region, hash_string('(hash table)', 3))
+        if ht2 != htab[:len(ht2)]:
+            raise SystemExit('CHECK FAILED: the symbols of the hash table would change meaning with the cut')
+        log('check: the surgery was checked byte by byte (data intact, BT in place, hash at the end with '
+            '%d physical)' % (hcount - 1))
+    return out
+
+
 def _same_file(a, b):
     return os.path.normcase(os.path.realpath(os.path.abspath(a))) == os.path.normcase(
         os.path.realpath(os.path.abspath(b))
