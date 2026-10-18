@@ -11,7 +11,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ARCHIVE_ROOT = os.path.normpath(os.path.join(HERE, '..', '..'))
 DEFAULT_REF = next((p for p in (os.path.join(ARCHIVE_ROOT, 'common', 'ref', '3.0'), os.path.join(HERE, 'ref', '3.0'))
                     if os.path.isfile(os.path.join(p, 'common.j'))), os.path.join(ARCHIVE_ROOT, 'common', 'ref', '3.0'))
-STEPS = ('shuffle', 'lua', 'dds', 'obfuscate', 'lock_editor', 'decoy', 'protect')
+STEPS = ('shuffle', 'lua', 'dds', 'obfuscate', 'lock_editor', 'decoy', 'protect', 'bulk', 'cut_step')
 NO_CONTENTS = ('(listfile)', '(attributes)', '(signature)')
 
 
@@ -294,6 +294,8 @@ def _recipe(
     log=print,
     clean=True,
     convert_lua=False,
+    bulk=None,
+    cut_step=False,
 ):
     import editor_lock
     import id_shuffle
@@ -717,6 +719,52 @@ def _recipe(
         )
         if d and not blp_512:
             raise SystemExit('ABORT: the mpq_recompress changed the content of %s' % sorted(d)[:5])
+    if bulk and 'bulk' not in skip:
+        t0 = time.time()
+        import decoy_files
+        _spec_m = decoy_files.bulk_spec(bulk)
+        _rm = decoy_files.bulk(output, bombs=_spec_m['bombs'], slices=_spec_m['slices'], listing=_spec_m['listing'],
+                               seed=seed, log=silent)
+        details['steps'].append(
+            {
+                'step': 'bulk',
+                'status': 'ok',
+                'seconds': round(time.time() - t0, 1),
+                'bombs': _rm['bombs'],
+                'slices': _rm['slices'],
+                'listing': _rm['listing'],
+                'claimed': _rm['claimed'],
+                'bytes_written': _rm['bytes'],
+                'fallback_fdf': _rm['fallback_fdf'],
+                'summary': _rm['gate'],
+            }
+        )
+        log('[bulk] %s' % _rm['gate'])
+    if cut_step and 'cut_step' not in skip:
+        t0 = time.time()
+        _rc = {}
+        _current_c = os.path.join(tmp, '%d_cut.w3x' % (STEPS.index('cut_step') + 1))
+        with open(output, 'rb') as f:
+            _b_c = f.read()
+        _o_c = sector_pack.cut_hash(_b_c, stats=_rc, log=silent)
+        with open(_current_c, 'wb') as f:
+            f.write(_o_c)
+        os.replace(_current_c, output)
+        stages['cut_step'] = contents(output, ref_names)
+        on_close(
+            'cut_step',
+            'ok',
+            t0,
+            last,
+            'cut_step',
+            {
+                'summary': 'declared hash table %d, physical %d (the read-only '
+                'of StormLib); %d -> %d B'
+                % (_rc.get('hash_n', 0), _rc.get('physical', 0), _rc.get('entry', 0), _rc.get('output', 0))
+            },
+        )
+        last = 'cut_step'
+
     if 'fill' in decoys and 'decoy' not in skip:
         t0 = time.time()
         import decoy_files
@@ -835,7 +883,13 @@ def _campaign(
     previous=None,
     log=print,
     convert_lua=False,
+    bulk=None,
+    cut_step=False,
 ):
+    if bulk is not None or cut_step:
+        raise SystemExit('campaign: --bulk and --cut-hash only work on a SINGLE MAP (the .w3x): in a campaign the '
+                         'embedded maps go through _clean_map (only the live blocks) and the .w3n through protect; the '
+                         'bulk in a campaign is left for the queue (the window parity, when the page covers it)')
     import campaign_info
     import editor_lock
     import mpqadd
