@@ -15,9 +15,9 @@ USAGE = r"""DevoProtect: protect a Warcraft III map from casual editing.
 Options (each toggle of each step; default: full protection, ASCII IDs, no decoys, no MPQ variants):
     --skip=shuffle,obfuscate,block,decoys,pack,dds   steps to skip
     --block=w3i,wtg,extra,units,doo,w3r        the editor-file mechanisms (default: w3i,wtg,extra,units,doo)
-    --decoys=wtg,listfile,imp[,preview][,fill]   write decoy files (off by default; preview only if
-                                                named; fill fills the hash table to the header limit:
-                                                no new file can be added to the map)
+    --decoys=wtg,listfile,imp[,preview][,fill]   write decoy files (off by default; listfile removes the
+                                                file list; preview only if named; fill fills the hash
+                                                table to the header limit: no new file can be added)
     --variant=header,high-sector,bit31         malformed-MPQ header markers. No extra barrier:
                                                they ride on the sector-512 pack, which MPQ Editor already refuses
                                                to open; ignored with --skip=pack
@@ -50,6 +50,15 @@ Options (each toggle of each step; default: full protection, ASCII IDs, no decoy
                                                the sector-512 pack always recompresses and dedups)
     --lossy                                    only for a map above the game's 512 MiB limit: textures at half size
                                                and WAV sounds mono 22 kHz, until it fits
+    --models[=lossless|lossy]                  drop the animation keys of the MDX models that change nothing
+                                               (lossless, the default); lossy also thins straight animation tracks,
+                                               within 0.05 units and 0.002 radians
+    --mp3[=32|48|64|96|128]                    re-encode the MP3 sounds in mono, 22 kHz, at that rate in kbps (64 by
+                                               default). The big gain in a map with music, but it loses quality.
+                                               Needs ffmpeg on the PATH, or --ffmpeg=<path to ffmpeg>
+    --minify                                   minify the JASS script before the obfuscator: unreachable functions and
+                                               unused globals out, constants written in; with --skip=obfuscate it
+                                               also shortens the names
     --dds                                      convert .dds textures to BLP (smaller, native) and repoint references
 
   In-game anti-cheat (off by default; NOT yet proven in the game: a probe map has to be played first):
@@ -80,8 +89,8 @@ def _opt(argv, name, default=None):
 
 
 VALUE_FLAGS = ('skip', 'block', 'decoys', 'variant', 'lua-layers', 'seed', 'previous-key', 'game',
-               'anti-cheat-actions', 'anti-cheat-gold-jump', 'anti-cheat-codes-mode')
-OPTIONAL_VALUE_FLAGS = ('anti-cheat',)
+               'anti-cheat-actions', 'anti-cheat-gold-jump', 'anti-cheat-codes-mode', 'ffmpeg')
+OPTIONAL_VALUE_FLAGS = ('anti-cheat', 'models', 'mp3')
 BARE_FLAGS = (
     'ids-non-ascii',
     'to-lua',
@@ -95,6 +104,7 @@ BARE_FLAGS = (
     'dds',
     'bombs',
     'cut-hash',
+    'minify',
     'cli',
     'help',
     'version',
@@ -180,9 +190,16 @@ def parse_options(argv, extra_value=(), extra_bare=()):
         o['decoy_' + k] = True
     for k in variant:
         o['variant_' + k.replace('-', '_')] = True
-    bare = [f for f in ('--lossy', '--no-recompress', '--no-dedup', '--no-blp-opt') if f in argv]
-    if bare and '--optimize' not in argv:
-        warnings.append('%s only work with --optimize: ignored' % ' '.join(bare))
+    bare = [f for f in ('--lossy', '--no-recompress', '--no-dedup', '--no-blp-opt', '--minify') if f in argv]
+    content = [f for f in ('--models', '--mp3', '--ffmpeg') if any(a == f or a.startswith(f + '=') for a in argv)]
+    if (bare or content) and '--optimize' not in argv:
+        warnings.append('%s only work with --optimize: ignored' % ' '.join(bare + content))
+    models = _opt(argv, 'models', 'lossless' if '--models' in argv else None)
+    if models is not None and models not in protect_app.MODELS:
+        raise ValueError('--models: %s is not one of %s' % (models, ', '.join(protect_app.MODELS)))
+    mp3 = _opt(argv, 'mp3', '64' if '--mp3' in argv else None)
+    if mp3 is not None and (not mp3.isdigit() or int(mp3) not in protect_app.MP3_KBPS):
+        raise ValueError('--mp3: %s is not one of %s (kbps)' % (mp3, ', '.join(str(k) for k in protect_app.MP3_KBPS)))
     o['non_ascii_ids'] = '--ids-non-ascii' in argv
     o['to_lua'] = '--to-lua' in argv
     o['blp'] = '--blp' in argv
@@ -198,6 +215,14 @@ def parse_options(argv, extra_value=(), extra_bare=()):
         o['opt_dedup'] = '--no-dedup' not in argv
         o['opt_blp'] = '--no-blp-opt' not in argv
         o['opt_lossy'] = '--lossy' in argv
+        o['opt_models'] = models is not None
+        o['opt_models_lossy'] = models == 'lossy'
+        o['opt_mp3'] = mp3 is not None
+        if mp3 is not None:
+            o['opt_mp3_kbps'] = int(mp3)
+        o['opt_minify'] = '--minify' in argv
+        if _opt(argv, 'ffmpeg'):
+            o['ffmpeg'] = _opt(argv, 'ffmpeg')
     for p in skip:
         o[p] = False
     no_512 = [f for f in ('--variant', '--blp') if any(a == f or a.startswith(f + '=') for a in argv)]
@@ -210,7 +235,7 @@ def parse_options(argv, extra_value=(), extra_bare=()):
     return o, warnings
 
 
-def main(argv=None, version='0.1.6'):
+def main(argv=None, version='0.1.7'):
     import protect_app
     argv = sys.argv[1:] if argv is None else list(argv)
     try:
