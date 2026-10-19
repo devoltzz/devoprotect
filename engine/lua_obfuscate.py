@@ -1,5 +1,6 @@
 # Obfuscates a Lua map script: names renamed, strings encoded, loaded by small loader layers.
 import hashlib
+import os
 import random
 import re
 import sys
@@ -56,6 +57,33 @@ RX_LAYER = re.compile(
     r'for (\w+)=1,(\d+) do \2=\(\2\*75\+74\)%65537 local (\w+)=\2%256 if \6==0 then \6=1 end \1\[\4\]=\6 end '
     r'local (\w+)="([A-Za-z0-9+/]*)"')
 _RX_ID = re.compile(r'[A-Za-z_]\w*')
+DEFAULT_REF = next(
+    (
+        p
+        for p in (
+            os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'ref', '3.0')),
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ref', '3.0'),
+        )
+        if os.path.isfile(os.path.join(p, 'common.j'))
+    ),
+    os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'ref', '3.0')),
+)
+_ENGINE_API = {}
+_RX_DECL_J = re.compile(
+    r'^[ \t]*(?:constant[ \t]+)?(native|function)[ \t]+(\w+)[ \t]+takes[ \t].*?[ \t]returns[ \t]+(\w+)', re.M
+)
+_RX_TYPE_J = re.compile(r'^[ \t]*type[ \t]+(\w+)', re.M)
+_RX_GLOBALS_J = re.compile(r'^[ \t]*globals\b(.*?)^[ \t]*endglobals\b', re.M | re.S)
+_RX_GLOBAL_J = re.compile(r'^[ \t]*(?:constant[ \t]+)?\w+[ \t]+(?:array[ \t]+)?(\w+)', re.M)
+LUA_LIBRARY = frozenset((
+    '_G', '_ENV', '_VERSION', 'arg', 'assert', 'bit32', 'collectgarbage', 'coroutine', 'debug', 'dofile', 'error',
+    'gcinfo', 'getfenv', 'getmetatable', 'io', 'ipairs', 'load', 'loadfile', 'loadstring', 'math', 'module',
+    'newproxy', 'next', 'os', 'package', 'pairs', 'pcall', 'print', 'rawequal', 'rawget', 'rawlen', 'rawset',
+    'require', 'select', 'setfenv', 'setmetatable', 'string', 'table', 'tonumber', 'tostring', 'type', 'unpack',
+    'utf8', 'xpcall'))
+LUA_ENGINE_NAMES = frozenset(('main', 'config', 'FourCC', '__jarray', 'JDiv', 'JCat'))
+BY_NAME = {'ExecuteFunc': (0, 'fun'), 'TriggerRegisterVariableEvent': (1, 'var')}
+LOADERS = frozenset(('load', 'loadstring', 'dofile', 'loadfile'))
 
 
 class Names(object):
@@ -340,6 +368,365 @@ def renomeia(chunk, g, keep_names, log=print):
     return reverse, globals_block, local_vars
 
 
+def engine_api(ref=None):
+    folder = ref or DEFAULT_REF
+    if folder in _ENGINE_API:
+        return _ENGINE_API[folder]
+    texts = {}
+    try:
+        for n in os.listdir(folder):
+            if n.lower() in ('common.j', 'blizzard.j', 'common.ai'):
+                with open(os.path.join(folder, n), encoding='utf-8', errors='replace') as f:
+                    texts[n.lower()] = f.read()
+    except OSError:
+        pass
+    if 'common.j' not in texts or 'blizzard.j' not in texts:
+        _ENGINE_API[folder] = None
+        return None
+    name_list, retorno = set(), {}
+    for t in texts.values():
+        for _kind, fname, ret in _RX_DECL_J.findall(t):
+            name_list.add(fname)
+            retorno[fname] = ret
+        name_list.update(_RX_TYPE_J.findall(t))
+        for block_entry in _RX_GLOBALS_J.findall(t):
+            name_list.update(_RX_GLOBAL_J.findall(block_entry))
+    _ENGINE_API[folder] = (frozenset(name_list), retorno)
+    return _ENGINE_API[folder]
+
+
+def _return_kind(jass_type):
+    if jass_type in ('integer', 'real'):
+        return 'num'
+    return {'string': 'str', 'boolean': 'bool', 'nothing': 'nil', 'code': 'fun'}.get(jass_type, 'hdl')
+
+
+def _is_text(e):
+    return type(e) is lua_ast.Literal and e.kind == 'string' and e.value is not None
+
+
+def _concat_pieces(e):
+    while type(e) is lua_ast.Paren:
+        e = e.inner
+    if type(e) is lua_ast.Binary and e.op == '..':
+        return _concat_pieces(e.left) + _concat_pieces(e.right)
+    if type(e) is lua_ast.Call and e.method is None and type(e.func) is lua_ast.Name and e.func.name == 'JCat':
+        return [p for a in e.args for p in _concat_pieces(a)]
+    return [e]
+
+
+def plan_globals(chunk, generated, keep_names=(), api=None, log=print):
+    api_names = api[0] if api else frozenset()
+    retorno = api[1] if api else {}
+    defs = {}
+    texts = set()
+    name_literals = []
+    at_target = set()
+    patterns = []
+    opaque_uses = []
+
+    def define(fname, types):
+        defs.setdefault(fname, set()).update(types)
+
+    def type_of(e):
+        t = type(e)
+        if t is lua_ast.Literal:
+            return {'nil': {'nil'}, 'boolean': {'bool'}, 'number': {'num'}, 'string': {'str'}}.get(e.kind, {'any'})
+        if t is lua_ast.Table:
+            return {'tab'}
+        if t is lua_ast.FunctionExpr:
+            return {'fun'}
+        if t is lua_ast.Paren:
+            return type_of(e.inner)
+        if t is lua_ast.Unary:
+            return {'bool'} if e.op == 'not' else {'num'}
+        if t is lua_ast.Binary:
+            if e.op == '..':
+                return {'str'}
+            if e.op in ('==', '~=', '<', '<=', '>', '>='):
+                return {'bool'}
+            if e.op in ('and', 'or'):
+                return type_of(e.left) | type_of(e.right)
+            return {'num'}
+        if t is lua_ast.Name and e.name not in generated:
+            return {('ref', e.name)}
+        if t is lua_ast.Call and e.method is None and type(e.func) is lua_ast.Name and e.func.name not in generated:
+            n = e.func.name
+            if n == 'FourCC':
+                return {'num'}
+            if n == '__jarray':
+                return {'tab'}
+            if n in retorno and n not in defs:
+                return {_return_kind(retorno[n])}
+        return {'any'}
+
+    def name_of(e, type_name, where):
+        if _is_text(e) and _RX_ID.fullmatch(e.value):
+            name_literals.append(e)
+            at_target.add(id(e))
+            return
+        ps = _concat_pieces(e)
+        pre = ps[0].value if len(ps) > 1 and _is_text(ps[0]) else ''
+        suf = ps[-1].value if len(ps) > 1 and _is_text(ps[-1]) else ''
+        if _is_text(e):
+            return
+        if pre or suf:
+            patterns.append((pre, suf, type_name))
+        else:
+            opaque_uses.append((type_name, where))
+
+    def words(s):
+        texts.update(_RX_ID.findall(s))
+
+    def expr(e):
+        t = type(e)
+        if t is lua_ast.Literal:
+            if _is_text(e) and id(e) not in at_target:
+                words(e.value)
+        elif t is lua_ast.Name:
+            n = e.name
+            if n in generated:
+                return
+            if n in ('_G', '_ENV'):
+                opaque_uses.append(('all', '%s used as a value (line %d)' % (n, e.line)))
+            elif n in BY_NAME:
+                opaque_uses.append((BY_NAME[n][1], '%s stored/passed as a value (line %d)' % (n, e.line)))
+            elif n in LOADERS:
+                opaque_uses.append(('all', '%s stored/passed as a value (line %d)' % (n, e.line)))
+        elif t is lua_ast.Index:
+            b = e.base
+            if type(b) is lua_ast.Name and b.name not in generated and b.name in ('_G', '_ENV', 'package', 'debug'):
+                if _is_text(e.key):
+                    k = e.key.value
+                    if b.name in ('_G', '_ENV'):
+                        if k in BY_NAME:
+                            opaque_uses.append((BY_NAME[k][1], '%s.%s (line %d)' % (b.name, k, e.line)))
+                        elif k in LOADERS or k in ('_G', '_ENV'):
+                            opaque_uses.append(('all', '%s.%s (line %d)' % (b.name, k, e.line)))
+                    elif (b.name, k) in (('package', 'loaded'), ('debug', 'getregistry')):
+                        opaque_uses.append(('all', '%s.%s (line %d)' % (b.name, k, e.line)))
+                elif b.name in ('_G', '_ENV'):
+                    name_of(e.key, 'all', '%s[...] (line %d)' % (b.name, e.line))
+                else:
+                    opaque_uses.append(('all', '%s[...] (line %d)' % (b.name, e.line)))
+                expr(e.key)
+                return
+            expr(b)
+            expr(e.key)
+        elif t is lua_ast.Call:
+            f = e.func
+            if e.method is None and type(f) is lua_ast.Name and f.name not in generated and \
+                    (f.name in BY_NAME or f.name in LOADERS):
+                if f.name in BY_NAME:
+                    pos, type_name = BY_NAME[f.name]
+                    if len(e.args) > pos:
+                        name_of(e.args[pos], type_name, '%s (line %d)' % (f.name, e.line))
+                elif e.args and not _is_text(e.args[0]):
+                    opaque_uses.append(('all', '%s of a built text (line %d)' % (f.name, e.line)))
+            else:
+                expr(f)
+            if e.method is not None:
+                words(e.method)
+            for a in e.args:
+                expr(a)
+        elif t is lua_ast.Unary:
+            expr(e.operand)
+        elif t is lua_ast.Binary:
+            expr(e.left)
+            expr(e.right)
+        elif t is lua_ast.Paren:
+            expr(e.inner)
+        elif t is lua_ast.Table:
+            for k, v in e.fields:
+                if type(k) is str:
+                    words(k)
+                elif k is not None:
+                    expr(k)
+                expr(v)
+        elif t is lua_ast.FunctionExpr:
+            if '_ENV' in e.params:
+                opaque_uses.append(('all', 'parameter _ENV (line %d)' % e.line))
+            block_entry(e.body)
+
+    def block_entry(b):
+        for s in b:
+            t = type(s)
+            if t is lua_ast.LocalStmt:
+                if '_ENV' in s.names:
+                    opaque_uses.append(('all', 'local _ENV (line %d)' % s.line))
+                for v in s.values:
+                    expr(v)
+            elif t is lua_ast.AssignStmt:
+                for i, x in enumerate(s.targets):
+                    if type(x) is lua_ast.Name and x.name not in generated:
+                        if i < len(s.values):
+                            define(x.name, type_of(s.values[i]))
+                        else:
+                            last_pos = s.values[-1] if s.values else None
+                            define(x.name, {'any'} if type(last_pos) is lua_ast.Call or (
+                                type(last_pos) is lua_ast.Literal and last_pos.kind == 'vararg') else {'nil'})
+                        if x.name in ('_G', '_ENV'):
+                            opaque_uses.append(('all', '%s assigned (line %d)' % (x.name, s.line)))
+                    else:
+                        expr(x)
+                for v in s.values:
+                    expr(v)
+            elif t is lua_ast.CallStmt:
+                expr(s.call)
+            elif t is lua_ast.ReturnStmt:
+                for v in s.values:
+                    expr(v)
+            elif t is lua_ast.FunctionStmt:
+                pieces = re.split(r'[.:]', s.name)
+                if not s.is_local and pieces[0] not in generated:
+                    if len(pieces) == 1:
+                        define(s.name, {'fun'})
+                    elif pieces[0] in ('_G', '_ENV'):
+                        pass
+                for p in pieces[1:]:
+                    words(p)
+                if '_ENV' in s.params:
+                    opaque_uses.append(('all', 'parameter _ENV (line %d)' % s.line))
+                block_entry(s.body)
+            elif t is lua_ast.IfStmt:
+                for cond, block_body in s.branches:
+                    if cond is not None:
+                        expr(cond)
+                    block_entry(block_body)
+            elif t is lua_ast.WhileStmt:
+                expr(s.cond)
+                block_entry(s.body)
+            elif t is lua_ast.NumericForStmt:
+                for x in (s.start, s.stop) + ((s.step,) if s.step is not None else ()):
+                    expr(x)
+                block_entry(s.body)
+            elif t is lua_ast.GenericForStmt:
+                if '_ENV' in s.names:
+                    opaque_uses.append(('all', 'for _ENV (line %d)' % s.line))
+                for x in s.exprs:
+                    expr(x)
+                block_entry(s.body)
+            elif t is lua_ast.RepeatStmt:
+                block_entry(s.body)
+                expr(s.cond)
+            elif t is lua_ast.DoStmt:
+                block_entry(s.body)
+
+    block_entry(chunk.body)
+
+    for _ in range(64):
+        changed = False
+        for n, ts in defs.items():
+            for r in [x for x in ts if type(x) is tuple]:
+                other = defs.get(r[1])
+                if other is None or r[1] == n:
+                    ts.discard(r)
+                    if other is None:
+                        ts.add('any')
+                    changed = True
+                    continue
+                new_ones = set(x for x in other if type(x) is not tuple)
+                if not new_ones <= ts:
+                    ts |= new_ones
+                    changed = True
+                if not any(type(x) is tuple for x in other):
+                    ts.discard(r)
+                    changed = True
+        if not changed:
+            break
+    for ts in defs.values():
+        if any(type(x) is tuple for x in ts):
+            ts.difference_update([x for x in ts if type(x) is tuple])
+            ts.add('any')
+
+    fixed_ones = set(api_names) | LUA_LIBRARY | LUA_ENGINE_NAMES | {'self', '_ENV', '_G'}
+
+    def can_reach(type_name, ts):
+        if type_name == 'all':
+            return True
+        if type_name == 'fun':
+            return bool(ts & {'fun', 'any'})
+        return bool(ts & {'num', 'any'})
+
+    kept = {}
+    candidates = []
+    for n, ts in defs.items():
+        if n in keep_names:
+            kept[n] = 'keep_names'
+        elif n in fixed_ones:
+            kept[n] = 'engine'
+        elif n in texts:
+            kept[n] = 'body_text'
+        elif any(can_reach(python_time, ts) for python_time, _where in opaque_uses):
+            kept[n] = 'opaque'
+        elif any(
+            n.startswith(pre) and n.endswith(suf) and can_reach(python_time, ts) for pre, suf, python_time in patterns
+        ):
+            kept[n] = 'default_value'
+        else:
+            candidates.append(n)
+    return {'candidates': candidates, 'kept': kept, 'name_literals': name_literals,
+            'opaque_uses': [where for _tp, where in opaque_uses], 'patterns': sorted(set(patterns))}
+
+
+def rename_globals(chunk, gmap, name_literals):
+    for e in name_literals:
+        if e.value in gmap:
+            e.value, e.text = gmap[e.value], None
+
+    def expr(e):
+        t = type(e)
+        if t is lua_ast.Name:
+            if e.name in gmap:
+                e.name = gmap[e.name]
+        elif t is lua_ast.Index:
+            expr(e.base)
+            expr(e.key)
+        elif t is lua_ast.Call:
+            expr(e.func)
+            for a in e.args:
+                expr(a)
+        elif t is lua_ast.Unary:
+            expr(e.operand)
+        elif t is lua_ast.Binary:
+            expr(e.left)
+            expr(e.right)
+        elif t is lua_ast.Paren:
+            expr(e.inner)
+        elif t is lua_ast.Table:
+            for k, v in e.fields:
+                if k is not None and type(k) is not str:
+                    expr(k)
+                expr(v)
+        elif t is lua_ast.FunctionExpr:
+            for x in e.body:
+                decl(x)
+
+    def decl(s):
+        t = type(s)
+        if t is lua_ast.FunctionStmt:
+            if not s.is_local:
+                base = re.split(r'[.:]', s.name, maxsplit=1)[0]
+                if base in gmap:
+                    s.name = gmap[base] + s.name[len(base):]
+            for x in s.body:
+                decl(x)
+            return
+        for e in _exprs_of(s):
+            expr(e)
+        if t is lua_ast.IfStmt:
+            for _cond, block_body in s.branches:
+                for x in block_body:
+                    decl(x)
+        elif t in (lua_ast.WhileStmt, lua_ast.NumericForStmt, lua_ast.GenericForStmt, lua_ast.RepeatStmt,
+                   lua_ast.DoStmt):
+            for x in s.body:
+                decl(x)
+
+    for s in chunk.body:
+        decl(s)
+
+
 def encrypt_strings(chunk, r_name, log=print):
     def index_(field_value):
         if field_value not in index_by_value:
@@ -560,6 +947,10 @@ def _restore_names(chunk, reverse):
             expr(e.func)
             for a in e.args:
                 expr(a)
+            if e.method is None and type(e.func) is lua_ast.Name and e.func.name in BY_NAME:
+                pos = BY_NAME[e.func.name][0]
+                if len(e.args) > pos and _is_text(e.args[pos]) and e.args[pos].value in reverse:
+                    e.args[pos].value = reverse[e.args[pos].value]
         elif t is lua_ast.Unary:
             expr(e.operand)
         elif t is lua_ast.Binary:
@@ -846,18 +1237,16 @@ def _link(body_text):
             sys.setrecursionlimit(old)
 
 
-def _links_diff(orig, output, k_dec=0, n_dec=0):
-    def hash_key(link_ref, n):
+def _links_diff(orig, output, k_dec=0, n_dec=0, inverse_g=None):
+    inverse_g = inverse_g or {}
+
+    def hash_key(link_ref, n, inv):
         if link_ref[0] == 'local':
             return ('local', link_ref[1] - n if link_ref[1] else 0)
-        return ('global', link_ref[1], link_ref[2] - n if link_ref[2] else 0)
-
-    s = [
-        hash_key(link_ref, n_dec)
-        for link_ref in output.links[k_dec:]
-        if not (link_ref[0] == 'local' and 0 < link_ref[1] <= n_dec)
-    ]
-    o = [hash_key(link_ref, 0) for link_ref in orig.links]
+        return ('global', inv.get(link_ref[1], link_ref[1]), link_ref[2] - n if link_ref[2] else 0)
+    s = [hash_key(link_ref, n_dec, inverse_g) for link_ref in output.links[k_dec:]
+         if not (link_ref[0] == 'local' and 0 < link_ref[1] <= n_dec)]
+    o = [hash_key(link_ref, 0, {}) for link_ref in orig.links]
     for j, (a, b) in enumerate(zip(o, s)):
         if a != b:
             return 'line %d of the original: %r became %r' % (orig.links[j][-1], a, b)
@@ -880,7 +1269,7 @@ def compile_lua53(data_bytes):
 
 
 def obfuscate(source, seed=None, keep_names=(), layers=2, no_names=False, no_strings=False, marker=None,
-              log=print):
+              log=print, no_globals=False, ref=None):
     keep_names = set(keep_names) | {'_ENV'}
     try:
         layers = int(layers)
@@ -910,6 +1299,26 @@ def obfuscate(source, seed=None, keep_names=(), layers=2, no_names=False, no_str
         reverse, globals_block, local_vars = renomeia(chunk, g, keep_names, log=log)
         details['names_swapped'] = len(reverse)
 
+    gmap = {}
+    details['globals_renamed'], details['globals_kept'], details['globals_opaque'] = 0, {}, []
+    if not (no_names or no_globals):
+        api = engine_api(ref)
+        if api is None:
+            raise SystemExit('ABORTS: no common.j and blizzard.j in %s (the engine names, which the map globals '
+                             'cannot take): --ref=<folder> or --no-globals' % (ref or DEFAULT_REF))
+        plain_name = plan_globals(chunk, set(reverse), keep_names, api, log=log)
+        for n in plain_name['candidates']:
+            gmap[n] = g.new()
+        rename_globals(chunk, gmap, plain_name['name_literals'])
+        for n, new in gmap.items():
+            reverse[new] = n
+        details['globals_renamed'] = len(gmap)
+        for why in plain_name['kept'].values():
+            details['globals_kept'][why] = details['globals_kept'].get(why, 0) + 1
+        details['globals_opaque'] = plain_name['opaque_uses'][:10]
+        details['names_swapped'] = len(reverse)
+    inverse_g = dict((new, n) for n, new in gmap.items())
+
     if no_strings:
         idx_by_value = {}
         details['strings_encrypted'] = 0
@@ -926,8 +1335,8 @@ def obfuscate(source, seed=None, keep_names=(), layers=2, no_names=False, no_str
     details['bytes_minified'] = len(body_text.encode('utf-8', 'surrogateescape'))
 
     leftovers = [(n, where) for n, where in _declared_names(chunk) if n in local_vars and n not in keep_names]
-    details['gates']['G3 names'] = 'ok (%d swapped, 0 forgotten declarations)' % len(reverse) if not leftovers \
-        else 'FAILED: %s' % leftovers[:5]
+    details['gates']['G3 names'] = 'ok (%d swapped, 0 forgotten declarations)' % (len(reverse) - len(gmap)) \
+        if not leftovers else 'FAILED: %s' % leftovers[:5]
     if leftovers:
         raise SystemExit('ABORT (G3): local declarations without the new name: %s' % leftovers[:5])
 
@@ -950,6 +1359,14 @@ def obfuscate(source, seed=None, keep_names=(), layers=2, no_names=False, no_str
         raise SystemExit('ABORT (G1): the inner chunk does not parse (line %d): %s%s' % (
             e.line, e.message, '' if no_strings else
             ' (the decryptor takes 1 local of the main chunk and each string becomes a call)'))
+    if gmap:
+        leftover_g = sorted(
+            set(link_ref[1] for link_ref in link_out.links if link_ref[0] == 'global' and link_ref[1] in gmap)
+        )
+        if leftover_g:
+            raise SystemExit('ABORTS (G3): renamed globals that kept the original name: %s' % leftover_g[:5])
+        details['gates']['G3 names'] = 'ok (%d locals and %d globals renamed, 0 declarations missed, 0 globals with ' \
+                                     'the original name)' % (len(reverse) - len(gmap), len(gmap))
     for fname, d in phases[:-1] + ([('the layer %d' % layers, output.encode('utf-8', 'surrogateescape'))]
                                    if layers else []):
         try:
@@ -993,13 +1410,14 @@ def obfuscate(source, seed=None, keep_names=(), layers=2, no_names=False, no_str
         where = [i for i, (x, y) in enumerate(zip(a, b)) if x != y][:1]
         raise SystemExit('ABORT (G2): the way back does not return the original (1st difference at byte %s of %d/%d)'
                          % (where, len(a), len(b)))
-    diff = _links_diff(link_source, link_out, k_dec, n_dec)
+    diff = _links_diff(link_source, link_out, k_dec, n_dec, inverse_g)
     if diff:
         raise SystemExit('ABORT (G2): a name came to bind to another declaration (%s)' % diff)
     details['gates']['G2 round trip'] = ('ok (layers peeled, strings put back, names reverted; canonical equal; '
                                          '%d names bound to the same declarations)' % len(link_source.links))
 
     details['reverse'] = reverse
+    details['inverse_globals'] = inverse_g
     details['strings'] = idx_by_value
     details['ok'] = True
     details['seconds'] = round(time.time() - t0, 1)
