@@ -16,6 +16,10 @@ import sstrhash
 TOKEN = re.compile(r'''(?P<comment>//[^\n]*)|(?P<str>"(?:[^"\\]|\\.)*")|(?P<raw>'(?:[^'\\]|\\.)*')'''
                    r'''|(?P<num>0[xX][0-9A-Fa-f]+|\$[0-9A-Fa-f]+|\d+\.\d*|\.\d+|\d+)|(?P<id>[A-Za-z_]\w*)'''
                    r'''|(?P<nl>\r?\n)|(?P<ws>[ \t\r\f\v]+)|(?P<op>.)''', re.S)
+TOKEN_CR = re.compile(r'''(?P<com>//[^\r\n]*)|(?P<str>"(?:[^"\\]|\\.)*")|(?P<raw>'(?:[^'\\]|\\.)*')'''
+                      r'''|(?P<num>0[xX][0-9A-Fa-f]+|\$[0-9A-Fa-f]+|\d+\.\d*|\.\d+|\d+)|(?P<id>[A-Za-z_]\w*)'''
+                      r'''|(?P<nl>\r\n|\n|\r)|(?P<ws>[ \t\f\v]+)|(?P<op>.)''', re.S)
+_RX_BARE_CR = re.compile(r'\r(?!\n)')
 PIECE = re.compile(r'\\.|.', re.S)
 WORD_PIECE = re.compile(r'\\.|[A-Za-z0-9]+|.', re.S)
 KEYWORDS = set('''function takes returns return nothing endfunction local set call if then else elseif
@@ -54,6 +58,8 @@ def _native_lexer():
 
 
 def tokenize(body_text):
+    if _token_of(body_text) is TOKEN_CR:
+        return tokenize_regex(body_text)
     lex = _native_lexer()
     r = lex(body_text, 0) if lex is not None else None
     if r is not None:
@@ -64,10 +70,14 @@ def tokenize(body_text):
     return tokenize_regex(body_text)
 
 
+def _token_of(body_text):
+    return TOKEN_CR if '\r' in body_text and _RX_BARE_CR.search(body_text) else TOKEN
+
+
 def tokenize_regex(body_text):
     kinds, texts = [], []
     ka, ta = kinds.append, texts.append
-    for m in TOKEN.finditer(body_text):
+    for m in _token_of(body_text).finditer(body_text):
         ka(m.lastgroup)
         ta(m.group())
     return kinds, texts
