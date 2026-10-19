@@ -1920,3 +1920,252 @@ def _ue(e):
         return _ue(e.callee) + '(' + ', '.join([_ue(a) for a in e.args]) + ')'
     raise TypeError('not a JASS expression: %r' % (e,))
 
+
+def _with_comment(text, comment, comments):
+    return text + ' ' + comment if comment and comments else text
+
+
+def _decl_text(d):
+    head = ('constant ' if getattr(d, 'is_constant', False) else '') + d.type + (' array ' if d.is_array else ' ')
+    head += d.name
+    if d.initializer is not None:
+        head += ' = ' + _ue(d.initializer)
+    return head
+
+
+def _signature_text(f):
+    params = ', '.join(t + ' ' + n for t, n in f.params) if f.params else 'nothing'
+    return ('constant ' if f.is_constant else '') + ('native ' if f.is_native else 'function ') + f.name + \
+        ' takes ' + params + ' returns ' + f.return_type
+
+
+def _unparse_stmt(s, ind, out, comments, prefix=''):
+    if comments:
+        for c in s.leading_comments:
+            out.append(ind + c)
+    t = type(s)
+    if t is CallStmt:
+        text = 'call ' + _ue(s.call)
+    elif t is SetStmt:
+        text = 'set ' + _ue(s.target) + ' = ' + _ue(s.value)
+    elif t is IfStmt or t is StaticIfStmt:
+        if t is StaticIfStmt:
+            prefix = prefix + 'static '
+        inner = ind + '    '
+        for k, (cond, body) in enumerate(s.branches):
+            if k == 0:
+                head = prefix + 'if ' + _ue(cond) + ' then'
+            elif cond is None:
+                head = 'else'
+            else:
+                head = 'elseif ' + _ue(cond) + ' then'
+            c = s.comment if k == 0 else s.branch_comments[k] if k < len(s.branch_comments) else None
+            out.append(ind + _with_comment(head, c, comments))
+            for b in body:
+                _unparse_stmt(b, inner, out, comments)
+        out.append(ind + _with_comment('endif', s.end_comment, comments))
+        return
+    elif t is LoopStmt:
+        out.append(ind + _with_comment(prefix + 'loop', s.comment, comments))
+        inner = ind + '    '
+        for b in s.body:
+            _unparse_stmt(b, inner, out, comments)
+        out.append(ind + _with_comment('endloop', s.end_comment, comments))
+        return
+    elif t is ExitWhenStmt:
+        text = 'exitwhen ' + _ue(s.cond)
+    elif t is ReturnStmt:
+        text = 'return' if s.value is None else 'return ' + _ue(s.value)
+    elif t is CommentStmt:
+        if comments:
+            out.append(ind + s.text)
+        return
+    elif t is LocalDecl:
+        text = 'local ' + _decl_text(s)
+    elif t is DebugStmt:
+        _unparse_stmt(s.stmt, ind, out, comments, prefix + 'debug ')
+        return
+    else:
+        raise TypeError('not a JASS statement: %r' % (s,))
+    out.append(ind + _with_comment(prefix + text, s.comment, comments))
+
+
+def _vsignature_text(f):
+    params = ', '.join(t + ' ' + n for t, n in f.params) if f.params else 'nothing'
+    head = ' '.join(f.modifiers + [f.word, f.name])
+    return head + ' takes ' + params + ' returns ' + f.return_type + (' defaults ' + f.defaults if f.defaults else '')
+
+
+def _unparse_vitem(item, out, comments, ind):
+    t = type(item)
+    if comments and t in (Method, VBlock, VDecl):
+        out.extend(ind + c for c in item.leading_comments)
+    if t is Method:
+        out.append(ind + _with_comment(_vsignature_text(item), item.comment, comments))
+        if item.is_native or item.abstract:
+            return
+        for d in item.locals:
+            if comments:
+                out.extend(ind + '    ' + c for c in d.leading_comments)
+            out.append(ind + _with_comment('    local ' + _decl_text(d), d.comment, comments))
+        for st in item.body:
+            _unparse_stmt(st, ind + '    ', out, comments)
+        out.append(ind + _with_comment('endmethod' if item.word == 'method' else 'endfunction', item.end_comment,
+                                       comments))
+    elif t is VBlock:
+        if item.kind == 'static if':
+            out.append(ind + _with_comment('static if ' + item.header + ' then', item.comment, comments))
+        else:
+            out.append(ind + _with_comment(' '.join(item.modifiers + [item.kind, item.name]) +
+                                           (' ' + item.header if item.header else ''), item.comment, comments))
+        for x in item.items:
+            _unparse_vitem(x, out, comments, ind + '    ')
+        if item.else_items is not None:
+            out.append(ind + 'else')
+            for x in item.else_items:
+                _unparse_vitem(x, out, comments, ind + '    ')
+        if comments:
+            out.extend(ind + '    ' + c for c in item.end_comments)
+        end = 'endif' if item.kind == 'static if' else _V_BLOCKS[item.kind]
+        out.append(ind + _with_comment(end, item.end_comment, comments))
+    elif t is VDecl:
+        out.append(ind + _with_comment(item.text if item.kind in ('member', 'global') else
+                                       ' '.join(item.modifiers + [item.text]), item.comment, comments))
+    else:
+        sub = []
+        _unparse_item(item, sub, comments)
+        out.extend(ind + x if x else x for x in sub)
+
+
+def _unparse_item(item, out, comments):
+    if type(item) in (Method, VBlock, VDecl):
+        _unparse_vitem(item, out, comments, '')
+        return
+    if comments:
+        out.extend(item.leading_comments)
+    t = type(item)
+    if t is Function:
+        out.append(_with_comment(_signature_text(item), item.comment, comments))
+        if item.is_native:
+            return
+        for d in item.locals:
+            if comments:
+                out.extend('    ' + c for c in d.leading_comments)
+            out.append(_with_comment('    local ' + _decl_text(d), d.comment, comments))
+        for s in item.body:
+            _unparse_stmt(s, '    ', out, comments)
+        out.append(_with_comment('endfunction', item.end_comment, comments))
+    elif t is Globals:
+        out.append(_with_comment('globals', item.comment, comments))
+        for d in item.decls:
+            if comments:
+                out.extend('    ' + c for c in d.leading_comments)
+            out.append(_with_comment('    ' + (d.text if type(d) is VDecl else _decl_text(d)), d.comment, comments))
+        if comments:
+            out.extend('    ' + c for c in item.end_comments)
+        out.append(_with_comment('endglobals', item.end_comment, comments))
+    elif t is TypeDecl:
+        out.append(_with_comment('type ' + item.name + ' extends ' + item.base, item.comment, comments))
+    elif t is GlobalDecl:
+        out.append(_with_comment(_decl_text(item), item.comment, comments))
+    elif t is LocalDecl:
+        out.append(_with_comment('local ' + _decl_text(item), item.comment, comments))
+    else:
+        raise TypeError('not a JASS declaration: %r' % (item,))
+
+
+def unparse(node, comments=True):
+    with _tree_work():
+        if isinstance(node, Expr):
+            return _ue(node)
+        out = []
+        if isinstance(node, Script):
+            for k, item in enumerate(node.items):
+                if k and (type(item) in (Function, Method) and not item.is_native or type(item) is VBlock):
+                    out.append('')
+                _unparse_item(item, out, comments)
+            if comments:
+                out.extend(node.end_comments)
+        elif isinstance(node, Stmt):
+            _unparse_stmt(node, '', out, comments)
+        else:
+            _unparse_item(node, out, comments)
+        out.append('')
+        return '\n'.join(out)
+
+
+_WORD_END_CHARS = frozenset('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.')
+_WORD_BEGIN_CHARS = _WORD_END_CHARS | frozenset('$')
+_LITERAL_SPLIT_RE = re.compile(r'''"([^"\\]*+(?:\\.[^"\\]*+)*+)"|'([^'\\]*+(?:\\.[^'\\]*+)*+)'|//[^\r\n]*+''', re.S)
+_SPACE_RUN_RE = re.compile(r'  ++')
+_LONE_SPACE_RE = re.compile(r' (?:(?<![A-Za-z0-9_.] )|(?![A-Za-z0-9_.$]))')
+_ONE_TOKEN_RUN_RE = re.compile(r'[A-Za-z0-9_.$](?:(?<=[A-Za-z_])[A-Za-z0-9_]*+|(?<=\$)[0-9A-Fa-f]++'
+                               r'|(?<=0)[xX][0-9A-Fa-f]++|(?<=[0-9])[0-9]*+\.[0-9]*+|(?<=\.)[0-9]++|(?<=[0-9])[0-9]*+)'
+                               r'(?![A-Za-z0-9_.$])')
+_WORD_CHAR_RE = re.compile(r'[A-Za-z0-9_.$]')
+
+
+def _canonical_tokens(text):
+    lines = []
+    cur = []
+    prev = ''
+    for t in _CANON_RE.findall(text + '\n'):
+        if t in _NL:
+            if cur:
+                lines.append(''.join(cur))
+                cur = []
+            prev = ''
+            continue
+        if prev and prev[-1] in _WORD_END_CHARS and t[0] in _WORD_BEGIN_CHARS:
+            cur.append(' ')
+        cur.append(t)
+        prev = t
+    if cur:
+        lines.append(''.join(cur))
+    return '\n'.join(lines)
+
+
+def _canonical_fast(text):
+    if '\x03' in text:
+        return None
+    parts = _LITERAL_SPLIT_RE.split(text)
+    literals = []
+    marks = []
+    for s, r in zip(parts[1::3], parts[2::3]):
+        if s is not None:
+            literals.append('"' + s + '"')
+            marks.append('\x03')
+        elif r is not None:
+            literals.append("'" + r + "'")
+            marks.append('\x03')
+        else:
+            marks.append('')
+    out = [None] * (2 * len(marks) + 1)
+    out[0::2] = parts[0::3]
+    out[1::2] = marks
+    code = ''.join(out)
+    if _WORD_CHAR_RE.search(_ONE_TOKEN_RUN_RE.sub('', code)):
+        return None
+    if '\t' in code or _BOM in code:
+        code = code.replace('\t', ' ').replace(_BOM, ' ')
+    code = _LONE_SPACE_RE.sub('', _SPACE_RUN_RE.sub(' ', code))
+    if '\r' in code:
+        code = code.replace('\r\n', '\n').replace('\r', '\n')
+    code = '\n'.join(filter(None, code.split('\n')))
+    if not literals:
+        return code
+    pieces = code.split('\x03')
+    out = [None] * (2 * len(pieces) - 1)
+    out[0::2] = pieces
+    out[1::2] = literals
+    return ''.join(out)
+
+
+def canonical(text_or_node):
+    if isinstance(text_or_node, Node):
+        text = unparse(text_or_node, comments=False)
+    else:
+        text = text_or_node
+    fast = _canonical_fast(text)
+    return _canonical_tokens(text) if fast is None else fast
+
