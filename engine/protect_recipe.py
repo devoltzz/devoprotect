@@ -11,19 +11,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ARCHIVE_ROOT = os.path.normpath(os.path.join(HERE, '..', '..'))
 DEFAULT_REF = next((p for p in (os.path.join(ARCHIVE_ROOT, 'common', 'ref', '3.0'), os.path.join(HERE, 'ref', '3.0'))
                     if os.path.isfile(os.path.join(p, 'common.j'))), os.path.join(ARCHIVE_ROOT, 'common', 'ref', '3.0'))
-STEPS = (
-    'anticheat',
-    'shuffle',
-    'lua',
-    'dds',
-    'obfuscate',
-    'slk',
-    'lock_editor',
-    'decoy',
-    'protect',
-    'bulk',
-    'cut_step',
-)
+STEPS = ('anticheat', 'shuffle', 'lua', 'dds', 'content', 'obfuscate', 'slk', 'lock_editor', 'decoy', 'protect', 'bulk',
+         'cut_step')
 NO_CONTENTS = ('(listfile)', '(attributes)', '(signature)')
 
 
@@ -248,6 +237,175 @@ def _smaller_art(entry, output, optimization, pack_file, tmp):
     return {'map_path': smaller, 'summary': summary}
 
 
+MODEL_LEVELS = ('lossless_keys', 'lossy_keys')
+SOUND_KBPS = (32, 48, 64, 96, 128)
+
+
+def normalize_content(content):
+    if not content:
+        return None
+    c = dict(content)
+    outside = sorted(set(c) - {'models', 'sounds', 'script', 'ffmpeg'})
+    if outside:
+        raise SystemExit('content: unknown key %s (valid: models, sounds, script, ffmpeg)' % ', '.join(outside))
+    models = c.get('models') or None
+    if models is not None and models not in MODEL_LEVELS:
+        raise SystemExit('content: models=%r is not one of %s' % (models, ', '.join(MODEL_LEVELS)))
+    sounds = c.get('sounds') or None
+    if sounds is not None:
+        try:
+            sounds = int(sounds)
+        except (TypeError, ValueError):
+            sounds = None if str(c.get('sounds')).strip() == '' else -1
+        if sounds not in SOUND_KBPS:
+            raise SystemExit('content: sounds=%r is not one of the rates %s (kbps)' % (c.get('sounds'), SOUND_KBPS))
+    out = {'models': models, 'sounds': sounds, 'script': bool(c.get('script')), 'ffmpeg': c.get('ffmpeg') or None}
+    return out if (out['models'] or out['sounds'] or out['script']) else None
+
+
+def _content_step(origin, new, content, name_list, ref, tmp, keep_names, short_names, verbose):
+    import editor_lock
+    import mpqadd
+    import mpqread
+    a = mpqread.Archive(origin)
+    unique_names, seen = [], set()
+    for n in name_list:
+        if n.lower() not in seen:
+            seen.add(n.lower())
+            unique_names.append(n)
+    swap, piece_list = [], {}
+    script_before = None
+
+    def saved(n, data_bytes):
+        swap.append((n, data_bytes))
+
+    if content['sounds']:
+        import audio_shrink
+        exe = audio_shrink.find_ffmpeg(content['ffmpeg'])
+        mp3 = [n for n in unique_names if n.lower().endswith('.mp3') and a.find(n)]
+        if not mp3:
+            piece_list['MP3'] = 'no MP3 in the map'
+        elif not exe:
+            piece_list['MP3'] = 'skipped: ffmpeg was not found (put it on the PATH, or give its path)'
+        else:
+            before = after_diag = done_list = failures = 0
+            for n in mp3:
+                d = editor_lock._read(a, n)
+                if not d:
+                    continue
+                try:
+                    nd, info = audio_shrink.shrink_bytes(d, '.mp3', kbps=content['sounds'], ffmpeg=exe)
+                except RuntimeError:
+                    failures += 1
+                    nd, info = d, {'shrunk': False}
+                before += len(d)
+                after_diag += len(nd)
+                if info['shrunk']:
+                    done_list += 1
+                    saved(n, nd)
+            piece_list['MP3'] = '%d of %d re-encoded (mono, 22 kHz, %d kbps), %d -> %d B%s' % (
+                done_list, len(mp3), content['sounds'], before, after_diag,
+                '; %d could not be read by ffmpeg and stay as they were' % failures if failures else '')
+    if content['models']:
+        import mdx_optimize
+        lossy_keys = content['models'] == 'lossy_keys'
+        mdx = [n for n in unique_names if n.lower().endswith('.mdx') and a.find(n)]
+        before = after_diag = done_list = keys_in = keys_out = 0
+        for n in mdx:
+            d = editor_lock._read(a, n)
+            if not d:
+                continue
+            try:
+                nd, r = mdx_optimize.optimize(d, lossy_keys)
+            except Exception:
+                nd = None
+            if nd is None:
+                continue
+            done_list += 1
+            before, after_diag = before + len(d), after_diag + len(nd)
+            keys_in, keys_out = keys_in + r['keys_before'], keys_out + r['keys_after']
+            saved(n, nd)
+        piece_list['models'] = ('%d of %d with fewer animation keys%s (%d -> %d keys, %d -> %d B)' % (
+            done_list, len(mdx), ', lossy' if lossy_keys else '', keys_in, keys_out, before, after_diag)
+            if done_list else ('no MDX model in the map' if not mdx else 'nothing to drop in %d model(s)' % len(mdx)))
+    if content['script']:
+        lua_bytes = editor_lock._read(a, 'war3map.lua')
+        name_s, script = ('war3map.lua', lua_bytes) if lua_bytes else editor_lock._script(a)
+        owned = [n for n in ('Scripts\\common.j', 'Scripts\\Blizzard.j') if editor_lock._read(a, n)]
+        if script is None:
+            piece_list['script'] = 'skipped: no script in the map'
+        elif name_s.lower().endswith('.lua'):
+            piece_list['script'] = 'skipped: the script is Lua (the Lua obfuscator already minifies it)'
+        elif b'function main' not in script:
+            piece_list['script'] = 'skipped: %s has no main function' % name_s
+        elif owned:
+            piece_list['script'] = 'skipped: the map carries its own %s' % ' and '.join(owned)
+        else:
+            import jass_minify
+            body_text = script.decode('latin-1')
+            libs = [os.path.join(ref, 'common.j'), os.path.join(ref, 'blizzard.j')]
+            new_t, r = jass_minify.minify_text(
+                body_text, {'rename': short_names, 'keep': list(keep_names), 'libraries': libs}
+            )
+            if r['state'] != 'done' or r['after'] >= r['before']:
+                piece_list['script'] = 'kept as it was: %s' % (r.get('reason') or 'nothing to remove')
+            else:
+                new_b = new_t.encode('latin-1')
+                j_a, j_b = os.path.join(tmp, 'content_before.j'), os.path.join(tmp, 'content_after.j')
+                with open(j_a, 'wb') as f:
+                    f.write(script)
+                with open(j_b, 'wb') as f:
+                    f.write(new_b)
+                pj_a, _s = pjass_run(j_a, ref, os.path.join(tmp, 'pj_content_before'), verbose)
+                pj_b, _s = pjass_run(j_b, ref, os.path.join(tmp, 'pj_content_after'), verbose)
+                if pj_a is not None and pj_b is not None and (pj_b[0] > pj_a[0] or sum(pj_b) > sum(pj_a)):
+                    piece_list['script'] = (
+                        'kept as it was: pjass finds %s (errors, warnings) in the minified script and %s '
+                        'in the original' % (list(pj_b), list(pj_a))
+                    )
+                else:
+                    saved(name_s, new_b)
+                    script_before = script
+                    piece_list['script'] = (
+                        '%s %d -> %d B: %d function(s) and %d global(s) removed, %d constant use(s) '
+                        'written in%s; pjass %s'
+                        % (
+                            name_s,
+                            r['before'],
+                            r['after'],
+                            r['removed_functions'],
+                            r['removed_globals'],
+                            r['inlined'],
+                            ', %d name(s) shortened' % r['renamed'] if short_names else '',
+                            'did not run'
+                            if pj_a is None or pj_b is None
+                            else '%s -> %s (errors, warnings)' % (list(pj_a), list(pj_b)),
+                        )
+                    )
+    summary = '; '.join('%s: %s' % kv for kv in piece_list.items())
+    if not swap:
+        return {
+            'map_path': None,
+            'may_change': set(),
+            'piece_list': piece_list,
+            'summary': summary,
+            'script_before': None,
+        }
+    shutil.copyfile(origin, new)
+    mpqadd.add_files(new, swap, log=lambda *x: None)
+    b = mpqread.Archive(new)
+    for n, data_bytes in swap:
+        if editor_lock._read(b, n) != data_bytes:
+            raise SystemExit('ABORT at step content: the %s written to the map is not the optimized one' % n)
+    return {
+        'map_path': new,
+        'may_change': set(n.lower() for n, _d in swap),
+        'piece_list': piece_list,
+        'summary': summary,
+        'script_before': script_before,
+    }
+
+
 def _guard(fn, entry, output, kw):
     if same_file(entry, output):
         raise SystemExit('the output must be another file (the input never changes)')
@@ -313,6 +471,7 @@ def _recipe(
     bulk=None,
     cut_step=False,
     anticheat=None,
+    content=None,
 ):
     import editor_lock
     import id_shuffle
@@ -334,6 +493,7 @@ def _recipe(
     if anticheat is not None:
         import anticheat as _anticheat
         anticheat = _anticheat.normalize(anticheat)
+    content = normalize_content(content)
     entry, output = os.path.abspath(entry), os.path.abspath(output)
     if same_file(entry, output):
         raise SystemExit('the output must be another file (the input never changes)')
@@ -565,6 +725,28 @@ def _recipe(
         on_close('dds', 'ok', t0, last, 'dds', {'summary': '%d .dds -> .blp' % r['replaced']})
         current, last = new, 'dds'
 
+    script_before_minify = None
+    if content and 'content' not in skip:
+        t0 = time.time()
+        log('[content] Shrinking the models, sounds and script...')
+        r_c = _content_step(current, next_steps('content'), content, ref_names, ref, tmp, keep_for_obfuscator,
+                            short_names='obfuscate' in skip, verbose=verbose)
+        if r_c['map_path']:
+            stages['content'] = contents(r_c['map_path'], ref_names)
+            outside = sorted(set(difference(stages[last], stages['content'])) - r_c['may_change'])
+            if outside:
+                raise SystemExit('ABORT at step content: something else changed (%s)' % ', '.join(outside[:5]))
+        else:
+            stages['content'] = stages[last]
+        on_close('content', 'ok', t0, last, 'content', {'piece_list': r_c['piece_list'], 'summary': r_c['summary']})
+        if r_c['map_path']:
+            current = r_c['map_path']
+        script_before_minify = r_c['script_before']
+        last = 'content'
+    elif content:
+        details['steps'].append({'step': 'content', 'status': 'skipped'})
+        log('[content] skipped')
+
     script_before = None
     if 'obfuscate' in skip:
         details['steps'].append({'step': 'obfuscate', 'status': 'skipped'})
@@ -576,7 +758,7 @@ def _recipe(
         fname, script = ('war3map.lua', lua) if lua else editor_lock._script(a)
         script_before = script
         if script is not None and fname.endswith('.lua'):
-            r = lua_obfuscate.obfuscate(script, layers=lua_layers, log=silent)
+            r = lua_obfuscate.obfuscate(script, layers=lua_layers, keep_names=keep_for_obfuscator, ref=ref, log=silent)
             new = next_steps('obfuscate')
             shutil.copyfile(current, new)
             obfuscated = r['output'].encode('utf-8', 'surrogateescape')
@@ -587,11 +769,13 @@ def _recipe(
             on_close('obfuscate', 'ok', t0, last, 'obfuscate', {
                 'script': fname, 'bytes_before': r['bytes_before'], 'bytes_after': r['bytes_after'],
                 'names_swapped': r['names_swapped'], 'strings_encrypted': r['strings_encrypted'],
+                'globals_renamed': r['globals_renamed'], 'globals_kept': r['globals_kept'],
                 'layers': [{'seed': m['seed'], 'hash_key': m['hash_key']} for m in r['layers']],
                 'gates': r['gates'],
-                'summary': '%s %d -> %d B; %d name(s), %d string(s), %d layer(s); %s' % (
-                    fname, r['bytes_before'], r['bytes_after'], r['names_swapped'], r['strings_encrypted'],
-                    len(r['layers']), '; '.join(r['gates'].values()))})
+                'summary': '%s %d -> %d B; %d name(s) (%d global(s); kept: %s), %d string(s), %d layer(s); %s' % (
+                    fname, r['bytes_before'], r['bytes_after'], r['names_swapped'], r['globals_renamed'],
+                    ', '.join('%s %d' % kv for kv in sorted(r['globals_kept'].items())) or 'none',
+                    r['strings_encrypted'], len(r['layers']), '; '.join(r['gates'].values()))})
             current, last = new, 'obfuscate'
         elif script is None or b'function main' not in script:
             why = ('no script in the map' if script is None else
@@ -718,7 +902,7 @@ def _recipe(
         r = editor_lock.lock_editor(current, new, w3i_='w3i' in mechanisms, wtg='wtg' in mechanisms,
                                     w3r_inflated='w3r' in mechanisms, editor_extra='extra' in mechanisms,
                                     units_doo='units' in mechanisms, doo='doo' in mechanisms, force_flag=force_flag,
-                                    trusted_script=script_before, log=silent)
+                                    trusted_script=script_before_minify or script_before, log=silent)
         if not r['ok']:
             raise SystemExit('ABORT at step lock_editor: %s' % r.get('problems'))
         stages['lock_editor'] = contents(new, ref_names)
@@ -863,7 +1047,7 @@ def _recipe(
         t0 = time.time()
         import decoy_files
         _spec_m = decoy_files.bulk_spec(bulk)
-        _rm = decoy_files.bulk(output, bombs=_spec_m['bombs'], slices=_spec_m['slices'], listing=_spec_m['listing'],
+        _rm = decoy_files.bulk(output, bombs=_spec_m['bombs'], slices=_spec_m['slices'],
                                seed=seed, log=silent)
         details['steps'].append(
             {
@@ -872,7 +1056,6 @@ def _recipe(
                 'seconds': round(time.time() - t0, 1),
                 'bombs': _rm['bombs'],
                 'slices': _rm['slices'],
-                'listing': _rm['listing'],
                 'claimed': _rm['claimed'],
                 'bytes_written': _rm['bytes'],
                 'fallback_fdf': _rm['fallback_fdf'],
@@ -1030,6 +1213,7 @@ def _campaign(
     bulk=None,
     cut_step=False,
     anticheat=None,
+    content=None,
 ):
     if bulk is not None or cut_step:
         raise SystemExit('campaign: --bulk and --cut-hash only work on a SINGLE MAP (the .w3x): in a campaign the '
@@ -1040,6 +1224,7 @@ def _campaign(
             'campaign: --to-slk works only on a SINGLE MAP (the .w3x): each map of the campaign would have to '
             'convert with the game base, and it is left for the queue'
         )
+    content = normalize_content(content)
     import campaign_info
     import editor_lock
     import mpqadd
@@ -1153,6 +1338,7 @@ def _campaign(
             previous=prev_key_path,
             log=log,
             clean=False,
+            content=content,
         )
         clean = None
         if 'protect' not in skip or optimization is None:
