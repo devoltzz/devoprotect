@@ -1225,13 +1225,21 @@ class _Links(lua_ast._Parser):
             self.links.append(('local', var[2] if len(var) > 2 else 0, ln))
 
 
+class _BindingsOnly(object):
+    __slots__ = ('links', 'n_decl')
+
+    def __init__(self, links, n_decl):
+        self.links, self.n_decl = links, n_decl
+
+
 def _link(body_text):
     old = sys.getrecursionlimit()
     if old < lua_ast._RECURSION:
         sys.setrecursionlimit(lua_ast._RECURSION)
     try:
         p = _Links(body_text)
-        return p.chunk(), p
+        script_tree = p.chunk()
+        return script_tree, _BindingsOnly(p.links, p.n_decl)
     finally:
         if old < lua_ast._RECURSION:
             sys.setrecursionlimit(old)
@@ -1299,7 +1307,7 @@ def obfuscate(source, seed=None, keep_names=(), layers=2, no_names=False, no_str
         reverse, globals_block, local_vars = renomeia(chunk, g, keep_names, log=log)
         details['names_swapped'] = len(reverse)
 
-    gmap = {}
+    gmap, plain_name = {}, None
     details['globals_renamed'], details['globals_kept'], details['globals_opaque'] = 0, {}, []
     if not (no_names or no_globals):
         api = engine_api(ref)
@@ -1339,6 +1347,7 @@ def obfuscate(source, seed=None, keep_names=(), layers=2, no_names=False, no_str
         if not leftovers else 'FAILED: %s' % leftovers[:5]
     if leftovers:
         raise SystemExit('ABORT (G3): local declarations without the new name: %s' % leftovers[:5])
+    del chunk, plain_name
 
     data_bytes = body_text.encode('utf-8', 'surrogateescape')
     phases = []
@@ -1403,9 +1412,12 @@ def obfuscate(source, seed=None, keep_names=(), layers=2, no_names=False, no_str
     if not no_names:
         _restore_names(tree, reverse)
     _normalize(tree)
+    a = lua_ast.canonical(tree)
+    del tree
     origin, link_source = _link(source)
     _normalize(origin)
-    a, b = lua_ast.canonical(tree), lua_ast.canonical(origin)
+    b = lua_ast.canonical(origin)
+    del origin
     if a != b:
         where = [i for i, (x, y) in enumerate(zip(a, b)) if x != y][:1]
         raise SystemExit('ABORT (G2): the way back does not return the original (1st difference at byte %s of %d/%d)'
