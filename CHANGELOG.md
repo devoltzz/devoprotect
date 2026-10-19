@@ -3,6 +3,28 @@
 What each version of DevoProtect brought, the newest first. The downloads are on the
 [Releases](https://github.com/devoltzz/devoprotect/releases) page.
 
+## 0.1.7 (2026-10-19)
+
+- The file list decoy (`listfile`) now removes the map's file list instead of writing a fake one. Any list left in
+  the map is something a tool can mine for file names, so now there is none.
+- The decoys that fill the hash table are spread across the map's folders (the root, `war3mapImported`, `Import` and
+  the usual subfolders), each with a file type that fits its folder, instead of all sitting in `Import`.
+- The extract-all bombs no longer come with a big file list. A tool that extracts everything walks the archive's
+  block table and finds them anyway.
+- A Lua script now loses the map's own global names too: the trigger functions (`Trig_`, `InitTrig_`), the variables
+  (`udg_`, `gg_`) and every function the author wrote. Before, only the local names changed, so a Lua map, or a JASS
+  map converted with "convert to Lua", kept them readable once the loader layers were peeled off. The engine's names
+  stay, and so does a name the map looks up from text while it runs (`ExecuteFunc` with a name built from pieces,
+  `_G[name]`); `ExecuteFunc("Name")` and the variable event follow the new name. This change is still to be proven
+  in game, so test your map before a release.
+- Optimize size has three new parts, all off by default. Shrink models drops the animation keys of MDX models that
+  change nothing (lossless), or also thins straight animation tracks (lossy). Re-encode MP3 turns the map's MP3 sounds
+  into mono 22 kHz files at the rate you pick; on test maps that carry music the map came out 46% to 79% smaller, but
+  the sound loses quality, so listen before a release. It needs ffmpeg (on the PATH, or `--ffmpeg=`) and the site
+  can't run it. Minify script takes out the JASS functions nothing calls and the globals nothing reads, and writes
+  constants where they are used, before the obfuscator runs; with the obfuscator off it also shortens the names. In
+  the command line: `--models[=lossless|lossy]`, `--mp3[=kbps]` and `--minify`, with `--optimize`.
+
 ## 0.1.6 (2026-10-18)
 
 - The anti-cheat's script templates and the code that reads them now use English names only. The checks and what
