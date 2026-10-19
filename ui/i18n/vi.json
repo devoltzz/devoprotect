@@ -80,7 +80,7 @@
  "invalid option: {0}": "tùy chọn không hợp lệ: {0}",
  "key (keep it, not in the map): {0}": "khóa (hãy giữ lại, không nằm trong bản đồ): {0}",
  "lossy, only above the game's 512 MiB limit: half-size textures, mono 22 kHz sound": "có mất dữ liệu, chỉ khi vượt giới hạn 512 MiB của game: texture nửa kích thước, âm thanh mono 22 kHz",
- "lying file list": "danh sách tệp giả mạo",
+ "remove the file list (no names to mine)": "xóa danh sách tệp (không còn tên tệp để dò)",
  "map not found: {0}": "không tìm thấy bản đồ: {0}",
  "no map selected (.w3x, .w3m, .w3n)": "chưa chọn bản đồ (.w3x, .w3m, .w3n)",
  "non-ASCII IDs (gated: proof pending)": "ID ngoài ASCII (bị khóa: chưa có bằng chứng)",
@@ -131,5 +131,17 @@
  "the game's own cheat codes, in single player only": "các mã cheat của chính game, chỉ trong chế độ một người chơi",
  "when both say single player": "khi cả hai cùng cho là một người chơi",
  "when one human plays": "khi chỉ có một người chơi thật",
- "when the game reloads from disk": "khi game tải lại từ đĩa"
+ "when the game reloads from disk": "khi game tải lại từ đĩa",
+ "&mdash; desktop only: the browser cannot run ffmpeg": "&mdash; chỉ có trên máy tính: trình duyệt không chạy được ffmpeg",
+ "128 kbps": "128 kbps",
+ "32 kbps": "32 kbps",
+ "48 kbps": "48 kbps",
+ "64 kbps": "64 kbps",
+ "96 kbps": "96 kbps",
+ "Models, sounds and script shrunk.": "Đã thu nhỏ model, âm thanh và script.",
+ "Shrinking the models, sounds and script...": "Đang thu nhỏ model, âm thanh và script...",
+ "minify the JASS script: unreachable code out, constants written in (names shortened when the script is not obfuscated)": "rút gọn script JASS: bỏ mã không bao giờ chạy tới, ghi trực tiếp các hằng số (rút ngắn tên khi script chưa được làm rối)",
+ "models, lossy: also thin straight animation tracks (off by less than 0.05 units)": "model, có mất dữ liệu: bớt cả các track hoạt ảnh nằm trên đường thẳng (lệch dưới 0.05 đơn vị)",
+ "re-encode MP3 sounds in mono, 22 kHz (lossy; the big gain in a map with music; needs ffmpeg)": "mã hóa lại âm thanh MP3 sang mono, 22 kHz (có mất dữ liệu; tiết kiệm nhiều nhất ở bản đồ có nhạc; cần ffmpeg)",
+ "shrink MDX models: drop the animation keys that change nothing (lossless)": "thu nhỏ model MDX: bỏ các key hoạt ảnh không thay đổi gì (không mất dữ liệu)"
 }
