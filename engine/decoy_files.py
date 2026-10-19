@@ -39,14 +39,6 @@ def decoy_pair(log=print):
     return tuple(out)
 
 
-def fake_listing(map_names, rng, exists=None):
-    real_blocks = set(n.lower().replace('/', '\\') for n in map_names)
-    fake_list = [n for n in FAKE_NAMES if n.lower() not in real_blocks and n not in ('(listfile)', '(attributes)')
-                 and not (exists and exists(n))]
-    rng.shuffle(fake_list)
-    return ('\r\n'.join(fake_list) + '\r\n').encode('utf-8')
-
-
 def imp_decoy(rng):
     out = [struct.pack('<II', 1, rng.randint(120, 400))]
     for _ in range(24):
@@ -62,7 +54,20 @@ def preview_decoy(rng):
 
 SYLLABLES = ('ban', 'kar', 'vel', 'dor', 'mir', 'tok', 'zel', 'gran', 'fen', 'lor', 'nal', 'thar',
              'vil', 'kor', 'sha', 'run')
-EXT_FILL = ('.blp', '.tga', '.mdx', '.txt', '.mp3', '.wav')
+FOLDERS_EXT = (
+    ('', '.blp'), ('', '.tga'), ('', '.mdx'), ('', '.txt'),
+    ('war3mapImported\\', '.blp'), ('war3mapImported\\', '.tga'), ('war3mapImported\\', '.mdx'),
+    ('war3mapImported\\', '.wav'), ('war3mapImported\\', '.txt'),
+    ('Import\\', '.blp'), ('Import\\', '.tga'), ('Import\\', '.mdx'), ('Import\\', '.txt'),
+    ('Sound\\', '.wav'), ('Sound\\', '.mp3'),
+    ('Models\\', '.mdx'),
+    ('Textures\\', '.blp'), ('Textures\\', '.tga'),
+    ('UI\\', '.blp'), ('UI\\', '.txt'),
+    ('Units\\', '.txt'),
+    ('Scripts\\', '.j'), ('Scripts\\', '.lua'),
+    ('war3map\\', '.blp'),
+)
+FOLDERS_HEX = ('', 'war3mapImported\\', 'Import\\')
 
 
 def _free(a):
@@ -80,11 +85,11 @@ def _fill_name(rng, exists, in_use):
     while True:
         if rng.random() < 0.25:
             ext = '.blp'
-            fname = 'Import\\%032x%s' % (rng.getrandbits(128), ext)
+            fname = '%s%032x%s' % (rng.choice(FOLDERS_HEX), rng.getrandbits(128), ext)
         else:
-            ext = rng.choice(EXT_FILL)
-            fname = 'Import\\%s%d%s' % (''.join(rng.choice(SYLLABLES) for _ in range(rng.randint(2, 3))),
-                                      rng.randint(2, 99), ext)
+            folder, ext = rng.choice(FOLDERS_EXT)
+            fname = '%s%s%d%s' % (folder, ''.join(rng.choice(SYLLABLES) for _ in range(rng.randint(2, 3))),
+                                  rng.randint(2, 99), ext)
         if fname not in in_use and fname not in FAKE_NAMES and not exists(fname):
             in_use.add(fname)
             return fname, ext
@@ -239,14 +244,8 @@ def decoys(entry, output, chosen=STANDARD, seed=None, log=print):
             details['matrix']['war3map.wct'] = {'action_code': 'recorded', 'bytes': len(wct)}
             log('[decoy] wtg+wct: %d + %d B (AdminGold/SaveSystem/LevelUp)' % (len(wtg), len(wct)))
     if 'listfile' in chosen:
-        listing = fake_listing(name_list, rng, exists=present)
-        write_out.append(('(listfile)', listing))
-        details['matrix']['(listfile)'] = {'action_code': 'substituted', 'bytes': len(listing),
-                                           'name_list': listing.decode('utf-8').count('\r\n')}
-        log(
-            '[decoy] lying (listfile): %d plausible names that are not in the map'
-            % listing.decode('utf-8').count('\r\n')
-        )
+        details['matrix']['(listfile)'] = {'action_code': 'deleted'}
+        log('[decoy] (listfile): OUT of the map (the name "mining" has nothing to mine)')
     for fname, type_name, generator_fn in (
         ('war3map.imp', 'imp', imp_decoy),
         ('war3mapPreview.blp', 'preview', preview_decoy),
@@ -263,6 +262,8 @@ def decoys(entry, output, chosen=STANDARD, seed=None, log=print):
         log('[decoy] %s: %d B of plausible header + noise' % (fname, len(data_bytes)))
     if write_out:
         mpqadd.add_files(output, write_out, log=lambda *x: None)
+    if 'listfile' in chosen:
+        mpqadd.add_files(output, [], to_delete=['(listfile)'], log=lambda *x: None)
     filled = None
     if 'fill' in chosen:
         filled = fill(output, rng=rng, log=log)
@@ -276,6 +277,8 @@ def decoys(entry, output, chosen=STANDARD, seed=None, log=print):
     for fname, data_bytes in write_out:
         if b.read(fname) != data_bytes:
             bad_ones.append('%s: what was written does not re-read the same' % fname)
+    if 'listfile' in chosen and b.find('(listfile)') is not None:
+        bad_ones.append('the (listfile) stayed in the map (the rule: NO listfile at all)')
     for fname in ('war3map.w3i', 'war3map.w3e', 'war3map.wpm', 'war3map.doo', 'war3map.shd', 'war3map.mmp'):
         if present(fname) and b.read(fname) != a.read(fname):
             bad_ones.append('%s: what the GAME reads changed!' % fname)
@@ -315,7 +318,7 @@ def bomb_block(fsize, sector_bytes, rng):
 
 
 def bulk_spec(txt):
-    spec = {'bombs': 8, 'slices': 2000, 'listing': 5000}
+    spec = {'bombs': 8, 'slices': 2000}
     for t in (x for x in (txt or '').split(',') if x):
         fname, _, field_value = t.partition(':')
         if fname not in spec:
@@ -391,7 +394,7 @@ def bulk(file_path, bombs=8, byte_size=(1 << 31) - (1 << 21), slices=2000, listi
     if seed is None:
         seed = _seed_from_file(file_path)
     rng = random.Random(seed)
-    bulk_details = {'bombs': 0, 'slices': 0, 'listing': 0, 'claimed': 0, 'bytes': 0}
+    bulk_details = {'bombs': 0, 'slices': 0, 'claimed': 0, 'bytes': 0}
     specs = []
     weight_names = []
     _step382 = max(sector_bytes + 1, byte_size // max(bombs, 1)) if bombs else sector_bytes
@@ -419,15 +422,8 @@ def bulk(file_path, bombs=8, byte_size=(1 << 31) - (1 << 21), slices=2000, listi
         specs.append((fname, ('band', rel_f, size_f)))
         weight_names.append(fname)
         bulk_details['slices'] += 1
-    list_body = _big_list(rng, exists=lambda n: a.find(n) is not None, weight_names=weight_names, n_extra=listing)
-    bulk_details['listing'] = list_body.count(b'\r\n')
-    bulk_details['bytes'] += len(list_body)
-    log(
-        '[bulk] the big list: %d names (the bombs and the slices inside; the real ones outside)'
-        % bulk_details['listing']
-    )
-    sz = mpqadd.add_files(file_path,
-                          ([('(listfile)', list_body)] if listing else []),
+    sz = mpqadd.add_files(file_path, [],
+                          to_delete=['(listfile)'] if a.find('(listfile)') is not None else [],
                           grow=(), slack=len(specs) + 100, weight=specs, hero_attributes=False, log=lambda *x: None)
     fallback_fdf = _cut_reservation(file_path, bcount0, log=log)
     b = mr.Archive(file_path)
@@ -461,44 +457,18 @@ def bulk(file_path, bombs=8, byte_size=(1 << 31) - (1 << 21), slices=2000, listi
                     bad_ones.append(
                         '%s: the written bomb is different (%d, %d, %d, flags %x)' % (fname, fsize, csize, flags, flags)
                     )
+    if b.find('(listfile)') is not None:
+        bad_ones.append('the (listfile) stayed in the map (the rule: NO listfile, in no option)')
     if bad_ones:
         raise SystemExit('ABORT at step bulk: %s' % '; '.join(bad_ones[:4]))
-    details = {
-        'ok': True,
-        'file_path': file_path,
-        'seconds': round(time.time() - t0, 1),
-        'shift': sector_bytes,
-        'fallback_fdf': fallback_fdf,
-        **bulk_details,
-        'gate': (
-            'ok (%d bomb(s) of %s claimed in total, %d slice(s), the list with %d names; '
-            '%s written; the cut reservation: %s)'
-            % (
-                bulk_details['bombs'],
-                _gib_text(bulk_details['claimed']),
-                bulk_details['slices'],
-                bulk_details['listing'],
-                _gib_text(bulk_details['bytes']),
-                fallback_fdf,
-            )
-        ),
-    }
+    details = {'ok': True, 'file_path': file_path, 'seconds': round(time.time() - t0, 1),
+               'shift': sector_bytes, 'fallback_fdf': fallback_fdf, **bulk_details,
+               'gate': ('ok (%d bomb(s) of %s claimed in total, %d slice(s); %s written; the reserve of the '
+                        'cut: %s; NO listfile)'
+                        % (bulk_details['bombs'], _gib_text(bulk_details['claimed']), bulk_details['slices'],
+                           _gib_text(bulk_details['bytes']), fallback_fdf))}
     log('[bulk] %s' % details['gate'])
     return details
-
-
-def _big_list(rng, exists, weight_names, n_extra):
-    in_use = set(weight_names)
-    name_list = list(weight_names)
-    for n in FAKE_NAMES:
-        if n not in in_use and not exists(n) and n not in ('(listfile)', '(attributes)'):
-            name_list.append(n)
-            in_use.add(n)
-    while len(name_list) < len(weight_names) + n_extra:
-        fname, _e = _fill_name(rng, exists, in_use)
-        name_list.append(fname)
-    rng.shuffle(name_list)
-    return ('\r\n'.join(name_list) + '\r\n').encode('utf-8')
 
 
 def _gib_text(n):
