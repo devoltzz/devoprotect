@@ -244,26 +244,52 @@ class Cache:
     def _path_of(self, inv_slot, hash_key):
         return os.path.join(self.folder, inv_slot, hash_key[:2], hash_key)
 
+    ATTEMPTS = 5
+
     def read_data(self, inv_slot, hash_key):
         if not self.folder:
             return None
         p = self._path_of(inv_slot, hash_key)
-        if os.path.exists(p):
+        for k in range(self.ATTEMPTS):
+            if not os.path.exists(p):
+                return None
+            try:
+                with open(p, 'rb') as fh:
+                    data_bytes = fh.read()
+            except PermissionError:
+                time.sleep(0.02 * (k + 1))
+                continue
             self.in_use.add(os.path.normcase(os.path.abspath(p)))
-            with open(p, 'rb') as fh:
-                return fh.read()
+            return data_bytes
         return None
 
     def save(self, inv_slot, hash_key, data_bytes):
         if not self.folder:
             return
         p = self._path_of(inv_slot, hash_key)
+        mark = os.path.normcase(os.path.abspath(p))
+        if os.path.isfile(p):
+            self.in_use.add(mark)
+            return
         os.makedirs(os.path.dirname(p), exist_ok=True)
         tmp = p + '.tmp%d' % os.getpid()
         with open(tmp, 'wb') as fh:
             fh.write(data_bytes)
-        os.replace(tmp, p)
-        self.in_use.add(os.path.normcase(os.path.abspath(p)))
+        for k in range(self.ATTEMPTS):
+            try:
+                os.replace(tmp, p)
+                break
+            except PermissionError:
+                if os.path.isfile(p):
+                    try:
+                        os.remove(tmp)
+                    except OSError:
+                        pass
+                    break
+                if k == self.ATTEMPTS - 1:
+                    raise
+                time.sleep(0.02 * (k + 1))
+        self.in_use.add(mark)
 
     def prune(self):
         if not self.folder or not os.path.isdir(self.folder):
