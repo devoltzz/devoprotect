@@ -58,10 +58,10 @@ What the steps do:
 | Step | What it does |
 |---|---|
 | **Shuffle IDs** | Renames your custom object IDs (`h000`, `A00B`...) to meaningless ones, in the object data and in the script. Optionally non-printable: the last three characters become control characters, which object editors show as garbage. |
-| **Obfuscate** | Scrambles the names, strings and raw codes of a JASS or Lua script. JASS output goes through pjass before it's saved. A JASS map can be converted to Lua first, which gets the Lua protection: encrypted strings behind loader layers. |
+| **Obfuscate** | Scrambles the names, strings and raw codes of a JASS or Lua script. Your function and variable names (`Trig_`, `udg_`, `gg_` and the rest) are gone for good in both. JASS output goes through pjass before it's saved. A JASS map can be converted to Lua first; a Lua script also gets its strings encrypted where they are used and the whole file wrapped in loader layers. |
 | **Remove editor files** | Strips what only the World Editor uses (triggers, unit placement, editor counters), so the map won't open there as a normal map. Anything the game still reads stays. Optionally the object data becomes the game's own SLK tables. |
-| **Decoys and markers** | Fake trigger files, a lying file list, fake imports, a hash table filled so no file can be added later, extract-all bombs, a cut hash table, and malformed-header markers. |
-| **Optimize size** | Lossless texture recompression, identical files stored once, DDS textures to BLP. |
+| **Decoys and markers** | Fake trigger files, the file list removed so there are no file names to mine, fake imports, a hash table filled with fake files spread across the map's folders so no file can be added later, extract-all bombs, a cut hash table, and malformed-header markers. |
+| **Optimize size** | Lossless texture recompression, identical files stored once, DDS textures to BLP. Optionally, all off by default: smaller MDX models (the animation keys that change nothing), MP3 sounds re-encoded in mono (lossy, desktop only, needs ffmpeg) and a minified JASS script. |
 | **Anti-cheat** | Off by default; tested in game in single player, multiplayer still to prove. Adds checks that run while the map plays: a ledger that undoes gold, lumber and hero changes no part of the map explains, a detector for the game's own cheat codes in single player, decoy function names so a cheat pack pasted by hand does not compile, and for Lua maps a guard that restores the engine functions a cheat pack replaces. When it finds something it can warn everyone, block the cheater's saves, defeat the cheater or end the game. |
 | **Pack** | Repacks the archive with 512-byte sectors. The game loads it fine; MPQ Editor and other StormLib tools refuse to open it. |
 
@@ -86,9 +86,12 @@ real files are untouched.
 extract, but they can't edit, add or delete a file. The game plays the map unchanged. With the 512-byte sector pack
 they don't open the map at all.
 
-**Should I convert my JASS map to Lua?** It gets you the stronger Lua protection, but the map then needs Warcraft III
-1.31 or newer. Maps that use natives of KK, YDWE, DzAPI or other platforms, or that carry their own `Blizzard.j` or
-`common.j`, are refused with a message that says why.
+**Should I convert my JASS map to Lua?** You don't need to for the names: a JASS script and a Lua script both lose your
+function and variable names for good. A Lua script also comes wrapped in loader layers, which slows down someone who
+opens the file, but anyone who reads DevoProtect's code can undo them, the same as the string encryption. The map then
+needs Warcraft III 1.31 or newer. In a Lua script, a name the map looks up from text while it runs (`ExecuteFunc`
+with a name built from pieces, `_G[name]`) keeps its name, so the map still finds it. Maps that use natives of KK, YDWE, DzAPI or other
+platforms, or that carry their own `Blizzard.j` or `common.j`, are refused with a message that says why.
 
 **What does converting the object data to SLK do?** The map's units, items and abilities become the game's own tables,
 so fewer objects are built when the map loads, which helps with Reforged disconnects on maps with hundreds of
@@ -99,6 +102,12 @@ default. It reads your installed Warcraft III: on Windows the game is found auto
 **What does the anti-cheat need from my map?** Nothing, but a map can ask what it found. Declare `function DevoProtect_CheatUsed takes player p returns boolean` and have it return `false`; the protector fills it in, and it returns `true` for a player who was reported, or for everyone when the map itself was modified (in a Lua map it is the global function of the same name). Use it to refuse a save code or hold back a reward. Block saves works on the map's own calls to `PreloadGenEnd`, the native that writes a Preload file.
 
 **Does the anti-cheat stop cheaters?** It stops the easy ones. A cheat that changes the map's own values is undone and reported, a cheat pack pasted by hand is refused by the decoy names, and the game's cheat codes are reported in single player. A player who edits the game's memory with no effect on those values is not seen. The defeat action does nothing against the strengthandhonor code, because that code stops the game from defeating anyone; use the end action for that. I tested it in game in single player (the game's `greedisgood` is undone and reported, normal play reports nothing); multiplayer games, cheat packs and Lua maps are still to be proven in game, so test it on your map before a release.
+
+**How much smaller does Optimize make my map?** It depends on what the map carries. On six test maps, re-encoding
+the MP3 sounds made the maps with music 46% to 79% smaller (64 and 32 kbps), and did nothing on the maps without
+music. The models and the minified script gave less than 0.5% with the script obfuscated; with the obfuscator off the
+minified script gave up to 10% on a map with a big script. Mono 22 kHz is a real loss for music, so listen to the map
+before you release it. The site can't run ffmpeg, so it leaves the MP3 sounds as they are.
 
 **Is my map sent anywhere?** No. Everything runs on your computer, or inside the page on the site. The program only asks
 GitHub whether a new version is out. On the site, very big maps with every option on can run out of the browser's
@@ -116,7 +125,7 @@ DevoProtect-cli <map.w3x|campaign.w3n> [out.w3x] [options]
 | `--block=w3i,wtg,extra,units,doo,w3r` | Which editor files to remove (default: `w3i,wtg,extra,units,doo`). |
 | `--to-slk` | Convert the object data to the game's SLK tables (needs Warcraft III installed). |
 | `--game=<folder>` | The Warcraft III folder, for `--to-slk` on Linux. |
-| `--decoys=wtg,listfile,imp,preview,fill` | Decoy files (`preview` only when you name it: the game may show that image). |
+| `--decoys=wtg,listfile,imp,preview,fill` | Decoy files (`listfile` removes the file list; `preview` only when you name it: the game may show that image). |
 | `--bombs` | Extract-all bombs. |
 | `--cut-hash` | Cut the hash table: MPQ Editor and StormLib open the map read-only. |
 | `--variant=header,high-sector,bit31` | Malformed-header markers (only with the 512-sector pack; `bit31` doesn't combine with `--bombs` or `--cut-hash`). |
@@ -126,6 +135,9 @@ DevoProtect-cli <map.w3x|campaign.w3n> [out.w3x] [options]
 | `--previous-key=<tsv>` | The ID key of your previous release (a campaign takes the keys folder). |
 | `--seed=N` | Shuffle seed (default: taken from the map). |
 | `--optimize` | Lossless recompression and dedup (`--no-recompress`, `--no-dedup`, `--no-blp-opt` turn a part off; `--lossy` is only for maps over the game's 512 MiB limit). |
+| `--models[=lossless\|lossy]` | With `--optimize`: drop the MDX animation keys that change nothing; `lossy` also thins straight animation tracks. |
+| `--mp3[=32\|48\|64\|96\|128]` | With `--optimize`: re-encode the MP3 sounds in mono, 22 kHz, at that rate (default 64). Lossy; needs ffmpeg on the PATH or `--ffmpeg=<path>`. |
+| `--minify` | With `--optimize`: minify the JASS script before the obfuscator (unused functions and globals out, constants written in; with `--skip=obfuscate` the names get shorter too). |
 | `--dds` | Convert DDS textures to BLP and update the references. |
 | `--anti-cheat[=ledger,codes,names,bj]` | Add the in-game anti-cheat (all four pieces without a value). |
 | `--anti-cheat-actions=warn,nosave,defeat,end` | What to do when a cheat is found (default: `warn`). |
