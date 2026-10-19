@@ -80,7 +80,7 @@
  "invalid option: {0}": "neplatná volba: {0}",
  "key (keep it, not in the map): {0}": "klíč (uschovejte ho, v mapě není): {0}",
  "lossy, only above the game's 512 MiB limit: half-size textures, mono 22 kHz sound": "se ztrátou, jen nad limitem hry 512 MiB: poloviční textury, mono zvuk 22 kHz",
- "lying file list": "lživý seznam souborů",
+ "remove the file list (no names to mine)": "odstranit seznam souborů (žádné názvy k vytěžení)",
  "map not found: {0}": "mapa nenalezena: {0}",
  "no map selected (.w3x, .w3m, .w3n)": "není vybrána žádná mapa (.w3x, .w3m, .w3n)",
  "non-ASCII IDs (gated: proof pending)": "ID mimo ASCII (uzamčeno: čeká na ověření)",
@@ -131,5 +131,17 @@
  "the game's own cheat codes, in single player only": "vlastní kódy pro podvádění ve hře, jen pro jednoho hráče",
  "when both say single player": "když oba říkají jeden hráč",
  "when one human plays": "když hraje jeden člověk",
- "when the game reloads from disk": "když se hra znovu načte z disku"
+ "when the game reloads from disk": "když se hra znovu načte z disku",
+ "&mdash; desktop only: the browser cannot run ffmpeg": "&mdash; jen v desktopové aplikaci: prohlížeč ffmpeg spustit nemůže",
+ "128 kbps": "128 kbps",
+ "32 kbps": "32 kbps",
+ "48 kbps": "48 kbps",
+ "64 kbps": "64 kbps",
+ "96 kbps": "96 kbps",
+ "Models, sounds and script shrunk.": "Modely, zvuky a skript byly zmenšeny.",
+ "Shrinking the models, sounds and script...": "Zmenšuji modely, zvuky a skript...",
+ "minify the JASS script: unreachable code out, constants written in (names shortened when the script is not obfuscated)": "minifikovat skript JASS: nedosažitelný kód pryč, konstanty dosazeny (názvy se zkrátí, pokud skript není zamlžený)",
+ "models, lossy: also thin straight animation tracks (off by less than 0.05 units)": "modely, se ztrátou: zředit i přímé animační stopy (odchylka menší než 0.05 jednotky)",
+ "re-encode MP3 sounds in mono, 22 kHz (lossy; the big gain in a map with music; needs ffmpeg)": "překódovat zvuky MP3 na mono, 22 kHz (se ztrátou; největší úspora v mapě s hudbou; vyžaduje ffmpeg)",
+ "shrink MDX models: drop the animation keys that change nothing (lossless)": "zmenšit modely MDX: zahodit animační klíče, které nic nemění (bez ztráty)"
 }
