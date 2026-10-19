@@ -3,6 +3,17 @@
 What each version of DevoProtect brought, the newest first. The downloads are on the
 [Releases](https://github.com/devoltzz/devoprotect/releases) page.
 
+## 0.1.8 (2026-10-19)
+
+- JASS scripts saved with a bare CR at the end of each line (some old tools write them that way) are obfuscated now.
+  Before, the run stopped with "expected a globals block and the main function".
+- Big Lua scripts need less memory: a 17.9 MB `war3map.lua` went from about 2.1 GB to 1.5 GB at its peak, which
+  leaves more room under the website's memory limit. The protected map is the same.
+- Two protections running at the same time on Windows no longer fail when they write the same piece of the shared
+  cache.
+- The anti-cheat has been tested in game, so the window no longer says it's unproven. It's still off by default.
+- The MP3 option mentions ffmpeg once instead of twice.
+
 ## 0.1.7 (2026-10-19)
 
 - The file list decoy (`listfile`) now removes the map's file list instead of writing a fake one. Any list left in
