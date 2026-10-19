@@ -19,6 +19,7 @@ STEPS = {
     'protect': 'Repacking the archive...',
     'optimize': 'Optimizing the size...',
     'dds': 'Converting DDS textures to BLP...',
+    'content': 'Shrinking the models, sounds and script...',
     'slk': 'Converting object data to SLK tables...',
     'bulk': 'Writing the extract-all bombs...',
     'cut_step': 'Cutting the hash table...',
@@ -34,6 +35,7 @@ DONE = {
     'protect': 'Archive repacked.',
     'optimize': 'Size optimized.',
     'dds': 'DDS textures converted to BLP.',
+    'content': 'Models, sounds and script shrunk.',
     'slk': 'Object data converted to SLK tables.',
     'bulk': 'Extract-all bombs written.',
     'cut_step': 'Hash table cut.',
@@ -54,6 +56,8 @@ VARIANTS = {'header': 'header_text', 'high_sector': 'high-sector', 'bit31': 'bit
 AC_PARTS = {'ledger': 'ledger', 'codes': 'codes', 'names': 'decoys', 'bj': 'bj'}
 AC_ACTIONS = ('warn', 'nosave', 'defeat', 'end')
 AC_CODES_MODES = {'auto': 'auto', 'humans': 'humans', 'reload': 'reload', 'humans+reload': 'humans+reload'}
+MODELS = {'lossless': 'lossless_keys', 'lossy': 'lossy_keys'}
+MP3_KBPS = (32, 48, 64, 96, 128)
 
 
 def _bulk_default():
@@ -73,6 +77,15 @@ def recipe_kwargs(options):
     if o.get('optimize'):
         optimize = {'recompress': o.get('opt_recompress', True), 'blp': o.get('opt_blp', True),
                     'dedup': o.get('opt_dedup', True), 'lossy': bool(o.get('opt_lossy'))}
+    content = None
+    if o.get('optimize'):
+        models = 'lossy' if o.get('opt_models_lossy') else ('lossless' if o.get('opt_models') else None)
+        content = {'models': MODELS[models] if models else None,
+                   'sounds': int(o.get('opt_mp3_kbps') or 64) if o.get('opt_mp3') else None,
+                   'script': bool(o.get('opt_minify')),
+                   'ffmpeg': (str(o['ffmpeg']).strip() or None) if o.get('ffmpeg') else None}
+        if not (content['models'] or content['sounds'] or content['script']):
+            content = None
     anti_cheat = None
     if o.get('anti_cheat'):
         anti_cheat = {
@@ -95,6 +108,7 @@ def recipe_kwargs(options):
         'slk_game': (str(o['game']).strip() or None) if o.get('game') else None,
         'convert_lua': bool(o.get('to_lua')),
         'optimization': optimize,
+        'content': content,
         'bulk': _bulk_default() if o.get('bombs') else None,
         'cut_step': bool(o.get('cut_hash')),
         'seed': None if o.get('seed') is None or str(o['seed']).strip() == '' else int(o['seed']),
@@ -107,6 +121,7 @@ def default_options():
             'block_w3i': True, 'block_wtg': True, 'block_extra': True, 'block_units': True, 'block_doo': True,
             'block_w3r': False, 'lua_layers': 2,
             'optimize': False, 'opt_recompress': True, 'opt_blp': True, 'opt_dedup': True, 'opt_lossy': False,
+            'opt_models': False, 'opt_models_lossy': False, 'opt_mp3': False, 'opt_mp3_kbps': 64, 'opt_minify': False,
             'dds': False, 'bombs': False, 'cut_hash': False, 'to_slk': False,
             'anti_cheat': False, 'ac_ledger': True, 'ac_codes': True, 'ac_names': True, 'ac_bj': True,
             'ac_warn': True, 'ac_nosave': False, 'ac_defeat': False, 'ac_end': False, 'ac_gold_jump': 400,
