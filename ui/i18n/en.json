@@ -1,7 +1,7 @@
 {
  "frases": [
+  "&mdash; desktop only",
   "&mdash; desktop only: the browser cannot read your game",
-  "&mdash; desktop only: the browser cannot run ffmpeg",
   "128 kbps",
   "32 kbps",
   "48 kbps",
@@ -39,8 +39,8 @@
   "Full protection",
   "Hash table cut.",
   "Hide details",
-  "In-game anti-cheat (not proven in the game yet)",
-  "It watches the map while it runs, undoes what no part of the map explains and acts on it. It was built and tested in a simulated game and has not been played yet, so it is off by default.",
+  "In-game anti-cheat",
+  "It watches the map while it runs, undoes what no part of the map explains and acts on it.",
   "Language",
   "Lua guard: restores the engine functions a Lua cheat pack replaces and reports a replaced main (Lua maps)",
   "Measures",
