@@ -80,7 +80,7 @@
  "invalid option: {0}": "ตัวเลือกไม่ถูกต้อง: {0}",
  "key (keep it, not in the map): {0}": "คีย์ (เก็บไว้ ไม่ได้อยู่ในแมป): {0}",
  "lossy, only above the game's 512 MiB limit: half-size textures, mono 22 kHz sound": "สูญเสียคุณภาพ ใช้เฉพาะเมื่อเกินขีดจำกัด 512 MiB ของเกม: เท็กซ์เจอร์ขนาดครึ่งหนึ่ง, เสียงโมโน 22 kHz",
- "lying file list": "รายการไฟล์หลอก",
+ "remove the file list (no names to mine)": "ลบรายการไฟล์ (ไม่มีชื่อไฟล์ให้ขุดหา)",
  "map not found: {0}": "ไม่พบแมป: {0}",
  "no map selected (.w3x, .w3m, .w3n)": "ยังไม่ได้เลือกแมป (.w3x, .w3m, .w3n)",
  "non-ASCII IDs (gated: proof pending)": "ID ที่ไม่ใช่ ASCII (ล็อกไว้: รอการพิสูจน์)",
@@ -131,5 +131,17 @@
  "the game's own cheat codes, in single player only": "รหัสโกงของตัวเกมเอง เฉพาะโหมดผู้เล่นเดียว",
  "when both say single player": "เมื่อทั้งสองฝั่งบอกว่าเป็นผู้เล่นเดียว",
  "when one human plays": "เมื่อมีผู้เล่นมนุษย์คนเดียว",
- "when the game reloads from disk": "เมื่อเกมโหลดใหม่จากดิสก์"
+ "when the game reloads from disk": "เมื่อเกมโหลดใหม่จากดิสก์",
+ "&mdash; desktop only: the browser cannot run ffmpeg": "&mdash; ใช้ได้เฉพาะโปรแกรมบนเดสก์ท็อป: เบราว์เซอร์รัน ffmpeg ไม่ได้",
+ "128 kbps": "128 kbps",
+ "32 kbps": "32 kbps",
+ "48 kbps": "48 kbps",
+ "64 kbps": "64 kbps",
+ "96 kbps": "96 kbps",
+ "Models, sounds and script shrunk.": "ทำให้โมเดล เสียง และสคริปต์เล็กลงแล้ว",
+ "Shrinking the models, sounds and script...": "กำลังทำให้โมเดล เสียง และสคริปต์เล็กลง...",
+ "minify the JASS script: unreachable code out, constants written in (names shortened when the script is not obfuscated)": "ย่อสคริปต์ JASS: ตัดโค้ดที่ไม่มีวันทำงานออก เขียนค่าคงที่แทนลงไปตรง ๆ (ย่อชื่อให้สั้นลงเมื่อสคริปต์ไม่ได้ถูกทำให้อ่านยาก)",
+ "models, lossy: also thin straight animation tracks (off by less than 0.05 units)": "โมเดล แบบสูญเสียคุณภาพ: ลดแทรกแอนิเมชันที่เป็นเส้นตรงด้วย (คลาดเคลื่อนไม่ถึง 0.05 หน่วย)",
+ "re-encode MP3 sounds in mono, 22 kHz (lossy; the big gain in a map with music; needs ffmpeg)": "เข้ารหัสเสียง MP3 ใหม่เป็นโมโน 22 kHz (สูญเสียคุณภาพ; ลดขนาดได้มากที่สุดในแมปที่มีเพลง; ต้องใช้ ffmpeg)",
+ "shrink MDX models: drop the animation keys that change nothing (lossless)": "ทำให้โมเดล MDX เล็กลง: ตัดคีย์แอนิเมชันที่ไม่เปลี่ยนอะไรออก (ไม่สูญเสียคุณภาพ)"
 }
