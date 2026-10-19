@@ -80,7 +80,7 @@
  "invalid option: {0}": "geçersiz seçenek: {0}",
  "key (keep it, not in the map): {0}": "anahtar (sakla, haritada yok): {0}",
  "lossy, only above the game's 512 MiB limit: half-size textures, mono 22 kHz sound": "kayıplı, yalnızca oyunun 512 MiB sınırının üstünde: yarı boyutlu dokular, mono 22 kHz ses",
- "lying file list": "yanıltıcı dosya listesi",
+ "remove the file list (no names to mine)": "dosya listesini kaldır (toplanacak ad kalmaz)",
  "map not found: {0}": "harita bulunamadı: {0}",
  "no map selected (.w3x, .w3m, .w3n)": "harita seçilmedi (.w3x, .w3m, .w3n)",
  "non-ASCII IDs (gated: proof pending)": "ASCII dışı kimlikler (kilitli: kanıt bekleniyor)",
@@ -131,5 +131,17 @@
  "the game's own cheat codes, in single player only": "oyunun kendi hile kodları, yalnızca tek oyuncuda",
  "when both say single player": "ikisi de tek oyuncu dediğinde",
  "when one human plays": "tek bir insan oynadığında",
- "when the game reloads from disk": "oyun diskten yeniden yüklendiğinde"
+ "when the game reloads from disk": "oyun diskten yeniden yüklendiğinde",
+ "&mdash; desktop only: the browser cannot run ffmpeg": "&mdash; yalnızca masaüstü: tarayıcı ffmpeg çalıştıramaz",
+ "128 kbps": "128 kbps",
+ "32 kbps": "32 kbps",
+ "48 kbps": "48 kbps",
+ "64 kbps": "64 kbps",
+ "96 kbps": "96 kbps",
+ "Models, sounds and script shrunk.": "Modeller, sesler ve script küçültüldü.",
+ "Shrinking the models, sounds and script...": "Modeller, sesler ve script küçültülüyor...",
+ "minify the JASS script: unreachable code out, constants written in (names shortened when the script is not obfuscated)": "JASS scriptini küçült: ulaşılamayan kod çıkarılır, sabitler yerlerine yazılır (script gizlenmemişse adlar kısaltılır)",
+ "models, lossy: also thin straight animation tracks (off by less than 0.05 units)": "modeller, kayıplı: düz animasyon izlerini de seyrelt (0,05 birimden az sapmayla)",
+ "re-encode MP3 sounds in mono, 22 kHz (lossy; the big gain in a map with music; needs ffmpeg)": "MP3 seslerini mono, 22 kHz olarak yeniden kodla (kayıplı; müzikli bir haritada en büyük kazanç; ffmpeg gerekir)",
+ "shrink MDX models: drop the animation keys that change nothing (lossless)": "MDX modellerini küçült: hiçbir şeyi değiştirmeyen animasyon anahtarlarını at (kayıpsız)"
 }
