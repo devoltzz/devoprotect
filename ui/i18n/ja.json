@@ -80,7 +80,7 @@
  "invalid option: {0}": "無効なオプション: {0}",
  "key (keep it, not in the map): {0}": "キー(保管してください。マップには含まれません): {0}",
  "lossy, only above the game's 512 MiB limit: half-size textures, mono 22 kHz sound": "非可逆、ゲームの 512 MiB 上限を超える場合のみ: テクスチャを半分のサイズに、サウンドをモノラル 22 kHz に",
- "lying file list": "偽のファイルリスト",
+ "remove the file list (no names to mine)": "ファイルリストを削除（名前を収集させない）",
  "map not found: {0}": "マップが見つかりません: {0}",
  "no map selected (.w3x, .w3m, .w3n)": "マップが選択されていません(.w3x、.w3m、.w3n)",
  "non-ASCII IDs (gated: proof pending)": "非 ASCII の ID(制限中: 検証待ち)",
@@ -131,5 +131,17 @@
  "the game's own cheat codes, in single player only": "ゲーム本来のチートコード(シングルプレイのみ)",
  "when both say single player": "両方がシングルプレイと示す場合",
  "when one human plays": "人間プレイヤーが 1 人の場合",
- "when the game reloads from disk": "ゲームがディスクから再読み込みされる場合"
+ "when the game reloads from disk": "ゲームがディスクから再読み込みされる場合",
+ "&mdash; desktop only: the browser cannot run ffmpeg": "&mdash; デスクトップ版のみ: ブラウザでは ffmpeg を実行できません",
+ "128 kbps": "128 kbps",
+ "32 kbps": "32 kbps",
+ "48 kbps": "48 kbps",
+ "64 kbps": "64 kbps",
+ "96 kbps": "96 kbps",
+ "Models, sounds and script shrunk.": "モデル、サウンド、スクリプトを縮小しました。",
+ "Shrinking the models, sounds and script...": "モデル、サウンド、スクリプトを縮小中...",
+ "minify the JASS script: unreachable code out, constants written in (names shortened when the script is not obfuscated)": "JASS スクリプトを最小化: 到達不能コードを削除し、定数を直接展開(スクリプトを難読化しない場合は名前も短縮)",
+ "models, lossy: also thin straight animation tracks (off by less than 0.05 units)": "モデル(非可逆): 直線上のアニメーショントラックも間引く(誤差 0.05 単位未満)",
+ "re-encode MP3 sounds in mono, 22 kHz (lossy; the big gain in a map with music; needs ffmpeg)": "MP3 サウンドをモノラル 22 kHz で再エンコード(非可逆。音楽入りのマップで最も大きく縮小。ffmpeg が必要)",
+ "shrink MDX models: drop the animation keys that change nothing (lossless)": "MDX モデルを縮小: 変化のないアニメーションキーを削除(可逆)"
 }
