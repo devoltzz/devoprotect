@@ -80,7 +80,7 @@
  "invalid option: {0}": "opção inválida: {0}",
  "key (keep it, not in the map): {0}": "chave (guarde-a, ela não vai no mapa): {0}",
  "lossy, only above the game's 512 MiB limit: half-size textures, mono 22 kHz sound": "com perda, só acima do limite de 512 MiB do jogo: texturas à metade do tamanho, som mono de 22 kHz",
- "lying file list": "lista de arquivos falsa",
+ "remove the file list (no names to mine)": "remover a lista de arquivos (sem nomes para garimpar)",
  "map not found: {0}": "mapa não encontrado: {0}",
  "no map selected (.w3x, .w3m, .w3n)": "nenhum mapa selecionado (.w3x, .w3m, .w3n)",
  "non-ASCII IDs (gated: proof pending)": "IDs não ASCII (bloqueado: falta prova)",
@@ -131,5 +131,17 @@
  "the game's own cheat codes, in single player only": "os códigos de cheat do próprio jogo, só em modo single player",
  "when both say single player": "quando os dois indicam single player",
  "when one human plays": "quando só um humano joga",
- "when the game reloads from disk": "quando o jogo recarrega do disco"
+ "when the game reloads from disk": "quando o jogo recarrega do disco",
+ "&mdash; desktop only: the browser cannot run ffmpeg": "&mdash; só no programa de computador: o navegador não consegue rodar o ffmpeg",
+ "128 kbps": "128 kbps",
+ "32 kbps": "32 kbps",
+ "48 kbps": "48 kbps",
+ "64 kbps": "64 kbps",
+ "96 kbps": "96 kbps",
+ "Models, sounds and script shrunk.": "Modelos, sons e script reduzidos.",
+ "Shrinking the models, sounds and script...": "Reduzindo os modelos, sons e script...",
+ "minify the JASS script: unreachable code out, constants written in (names shortened when the script is not obfuscated)": "minificar o script JASS: código inalcançável removido, constantes escritas no código (nomes encurtados quando o script não é ofuscado)",
+ "models, lossy: also thin straight animation tracks (off by less than 0.05 units)": "modelos, com perda: também afinar trilhas de animação em linha reta (erro de menos de 0.05 unidade)",
+ "re-encode MP3 sounds in mono, 22 kHz (lossy; the big gain in a map with music; needs ffmpeg)": "recodificar sons MP3 em mono, 22 kHz (com perda; é o maior ganho em um mapa com música; precisa do ffmpeg)",
+ "shrink MDX models: drop the animation keys that change nothing (lossless)": "reduzir modelos MDX: remover as chaves de animação que não mudam nada (sem perda)"
 }
