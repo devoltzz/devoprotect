@@ -80,7 +80,7 @@
  "invalid option: {0}": "недійсний параметр: {0}",
  "key (keep it, not in the map): {0}": "ключ (збережіть його, його немає в карті): {0}",
  "lossy, only above the game's 512 MiB limit: half-size textures, mono 22 kHz sound": "зі втратами, лише понад ліміт гри в 512 MiB: текстури вдвічі менші, моно-звук 22 kHz",
- "lying file list": "брехливий список файлів",
+ "remove the file list (no names to mine)": "видалити список файлів (немає імен для пошуку)",
  "map not found: {0}": "карту не знайдено: {0}",
  "no map selected (.w3x, .w3m, .w3n)": "карту не обрано (.w3x, .w3m, .w3n)",
  "non-ASCII IDs (gated: proof pending)": "ID не з ASCII (заблоковано: підтвердження очікується)",
@@ -131,5 +131,17 @@
  "the game's own cheat codes, in single player only": "власні чит-коди гри, лише в одиночній грі",
  "when both say single player": "коли обидва вказують на одиночну гру",
  "when one human plays": "коли грає одна людина",
- "when the game reloads from disk": "коли гра перезавантажується з диска"
+ "when the game reloads from disk": "коли гра перезавантажується з диска",
+ "&mdash; desktop only: the browser cannot run ffmpeg": "&mdash; лише для комп'ютерної програми: браузер не може запустити ffmpeg",
+ "128 kbps": "128 kbps",
+ "32 kbps": "32 kbps",
+ "48 kbps": "48 kbps",
+ "64 kbps": "64 kbps",
+ "96 kbps": "96 kbps",
+ "Models, sounds and script shrunk.": "Моделі, звуки та скрипт стиснуто.",
+ "Shrinking the models, sounds and script...": "Стиснення моделей, звуків і скрипта...",
+ "minify the JASS script: unreachable code out, constants written in (names shortened when the script is not obfuscated)": "мініфікувати скрипт JASS: недосяжний код прибрати, константи підставити (імена скорочуються, коли скрипт не обфускований)",
+ "models, lossy: also thin straight animation tracks (off by less than 0.05 units)": "моделі, зі втратами: також проріджувати прямі доріжки анімації (відхилення менше ніж 0.05 одиниці)",
+ "re-encode MP3 sounds in mono, 22 kHz (lossy; the big gain in a map with music; needs ffmpeg)": "перекодувати звуки MP3 у моно, 22 kHz (зі втратами; найбільша економія в карті з музикою; потрібен ffmpeg)",
+ "shrink MDX models: drop the animation keys that change nothing (lossless)": "стиснути моделі MDX: прибрати ключі анімації, що нічого не змінюють (без втрат)"
 }
