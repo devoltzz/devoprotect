@@ -152,6 +152,17 @@
           <label class="tog"><input type="checkbox" data-opt="opt_blp"> re-optimize BLP textures (lossless)</label>
           <label class="tog"><input type="checkbox" data-opt="opt_dedup"> store identical files once</label>
           <label class="tog"><input type="checkbox" data-opt="opt_lossy"> <span class="gated">lossy, only above the game's 512 MiB limit: half-size textures, mono 22 kHz sound</span></label>
+          <label class="tog"><input type="checkbox" data-opt="opt_models"> shrink MDX models: drop the animation keys that change nothing (lossless)</label>
+          <label class="tog"><input type="checkbox" data-opt="opt_models_lossy"> <span class="gated">models, lossy: also thin straight animation tracks (off by less than 0.05 units)</span></label>
+          <label class="tog" id="mp3row"><input type="checkbox" data-opt="opt_mp3"> <span class="gated">re-encode MP3 sounds in mono, 22 kHz (lossy; the big gain in a map with music; needs ffmpeg)</span>
+            <select data-optv="opt_mp3_kbps">
+              <option value="32">32 kbps</option>
+              <option value="48">48 kbps</option>
+              <option value="64">64 kbps</option>
+              <option value="96">96 kbps</option>
+              <option value="128">128 kbps</option>
+            </select><span class="gated" id="mp3note" hidden> &mdash; desktop only: the browser cannot run ffmpeg</span></label>
+          <label class="tog"><input type="checkbox" data-opt="opt_minify"> minify the JASS script: unreachable code out, constants written in (names shortened when the script is not obfuscated)</label>
         </details>
       </div>
       <div class="step">
@@ -173,7 +184,7 @@
       <div class="exp-body">
         <div class="hint" style="margin-top:0">Fake files and malformed-MPQ markers. The markers only apply to the sector-512 pack, and add no barrier of their own: MPQ Editor already refuses that archive.</div>
         <label class="tog"><input type="checkbox" data-opt="decoy_wtg"> decoy triggers (fake wtg+wct)</label>
-        <label class="tog"><input type="checkbox" data-opt="decoy_listfile"> lying file list</label>
+        <label class="tog"><input type="checkbox" data-opt="decoy_listfile"> remove the file list (no names to mine)</label>
         <label class="tog"><input type="checkbox" data-opt="decoy_imp"> decoy imports</label>
         <label class="tog"><input type="checkbox" data-opt="decoy_fill"> fill the hash table with decoys (no new file can be added)</label>
         <label class="tog"><input type="checkbox" data-opt="variant_header"> variant: header size</label>
@@ -387,6 +398,11 @@
       var slk = opt('to_slk');
       if(slk){ slk.checked = false; slk.disabled = true; OPTIONS['to_slk'] = false; }
       if($('slknote')){ $('slknote').hidden = false; }
+      var mp3 = opt('opt_mp3');
+      if(mp3){ mp3.checked = false; mp3.disabled = true; OPTIONS['opt_mp3'] = false; }
+      var kb = document.querySelector('[data-optv="opt_mp3_kbps"]');
+      if(kb){ kb.disabled = true; }
+      if($('mp3note')){ $('mp3note').hidden = false; }
     }
     setPack(packOf(OPTIONS));
     var mode = modeOf(OPTIONS);
