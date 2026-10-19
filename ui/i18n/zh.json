@@ -80,7 +80,7 @@
  "invalid option: {0}": "无效选项:{0}",
  "key (keep it, not in the map): {0}": "密钥(请妥善保管,不在地图内):{0}",
  "lossy, only above the game's 512 MiB limit: half-size textures, mono 22 kHz sound": "有损,仅在超过游戏 512 MiB 限制时使用:贴图尺寸减半,单声道 22 kHz 音频",
- "lying file list": "虚假文件列表",
+ "remove the file list (no names to mine)": "删除文件列表（无文件名可挖掘）",
  "map not found: {0}": "未找到地图:{0}",
  "no map selected (.w3x, .w3m, .w3n)": "未选择地图(.w3x、.w3m、.w3n)",
  "non-ASCII IDs (gated: proof pending)": "非 ASCII ID(已限制:尚待验证)",
@@ -131,5 +131,17 @@
  "the game's own cheat codes, in single player only": "游戏自带的作弊码(仅限单人游戏)",
  "when both say single player": "当两项检测都显示为单人游戏时",
  "when one human plays": "当只有一名人类玩家时",
- "when the game reloads from disk": "当游戏从磁盘重新载入时"
+ "when the game reloads from disk": "当游戏从磁盘重新载入时",
+ "&mdash; desktop only: the browser cannot run ffmpeg": "&mdash; 仅限桌面版:浏览器无法运行 ffmpeg",
+ "128 kbps": "128 kbps",
+ "32 kbps": "32 kbps",
+ "48 kbps": "48 kbps",
+ "64 kbps": "64 kbps",
+ "96 kbps": "96 kbps",
+ "Models, sounds and script shrunk.": "模型、音频和脚本已缩小。",
+ "Shrinking the models, sounds and script...": "正在缩小模型、音频和脚本...",
+ "minify the JASS script: unreachable code out, constants written in (names shortened when the script is not obfuscated)": "精简 JASS 脚本:移除不可达代码,写入常量(脚本未混淆时缩短名称)",
+ "models, lossy: also thin straight animation tracks (off by less than 0.05 units)": "模型,有损:同时精简呈直线的动画轨道(偏差小于 0.05 单位)",
+ "re-encode MP3 sounds in mono, 22 kHz (lossy; the big gain in a map with music; needs ffmpeg)": "将 MP3 音频重新编码为单声道 22 kHz(有损;含音乐的地图在此项上缩减最多;需要 ffmpeg)",
+ "shrink MDX models: drop the animation keys that change nothing (lossless)": "缩小 MDX 模型:删除没有任何变化的动画关键帧(无损)"
 }
