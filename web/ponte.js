@@ -133,6 +133,10 @@
       worker.postMessage({ type: 'file', path: '/maps/' + f.name, file: f });
       return '/maps/' + f.name;
     },
+    inspect_map: async path => {
+      await ready;
+      return JSON.parse((await call({ type: 'py', fn: 'inspect_map', arg: JSON.stringify(path) })).text);
+    },
     pick_save: async suggested => '/out/' + baseName(suggested || 'protected.w3x'),
     pick_key: async folder => {
       const files = await pickFiles(folder ? '' : '.tsv', folder);
