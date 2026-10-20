@@ -3,6 +3,93 @@
 What each version of DevoProtect brought, the newest first. The downloads are on the
 [Releases](https://github.com/devoltzz/devoprotect/releases) page.
 
+## 0.1.9 (2026-10-20)
+
+- Three new options, off by default until they are tested in game. Turn them on in Custom or on the command line.
+  - Rename imported files (`--rename-imports`): the name of every imported file the map uses is replaced by a random
+    name of the same length, in the archive and in every reference (object data, models, profiles and the script).
+    The original name no longer comes back, even with no file list in the map. Models and portraits, disabled icons
+    and numbered variations keep their relation.
+  - Encrypt files (`--encrypt-files`, with the 512-byte sector pack): the files of the map whose names are known are
+    stored encrypted in the archive. The key comes from the name, the one the game already has when it asks for a
+    file; a tool without the name cannot read the content. The report says how many blocks were encrypted, and a
+    block with another name pointing at it stays as it is.
+  - Remove error messages (`--remove-error-logs`): the compiler error messages that vJass (JassHelper) and Wurst leave
+    in the map script are removed. They are diagnostics, and they carry the names of structs, packages and source
+    lines that the obfuscator cannot rename inside a string. Your own messages stay.
+- Optimize: "models, lossy" (`--models=lossy`) now also rounds the low bits of the numbers in the MDX models. It's the
+  idea of the old MDX Squisher, but class by class and with a limit: a vertex moves less than 0.05 units and less than
+  1/2000 of the model's size, a rotation less than 0.002 radians. The files keep their size, but the map packs the
+  models 15% to 20% smaller. On seven test maps the whole map got 1.4% to 9% smaller; three more gained almost nothing,
+  because their models had already been squished. Every model is read back and checked; one that goes past a limit keeps that part as it was. Still off
+  by default, and still to be looked at in game.
+- The site has a new option in the final pack's extras, "same bytes as the desktop program", off by default. With it
+  on, the 512-byte pack runs the same compressors as the program (zopfli and zlib-ng, as WebAssembly), and the
+  protected map comes out byte for byte the same as on Windows. It is slower: about 8 times on a big map (164 seconds
+  instead of 20 on an 11 MB test map). Off, the site works as before: the same files inside the map, packed a little
+  bigger and with other bytes.
+- The Windows and Linux programs now carry the native code for the MPQ and the texture rewrite, and pack the 512-byte
+  sectors on every core instead of one. On the test maps the program got 3 to 7 times faster, with the same output.
+- JASS to Lua: a unary plus (`+5`, `+x`) is now dropped, since Lua has none. Before, it came out as a minus, so
+  `+5` became -5. None of the test maps here use it, but a map that does got wrong numbers.
+- JASS to Lua: `==` between reals keeps the JASS tolerance of 0.001 (`0.0 == 0.0009` is true in JASS), and `!=`
+  stays exact, as in JASS. Before, `==` was exact in Lua.
+- JASS to Lua: `null` compared with an integer, real or boolean, or stored into one, counts as that type's zero
+  (`0`, `0.0`, `false`), as in JASS. Before, `i == null` was always false in Lua.
+- JASS to Lua: `debug` statements no longer run, as in the game's JASS. Before, they ran every time. They become
+  `if _DEBUG then ... end`, which is what Blizzard's own converter writes.
+- JASS to Lua: the log warns about what only the game can settle, which the conversion leaves as it is: variable
+  events (`TriggerRegisterVariableEvent`), a null string or handle passed to a native, `SubString` past the end of
+  the text, and `R2I` of real math. An in-game test of each one comes next.
+- The 0.1.1 note about waits inside callbacks was wrong about JASS: the wait ends the thread there, it isn't
+  skipped. The warning stays.
+- A map already protected by another tool that encrypts its files is now protected when the map gives the names of
+  those files: each one is decrypted with the key from its name, checked the same way as the MPQ's own files. A map
+  with an encrypted file that has no name anywhere in the map is refused at the start, with the same message.
+  Before, both were refused only after the other steps had run (19 seconds on one test map).
+- `--cut-hash` together with `--decoys=fill` works now. Before, the run stopped at the end with "the cut would eat
+  a real file", because the fill took the last entry of the hash table, the one the cut removes.
+- `--bombs` together with `--decoys=fill` finishes in seconds. Before, it ran for more than 10 minutes on a small
+  map: the hash table filled by the decoys grew 8192 times with no free entry left, and every new name walked the
+  whole table. The fill now runs after the bombs, and the writer finds a slot in such a table without walking it.
+- A map file that doesn't exist, is empty, is locked by another program or isn't a map at all now says so. Before,
+  all of these said the MPQ header was not a normal MPQ v1 header.
+- JASS to Lua: a map whose `war3map.w3i` ends early now converts. Some optimizers, and DevoProtect's own editor
+  lock, write a single 0xFF where the last four lists go, and one test map was one byte short. The game reads those
+  files; the converter refused them.
+- Fake triggers (`--decoys=wtg`) are now different in every map: how many triggers, their names, the variable
+  names, the chat commands, the numbers and the texts all come from the map's seed. Before, every protected map
+  carried the same pair of files, which a simple hash check could spot. The same seed still gives the same files.
+- "Convert object data to SLK tables" (`--to-slk`) now works without Warcraft III installed, and the site offers it.
+  Without the game, the program and the site download the game's tables once (the tables of Warcraft III 3.0.1.24371,
+  1.2 MB), check them and keep them; on Linux `--game` is no longer needed. With the game installed, its own tables
+  are used, as before. The report says which tables were used and their version. With the tables of the same version,
+  the protected map is the same byte for byte either way.
+- Optimize: imported TGA and PNG images can be converted to BLP (`--tga-png`, off by default), with every reference
+  updated, as the DDS conversion does. Each image becomes the BLP that takes less room in the map: a palette without
+  loss when it has 256 colors or fewer, else JPEG at high quality (39 dB on average on the images measured; the
+  game's own table gives 21 to 42). The choice follows the pack: with the 512-byte pack the palette wins far more
+  often. Images that stay as they are: the map preview (the game reads it by name), images no file of the map names,
+  images whose names start the way the script builds names while the game runs (`"[UI]_Select_" + I2S(n) + ".tga"`
+  keeps only the images starting with `[UI]_Select_`; a name built from a variable keeps every image of that type),
+  sides that aren't a power of two, and sides above 512 in a map made before 1.31. On the test maps the converted
+  images take 22% to 62% less room, but the whole map gains little: most maps here carry only the preview, and in the
+  maps with many images most of them stay for one of these reasons.
+- Optimize: smaller textures (`--smaller-textures`, off by default, lossy). The textures only models use go to half
+  size, never below 128 pixels (64 and 256 can be chosen). A texture that has its mipmaps just drops its biggest level
+  and keeps the others byte for byte, so nothing is encoded again. Icons, the interface, the loading screen and the
+  minimap stay as they are. On a 50 MB test map the protected map got 23% smaller. Models look the same from afar and
+  blurrier up close, so look at the map in game before a release.
+- Presets: **Save preset** writes the options on screen to a JSON file and **Load preset** reads it back, in the
+  program and on the site. The command line reads the same file with `--preset=<file>` (the options you type win over
+  it) and writes one with `--save-preset=<file>`, with or without a map. A preset never stores a file path.
+- A whole folder at once: **Protect a folder** in the program, `DevoProtect-cli <folder> [out folder]` on the command
+  line, **Protect several maps** on the site. Each map is protected in turn into the out folder under the same name,
+  each with its own key next to it; a map that fails doesn't stop the others, and the summary says why it was refused.
+  With a folder, the previous key is the keys folder of the previous release.
+- The program now opens the command line for every option of the command line. Before, `<map> --anti-cheat` (and a
+  few other options) with a single map opened the window instead.
+
 ## 0.1.8 (2026-10-19)
 
 - JASS scripts saved with a bare CR at the end of each line (some old tools write them that way) are obfuscated now.
@@ -95,8 +182,10 @@ Fixes after a review of the JASS to Lua option and of the updater.
   (the ones from KK, YDWE, DzAPI and other platforms), and a map that carries its own `Blizzard.j` or `common.j`.
   The job stops with a message that says why, instead of giving you a map that won't load.
 - If a function with a wait (`TriggerSleepAction`, `PolledWait`) runs as a callback outside the trigger's own thread,
-  for example inside a group loop or a timer, the map is still converted but the log lists those functions. JASS
-  skips the wait there, Lua can stop the function with an error, so they're worth a look.
+  for example inside a group loop or a timer, the map is still converted but the log lists those functions. In JASS
+  the wait ends the thread there, and in Lua the callback can't pause, so the wait raises an error. Either way the
+  code after the wait doesn't run, so they're worth a look. (Corrected on 2026-10-19: this note used to say JASS
+  skips the wait.)
 - A map whose archive header isn't MPQ version 1 is refused at the start, with a clear message. Before, it failed
   halfway through.
 - Updates are checked: every download has to match the release's `SHA256SUMS.txt` before anything is replaced. The
