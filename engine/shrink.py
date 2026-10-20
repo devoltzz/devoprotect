@@ -3,7 +3,6 @@ import collections
 import contextlib
 import hashlib
 import io
-import multiprocessing
 import os
 import struct
 import sys
@@ -235,16 +234,14 @@ def _workers(options):
     teto = os.environ.get('DEVOPROTECT_WORKERS')
     if teto and teto.isdigit():
         return max(1, int(teto))
-    if getattr(sys, 'frozen', False) or sys.platform == 'emscripten':
+    if sys.platform == 'emscripten':
         return 1
     return os.cpu_count() or 1
 
 
 def _pool(n):
-    if n <= 1:
-        return None
     try:
-        return multiprocessing.Pool(n)
+        return sector_pack.open_pool(n)
     except Exception:
         return None
 
