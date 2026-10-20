@@ -128,16 +128,31 @@ def _table_closes(offs, n, csize, sector_bytes):
     return True
 
 
-def special_key(b, off, sector_bytes, htab, bi, fpos, csize, fsize, flags):
-    point_at = set()
+def pairs_of_names(name_list=()):
+    pairs = {}
+    for fname in tuple(SPECIAL_FILES) + tuple(name_list):
+        n = fname.replace('/', '\\')
+        pairs.setdefault((hash_string(n, 1), hash_string(n, 2)), fname)
+    return pairs
+
+
+def pointed_to(htab):
+    out = {}
     for k in range(len(htab) // 16):
         n1, n2, _loc, _plat, evidence = struct.unpack_from('<IIHHI', htab, k * 16)
-        if evidence == bi:
-            point_at.add((n1, n2))
+        out.setdefault(evidence, set()).add((n1, n2))
+    return out
+
+
+def special_key(b, off, sector_bytes, htab, bi, fpos, csize, fsize, flags, pairs=None, point_at=None):
+    if point_at is None:
+        point_at = pointed_to(htab).get(bi, set())
+    if pairs is None:
+        pairs = pairs_of_names()
+    candidates = sorted(set(pairs[p] for p in point_at if p in pairs),
+                        key=lambda n: (SPECIAL_FILES.index(n) if n in SPECIAL_FILES else len(SPECIAL_FILES), n))
     is_compressed = flags & (MPQ_FILE_COMPRESS | MPQ_FILE_IMPLODE)
-    for fname in SPECIAL_FILES:
-        if (hash_string(fname, 1), hash_string(fname, 2)) not in point_at:
-            continue
+    for fname in candidates:
         hash_key = key_from_name(fname, fpos, fsize, flags)
         if flags & MPQ_FILE_SINGLE_UNIT:
             if is_compressed and csize < fsize:
@@ -168,17 +183,34 @@ def header_text(b):
     return h.offset, struct.unpack_from(HDR, b, h.offset)
 
 
+_NATIVE_SOUND = [None]
+
+
+def _native_codec(code_part):
+    if code_part not in ('zopfli', 'zlib9') or _libdeflate is not None:
+        return None
+    if _zopfli is not None and 'zlib-ng' in zlib.ZLIB_RUNTIME_VERSION:
+        return None
+    if _NATIVE_SOUND[0] is None or sys.platform == 'emscripten':
+        try:
+            import sector512_native
+            _NATIVE_SOUND[0] = sector512_native.load_data() or False
+        except Exception:
+            _NATIVE_SOUND[0] = False
+    return _NATIVE_SOUND[0] or None
+
+
 def resolve_encoder(code_part):
     if code_part not in CODIFICADORES:
         raise SystemExit('--codificador=%s: use one of %s' % (code_part, ', '.join(CODIFICADORES)))
     if code_part == 'auto':
-        code_part = 'zopfli' if _zopfli else 'libdeflate' if _libdeflate else 'zlib9'
+        code_part = 'zopfli' if (_zopfli or _native_codec('zopfli')) else 'libdeflate' if _libdeflate else 'zlib9'
         if code_part != 'zopfli':
             print(
                 'NOTE: zopfli is not installed (pip install zopfli deflate): using %s, the map comes out bigger'
                 % code_part
             )
-    if code_part == 'zopfli' and not _zopfli:
+    if code_part == 'zopfli' and not (_zopfli or _native_codec('zopfli')):
         raise SystemExit('--codificador=zopfli without the zopfli package (pip install zopfli)')
     if code_part == 'libdeflate' and not _libdeflate:
         raise SystemExit('--codificador=libdeflate without the deflate package (pip install deflate)')
@@ -192,6 +224,10 @@ def signature(code_part, margem):
             return version(pkg)
         except Exception:
             return '?'
+    if _native_codec(code_part):
+        import sector512_native
+        return '|'.join(['setor512/2', code_part, 'native', sector512_native.VERSION] +
+                        (['margem=%d' % margem] if code_part == 'zopfli' else []))
     pieces = ['setor512/2', code_part, 'zlib=%s' % zlib.ZLIB_RUNTIME_VERSION]
     if code_part in ('zopfli', 'libdeflate'):
         pieces.append('deflate=%s' % version_num('deflate'))
@@ -202,6 +238,11 @@ def signature(code_part, margem):
 
 def encode_sector(s, code_part, margem=8):
     L = len(s)
+    nat = _native_codec(code_part) if L else None
+    if nat:
+        r = nat(s, L, margem, code_part)
+        if r is not None:
+            return r[0]
     if code_part == 'zlib6':
         z = zlib.compress(s, 6)
     else:
@@ -220,10 +261,41 @@ def encode_sector(s, code_part, margem=8):
 def _slice(job):
     data_bytes, code_part, margem = job[:3]
     sector_bytes = job[3] if len(job) > 3 else SECTOR_NEW
+    nat = _native_codec(code_part)
+    if nat:
+        r = nat(data_bytes, sector_bytes, margem, code_part)
+        if r is not None:
+            return r
     return [
         encode_sector(data_bytes[i : i + sector_bytes], code_part, margem)
         for i in range(0, len(data_bytes), sector_bytes)
     ]
+
+
+class _Threads:
+    def __init__(self, n):
+        from concurrent.futures import ThreadPoolExecutor
+        self.ex = ThreadPoolExecutor(n)
+
+    def imap(self, fn, item_entries, chunksize=1):
+        return self.ex.map(fn, item_entries)
+
+    imap_unordered = imap
+
+    def close(self):
+        self.ex.shutdown(wait=True)
+
+    def join(self):
+        pass
+
+
+def open_pool(n):
+    if n <= 1 or sys.platform == 'emscripten':
+        return None
+    if getattr(sys, 'frozen', False):
+        return _Threads(n)
+    import multiprocessing as mp
+    return mp.Pool(n)
 
 
 def build_block(pieces):
@@ -234,6 +306,26 @@ def build_block(pieces):
         pos += len(p)
     offs.append(pos)
     return struct.pack('<%dI' % len(offs), *offs) + b''.join(pieces)
+
+
+def encrypt_block(data_bytes, hash_key, fsize, flags):
+    if flags & MPQ_FILE_COMPRESS:
+        n = (fsize + SECTOR_NEW - 1) // SECTOR_NEW
+        m = n + 1
+        offs = struct.unpack_from('<%dI' % m, data_bytes, 0)
+        out = bytearray(data_bytes)
+        out[0:4 * m] = encrypt(bytes(data_bytes[0:4 * m]), (hash_key - 1) & 0xFFFFFFFF)
+        for k in range(n):
+            a, b = offs[k], offs[k + 1]
+            out[a:b] = encrypt(bytes(data_bytes[a:b]), (hash_key + k) & 0xFFFFFFFF)
+        return bytes(out)
+    n = (fsize + SECTOR_NEW - 1) // SECTOR_NEW
+    out = bytearray(data_bytes)
+    for k in range(n):
+        a = k * SECTOR_NEW
+        b = min(a + SECTOR_NEW, fsize)
+        out[a:b] = encrypt(bytes(data_bytes[a:b]), (hash_key + k) & 0xFFFFFFFF)
+    return bytes(out)
 
 
 class Cache:
@@ -364,6 +456,8 @@ def protect_bytes(
     orphan_blocks=False,
     no_listfile=False,
     variant=(),
+    name_list=(),
+    cipher=(),
 ):
     t0 = time.time()
     details = stats if stats is not None else {}
@@ -407,25 +501,55 @@ def protect_bytes(
 
     content = {}
     deciphered = {}
+    pairs = pairs_of_names(name_list)
+    if cipher is True:
+        encrypt_names = list(dict.fromkeys(list(name_list) + list(SPECIAL_FILES)))
+    elif cipher:
+        encrypt_names = list(cipher)
+    else:
+        encrypt_names = []
+    encrypt_pairs = pairs_of_names(encrypt_names) if encrypt_names else {}
+    key_of = {}
+    encrypt_skipped = 0
+    by_block = None
     for i in range(bcount):
         fpos, csize, fsize, flags = struct.unpack_from('<IIII', btab, i * 16)
         if flags & MPQ_FILE_EXISTS and (in_use is None or i in in_use):
             hash_key = None
             if flags & MPQ_FILE_ENCRYPTED:
-                finding = special_key(b, off, sector_bytes, htab, i, fpos, csize, fsize, flags)
+                if by_block is None:
+                    by_block = pointed_to(htab)
+                finding = special_key(b, off, sector_bytes, htab, i, fpos, csize, fsize, flags, pairs=pairs,
+                                      point_at=by_block.get(i, set()))
                 if finding:
                     deciphered[i], hash_key = finding
             content[i] = read_block(b, off, sector_bytes, fpos, csize, fsize, flags, hash_key)
+            if encrypt_pairs:
+                if by_block is None:
+                    by_block = pointed_to(htab)
+                all_items = by_block.get(i, set())
+                names_i = sorted(set(encrypt_pairs[p] for p in all_items if p in encrypt_pairs))
+                if names_i and len(names_i) == len(all_items):
+                    ks = set(key_from_name(n, 0, 0, 0) for n in names_i)
+                    if len(ks) == 1:
+                        key_of[i] = ks.pop()
+                    else:
+                        encrypt_skipped += 1
+                else:
+                    encrypt_skipped += 1
+    if key_of:
+        details['encrypted_count'] = len(key_of)
+        details['encrypt_skipped'] = encrypt_skipped
+        log('  %d block(s) encrypted by name (%d without a safe key: unknown name or two keys)'
+            % (len(key_of), encrypt_skipped))
     log('  %d live blocks, %d bytes uncompressed (%.1f s)' % (len(content), sum(map(len, content.values())),
                                                               time.time() - t0))
     if deciphered:
         details['deciphered'] = dict((str(i), fname) for i, fname in sorted(deciphered.items()))
-        log('  encrypted blocks decrypted by the fixed name: %s' % ', '.join(
+        log('  encrypted blocks decrypted by name: %s' % ', '.join(
             '%s (block %d)' % (fname, i) for i, fname in sorted(deciphered.items())))
     removed = set()
-    import multiprocessing as mp
-    nproc = 1 if getattr(sys, 'frozen', False) else (workers or os.cpu_count() or 1)
-    pool = mp.Pool(nproc) if nproc > 1 else None
+    pool = open_pool(workers or os.cpu_count() or 1)
     try:
         details['blp_rewritten'] = []
         details['blp_reasons'] = {}
@@ -553,18 +677,23 @@ def protect_bytes(
         u = first[sha[i] if dedup else i]
         new_flags = (flags | MPQ_FILE_COMPRESS) & ~(MPQ_FILE_SINGLE_UNIT | MPQ_FILE_SECTOR_CRC | MPQ_FILE_IMPLODE |
                                                     MPQ_FILE_ENCRYPTED | MPQ_FILE_FIX_KEY)
+        key_i = key_of.get(i)
+        if key_i is not None:
+            new_flags |= MPQ_FILE_ENCRYPTED
         data_bytes = block_entry[u]
         if raw_data and len(data_bytes) >= len(c):
             data_bytes = c
             new_flags &= ~MPQ_FILE_COMPRESS
-        if u != i and (u, new_flags) in pos_of:
-            pos, sz = pos_of[(u, new_flags)]
+        if key_i is not None:
+            data_bytes = encrypt_block(data_bytes, key_i, len(c), new_flags)
+        if u != i and (u, new_flags, key_i or 0) in pos_of:
+            pos, sz = pos_of[(u, new_flags, key_i or 0)]
             n_dup += 1
             dup_saved += sz
         else:
             pos, sz = len(out) - off, len(data_bytes)
             out += data_bytes
-            pos_of[(u, new_flags)] = (pos, sz)
+            pos_of[(u, new_flags, key_i or 0)] = (pos, sz)
             if not new_flags & MPQ_FILE_COMPRESS:
                 n_raw += 1
         struct.pack_into('<IIII', new_one, i * 16, pos, sz, len(c), new_flags)
@@ -593,7 +722,8 @@ def protect_bytes(
     out = bytes(out)
     details.update({'entry': len(b), 'output': len(out), 'encoder': code_part, 'signature': enc_signature,
                     'duplicates': n_dup, 'duplicates_bytes': dup_saved, 'uncompressed': n_raw,
-                    'block_list': len(content), 'seconds': round(time.time() - t0, 1)})
+                    'block_list': len(content), 'encrypted_count': len(key_of), 'encrypt_skipped': encrypt_skipped,
+                    'seconds': round(time.time() - t0, 1)})
     log('output: %d bytes (%+.1f%% over the input); %d duplicates written once (-%d bytes)%s; %.0f s' % (
         len(out), 100.0 * (len(out) - len(b)) / len(b), n_dup, dup_saved,
         ', %d uncompressed' % n_raw if raw_data else '', time.time() - t0))
@@ -611,11 +741,17 @@ def protect_bytes(
         bad_ones = 0
         for i, c in content.items():
             fpos, csize, fsize, flags = struct.unpack_from('<IIII', btab2, i * 16)
-            if hashlib.sha1(read_block(out, off2, 512, fpos, csize, fsize, flags)).hexdigest() != sha[i]:
+            encrypted = bool(flags & MPQ_FILE_ENCRYPTED)
+            if encrypted != (i in key_of):
+                bad_ones += 1
+                continue
+            if hashlib.sha1(read_block(out, off2, 512, fpos, csize, fsize, flags,
+                                       key_of.get(i))).hexdigest() != sha[i]:
                 bad_ones += 1
         if bad_ones:
             raise SystemExit('CHECK FAILED: %d block(s) different from expected' % bad_ones)
-        log('check: %d blocks re-read from the output, all equal to expected' % len(content))
+        log('check: %d blocks read back from the output, all as expected%s' % (
+            len(content), ' (%d encrypted by name)' % len(key_of) if key_of else ''))
     if variant:
         import mpqlib
         h2 = mpqlib.find_header(out, fname='protected.w3x')[0]
