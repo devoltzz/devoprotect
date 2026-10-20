@@ -28,6 +28,8 @@ STEPS = {
 DONE = {
     'anticheat': 'Anti-cheat added.',
     'shuffle': 'Object IDs shuffled.',
+    'imported': 'Imported files renamed.',
+    'error_list': 'Compiler error messages removed.',
     'lua': 'Script converted to Lua.',
     'obfuscate': 'Script obfuscated.',
     'lock_editor': 'Editor-only files removed.',
@@ -89,6 +91,9 @@ def recipe_kwargs(options):
         skip.append('decoy')
     blocks = [k for k in BLOCKS if o.get('block_' + k, k != 'w3r')]
     variants = [internal for public, internal in VARIANTS.items() if o.get('variant_' + public)]
+    if o.get('variant_bit31') and 'protect' not in skip and (o.get('bombs') or o.get('cut_hash')):
+        raise ValueError('the bit31 variant does not combine with the extract-all bombs or the hash table cut: '
+                         'turn one of them off')
     optimize = None
     if o.get('optimize'):
         optimize = {'recompress': o.get('opt_recompress', True), 'blp': o.get('opt_blp', True),
@@ -152,6 +157,17 @@ def default_options():
             'anti_cheat': False, 'ac_ledger': True, 'ac_codes': True, 'ac_names': True, 'ac_bj': True,
             'ac_warn': True, 'ac_nosave': False, 'ac_defeat': False, 'ac_end': False, 'ac_gold_jump': 400,
             'ac_codes_mode': 'auto'}
+
+
+def inspect_map(path):
+    import protect_recipe
+    try:
+        r = protect_recipe.inspect_archive(path)
+    except Exception as e:
+        return {'refused': 'the map does not read: %s' % e}
+    return {'campaign': r['campaign'], 'bytes': r['bytes'], 'refused': r['refusal'], 'script': r['lang'],
+            'w3i': r['w3i'], 'unnamed_block': r['unnamed'], 'own_blizzard': r['map_blizzard'],
+            'last_file': r['last_unit']}
 
 
 def tables_info():
@@ -484,6 +500,9 @@ class Api:
         if folder:
             return self._dialog(webview.FileDialog.FOLDER)
         return self._dialog(webview.FileDialog.OPEN, file_types=('ID keys (*.tsv)', 'All files (*.*)'))
+
+    def inspect_map(self, path):
+        return inspect_map(path)
 
     def pick_folder(self):
         import webview
