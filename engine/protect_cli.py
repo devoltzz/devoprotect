@@ -27,12 +27,11 @@ Options (each toggle of each step; default: full protection, ASCII IDs, no decoy
     --skip=shuffle,obfuscate,block,decoys,pack,dds   steps to skip
     --rename-imports                           rename the imported files to meaningless names of the same length,
                                                in the archive and in every reference (object data, models and
-                                               script). Off by default until it is proven in the game
+                                               script). Off by default
     --encrypt-files                            store the files whose names the map gives encrypted in the sector-512
-                                               pack (the key comes from the name). Off by default until it is proven
-                                               in the game
+                                               pack (the key comes from the name). Off by default
     --remove-error-logs                        remove the compiler error messages vJass and Wurst leave in the
-                                               script. Off by default until it is proven in the game
+                                               script. Off by default
     --block=w3i,wtg,extra,units,doo,w3r        the editor-file mechanisms (default: w3i,wtg,extra,units,doo)
     --decoys=wtg,listfile,imp[,preview][,fill]   write decoy files (off by default; listfile removes the
                                                 file list; preview only if named; fill fills the hash
@@ -306,7 +305,7 @@ def parse_options(argv, extra_value=(), extra_bare=()):
     return o, warnings
 
 
-def main(argv=None, version='0.1.9.1'):
+def main(argv=None, version='0.1.9.2'):
     import protect_app
     argv = sys.argv[1:] if argv is None else list(argv)
     try:
