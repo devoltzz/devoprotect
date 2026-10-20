@@ -113,7 +113,7 @@ class Names(object):
 
     def new(self):
         while True:
-            if not self.stack:
+            while not self.stack:
                 self._batch()
             s = self.stack.pop()
             if s not in self.reserved and s not in self.in_use:
