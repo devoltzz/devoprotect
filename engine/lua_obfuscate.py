@@ -1,4 +1,5 @@
 # Obfuscates a Lua map script: names renamed, strings encoded, loaded by small loader layers.
+import base64
 import hashlib
 import os
 import random
@@ -81,7 +82,7 @@ LUA_LIBRARY = frozenset((
     'newproxy', 'next', 'os', 'package', 'pairs', 'pcall', 'print', 'rawequal', 'rawget', 'rawlen', 'rawset',
     'require', 'select', 'setfenv', 'setmetatable', 'string', 'table', 'tonumber', 'tostring', 'type', 'unpack',
     'utf8', 'xpcall'))
-LUA_ENGINE_NAMES = frozenset(('main', 'config', 'FourCC', '__jarray', 'JDiv', 'JCat'))
+LUA_ENGINE_NAMES = frozenset(('main', 'config', 'FourCC', '__jarray', 'JDiv', 'JCat', 'JEq'))
 BY_NAME = {'ExecuteFunc': (0, 'fun'), 'TriggerRegisterVariableEvent': (1, 'var')}
 LOADERS = frozenset(('load', 'loadstring', 'dofile', 'loadfile'))
 
@@ -131,22 +132,37 @@ def lehmer_key(seed, n):
     return out
 
 
+_RX_ONLY_B64 = re.compile(r'[A-Za-z0-9+/]*')
+_ADD_TABLES = {}
+
+
+def _add_table(k):
+    t = _ADD_TABLES.get(k)
+    if t is None:
+        t = _ADD_TABLES[k] = bytes((v + k) & 0xFF for v in range(256))
+    return t
+
+
+def add_key(data_bytes, hash_key, sign=1):
+    n = len(hash_key)
+    out = bytearray(data_bytes)
+    for j in range(min(n, len(out))):
+        out[j::n] = out[j::n].translate(_add_table((sign * hash_key[j]) & 0xFF))
+    return bytes(out)
+
+
 def b64_encode(data_bytes):
-    out = []
-    for i in range(0, len(data_bytes), 3):
-        a = data_bytes[i]
-        b = data_bytes[i + 1] if i + 1 < len(data_bytes) else None
-        c = data_bytes[i + 2] if i + 2 < len(data_bytes) else None
-        out.append(ALPHABET_B64[a >> 2])
-        out.append(ALPHABET_B64[(a & 3) << 4 | (b >> 4 if b is not None else 0)])
-        if b is not None:
-            out.append(ALPHABET_B64[((b & 15) << 2) | ((c >> 6) if c is not None else 0)])
-            if c is not None:
-                out.append(ALPHABET_B64[c & 63])
-    return ''.join(out)
+    return base64.b64encode(bytes(data_bytes)).decode('ascii').rstrip('=')
 
 
 def b64_decode(s):
+    if not _RX_ONLY_B64.fullmatch(s):
+        return _b64_decode_py(s)
+    cut = len(s) - len(s) % 4 if len(s) % 4 == 1 else len(s)
+    return base64.b64decode(s[:cut] + '=' * (-cut % 4))
+
+
+def _b64_decode_py(s):
     x = dict((ord(ch), i) for i, ch in enumerate(ALPHABET_B64))
     out = bytearray()
     for i in range(0, len(s), 4):
@@ -169,7 +185,7 @@ def wrap_layers(data_bytes, rng, log=print):
     n = rng.randint(KEY_LEN_MIN, KEY_LEN_MAX)
     seed = rng.randint(1, LEHMER - 1)
     hash_key = lehmer_key(seed, n)
-    encrypted_count = bytes((b + hash_key[i % n]) % 256 for i, b in enumerate(data_bytes))
+    encrypted_count = add_key(data_bytes, hash_key)
     body_text = LOADER % {
         'K': g.new(), 'S': g.new(), 'I': g.new(), 'B': g.new(), 'P': g.new(), 'A': g.new(),
         'X': g.new(), 'J': g.new(), 'D': g.new(), 'M': g.new(), 'Q': g.new(),
@@ -186,7 +202,7 @@ def unwrap(body_text):
     seed, n, payload = int(m.group(3)), int(m.group(5)), m.group(8)
     data_bytes = b64_decode(payload)
     hash_key = lehmer_key(seed, n)
-    return bytes((b - hash_key[i % n]) % 256 for i, b in enumerate(data_bytes)), {'seed': seed, 'hash_key': n}
+    return add_key(data_bytes, hash_key, -1), {'seed': seed, 'hash_key': n}
 
 
 def digits(index_, field_value):
