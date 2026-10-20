@@ -89,6 +89,8 @@ def call(fn, arg):
         return json.dumps({'options': options, 'warnings': warnings})
     if fn == 'folder_report':
         return json.dumps(protect_app.folder_report(data['maps'], data['out']))
+    if fn == 'inspect_map':
+        return json.dumps(protect_app.inspect_map(data))
     raise ValueError('unknown call: %s' % fn)
 
 
