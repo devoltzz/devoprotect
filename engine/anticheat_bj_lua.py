@@ -19,7 +19,7 @@ TYPES = {'main': 20, 'config': 21}
 RESERVED = frozenset(('and', 'break', 'do', 'else', 'elseif', 'end', 'false', 'for', 'function', 'goto', 'if',
                       'in', 'local', 'nil', 'not', 'or', 'repeat', 'return', 'then', 'true', 'until', 'while'))
 RX_NAME_TOKEN = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
-RX_PREAMBLE = re.compile(r'^(FourCC|__jarray|JDiv|JCat) = \1 or ', re.M)
+RX_PREAMBLE = re.compile(r'^(FourCC|__jarray|JDiv|JCat|JEq) = \1 or ', re.M)
 PUT = ('local E, G, rg = _ENV, _G, rawget\n'
        'if type(G) ~= "table" or G == E then G = nil end\n'
        'local function put(n, f)\n'
@@ -77,8 +77,8 @@ def _ref_cached():
         k = (tuple(paths), strict)
         if k not in ma:
             ma[k] = a0(paths, strict)
-        r, g, p = ma[k]
-        return dict(r), dict(g), dict((n, list(t)) for n, t in p.items())
+        r, g = ma[k][:2]
+        return (dict(r), dict(g)) + tuple(dict((n, list(t)) for n, t in p.items()) for p in ma[k][2:])
 
     def game_natives(ref):
         if ref not in mn:
@@ -129,6 +129,10 @@ def _verdict(bj, ref, fname):
                 m.append('string concatenation')
             if r['integers_as_real']:
                 m.append('integer stored as real')
+            if r['real_equalities']:
+                m.append('real equality')
+            if r['numeric_nulls']:
+                m.append('null as a number')
             if fname in r['renamed']:
                 m.append('the name is renamed in Lua')
             _VERDICTS[k] = ('not provably the game\'s own conversion: ' + ', '.join(m)) if m else None
