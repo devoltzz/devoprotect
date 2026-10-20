@@ -6,6 +6,11 @@ dist/
 *.spec
 engine/pjass.exe
 engine/pjass
+engine/mpqcrypt.dll
+engine/mpqcrypt.so
+engine/mpqcrypt.lib
+engine/setor512.dll
+engine/setor512.so
 *_protected*.w3x
 *_protected*.w3m
 *_protected*.w3n
