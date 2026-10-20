@@ -15,6 +15,11 @@ protect-site (nginx)  <--  the Cloudflare tunnel  <--  visitors
    `devo-site` stack, pointing at `http://protect-site:80`. The containers join that stack's Docker network
    (`devo-site`), so the same tunnel reaches them. With a tunnel of its own instead, add a `cloudflared` service.
 3. `docker compose up -d` in this folder (or the same file as a stack in your Docker manager).
+4. The game tables: put `slk_tables.zip` in `/opt/devoprotect-site/data/` (readable by nginx). The option
+   "convert object data to SLK tables" downloads it when there is no Warcraft III installed (the site always,
+   the programs without the game); the page and the programs check its sha256 (`TABLES` in `protect_app.py`).
+   It is Blizzard's data, so it never goes in git or in a release. A new pack (a game patch that changes the
+   tables) means a new `TABLES` in a new release and the new zip uploaded here.
 
 ## Each release
 
