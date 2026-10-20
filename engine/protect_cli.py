@@ -306,7 +306,7 @@ def parse_options(argv, extra_value=(), extra_bare=()):
     return o, warnings
 
 
-def main(argv=None, version='0.1.9'):
+def main(argv=None, version='0.1.9.1'):
     import protect_app
     argv = sys.argv[1:] if argv is None else list(argv)
     try:
