@@ -59,6 +59,14 @@ folder). The command line reads the same file with `--preset=<file>`.
 | **Archive only** | Removes the editor files and repacks the archive; the script stays as it is. |
 | **Custom** | Each step on its own, plus the extra options. |
 
+Every option sits on the left, in groups that follow the steps: object IDs, script, editor files, size, the final
+pack, decoys, the anti-cheat and an advanced group with the shuffle seed. A ready mode keeps the groups closed and
+fills them with its set; Custom opens them, and changing any option turns the mode into Custom. On the right, the
+program checks the map as soon as you choose it (JASS or Lua, a campaign or a single map, the game version, the size)
+and lists the steps that will run, in order. An option that can't work with the rest, or with that map, is locked
+with the reason next to it, and the list says which of your choices were turned off and why. So a combination that
+would stop the run halfway can't be started.
+
 What the steps do:
 
 | Step | What it does |
@@ -71,7 +79,7 @@ What the steps do:
 | **Anti-cheat** | Off by default; tested in game in single player, multiplayer still to prove. Adds checks that run while the map plays: a ledger that undoes gold, lumber and hero changes no part of the map explains, a detector for the game's own cheat codes in single player, decoy function names so a cheat pack pasted by hand does not compile, and for Lua maps a guard that restores the engine functions a cheat pack replaces. When it finds something it can warn everyone, block the cheater's saves, defeat the cheater or end the game. |
 | **Pack** | Repacks the archive with 512-byte sectors. The game loads it fine; MPQ Editor and other StormLib tools refuse to open it. |
 
-Three more options are off by default until they are tested in game. You turn them on in Custom or on the command
+Three more options are off by default, tested in game. You turn them on in Custom or on the command
 line. **Rename imported files** (`--rename-imports`): the name of every imported file the map uses is replaced by a
 random name of the same length, in the archive and in every reference, so the original name no longer comes back.
 **Encrypt files** (`--encrypt-files`, with the 512-byte sector pack): the files whose names are known are stored
@@ -162,9 +170,9 @@ is the keys folder of the previous release (its out folder).
 | Option | |
 |---|---|
 | `--skip=shuffle,obfuscate,block,decoys,pack,dds` | Steps to skip. |
-| `--rename-imports` | Rename the imported files to random names of the same length, everywhere they are used (off by default, not tested in game yet). |
-| `--encrypt-files` | Store the files whose names the map gives encrypted, with the key taken from the name (512-byte sector pack only; off by default, not tested in game yet). |
-| `--remove-error-logs` | Remove the vJass and Wurst compiler error messages from the script (off by default, not tested in game yet). |
+| `--rename-imports` | Rename the imported files to random names of the same length, everywhere they are used (off by default). |
+| `--encrypt-files` | Store the files whose names the map gives encrypted, with the key taken from the name (512-byte sector pack only; off by default). |
+| `--remove-error-logs` | Remove the vJass and Wurst compiler error messages from the script (off by default). |
 | `--block=w3i,wtg,extra,units,doo,w3r` | Which editor files to remove (default: `w3i,wtg,extra,units,doo`). |
 | `--to-slk` | Convert the object data to the game's SLK tables (the installed game's, or a 1.2 MB download once). |
 | `--game=<folder>` | The Warcraft III folder, or a tables pack folder, for `--to-slk`. |
