@@ -32,7 +32,8 @@ RX_GG_JASS = re.compile(rb'(?P<str>"(?:[^"\\]|\\.)*")|(?P<comment>//[^\r\n]*)|(?
 RX_LUA = re.compile(rb'(?P<comment>--\[(?P<eq>=*)\[.*?\](?P=eq)\]|--[^\r\n]*)'
                     rb'|(?P<fourcc>FourCC\s*\(\s*(?P<q>["\'])(?P<id>[^"\'\\\r\n]{4})(?P=q)\s*\))'
                     rb'|(?P<str>"(?:[^"\\\r\n]|\\.)*"|\'(?:[^\'\\\r\n]|\\.)*\'|\[(?P<eq2>=*)\[.*?\](?P=eq2)\])'
-                    rb'|(?P<gg>\bgg_(?:unit|item|dest)_(?P<gid>' + ID_IN_NAME + rb')_\d+\b)', re.S)
+                    rb'|(?P<gg>\bgg_(?:unit|item|dest)_(?P<gid>' + ID_IN_NAME + rb')_\d+\b)'
+                    rb'|(?P<num>(?:(?<![\w.])|(?<=\.\.))(?:0[xX][0-9A-Fa-f]+|\d+)(?![\w.]))', re.S)
 NO_IDS = re.compile(r'(\.(w3e|wpm|shd|mmp|w3r|w3c|w3s|imp|blp|tga|dds|png|jpg|mdx|mdl|mp3|wav|flac|ogg|ttf|otf)'
                     r'|^\(listfile\)|^\(attributes\)|^\(signature\))$', re.I)
 
@@ -135,10 +136,29 @@ def rewrite_jass(j, ids):
     return RX_GG_JASS.sub(swap, j2), tally
 
 
+def lua_number(body_text):
+    return int(body_text[2:], 16) if body_text[:2] in (b'0x', b'0X') else int(body_text)
+
+
+def lua_number_as(body_text, field_value):
+    if body_text[:2] not in (b'0x', b'0X'):
+        return b'%d' % field_value
+    hex_digits = body_text[2:]
+    fmt = b'%0*X' if hex_digits != hex_digits.lower() else b'%0*x'
+    return body_text[:2] + fmt % (len(hex_digits), field_value)
+
+
 def rewrite_lua(t, ids):
     tally = collections.Counter()
+    vals = dict((id_value(k), id_value(v)) for k, v in ids.items())
 
     def swap(m):
+        if m.group('num'):
+            v = lua_number(m.group('num'))
+            if v in vals:
+                tally['numeric'] += 1
+                return lua_number_as(m.group('num'), vals[v])
+            return m.group(0)
         if m.group('fourcc') and m.group('id') in ids:
             tally['FourCC'] += 1
             begin = m.start('id') - m.start(0)
@@ -174,6 +194,7 @@ def leftovers_in_code(t, old_streams, lang):
         for m in RX_LUA.finditer(t):
             n += bool(m.group('fourcc') and m.group('id') in old_streams) + bool(m.group('gg') and
                                                                            id_from_name(m.group('gid')) in old_streams)
+            n += bool(m.group('num') and lua_number(m.group('num')) in vals)
         return n
     for m in RX_SCRIPT.finditer(t):
         if m.group('sum_expr'):
@@ -453,6 +474,8 @@ def map_ids(m):
             in_use.update(x.lower() for x in script_rawcodes(j))
         else:
             in_use.update(mm.group('id').lower() for mm in RX_LUA.finditer(j) if mm.group('fourcc'))
+            in_use.update(x.lower() for x in (_id_of_number(mm.group('num')) for mm in RX_LUA.finditer(j)
+                                              if mm.group('num')) if x)
         in_use.update(mm.group('id').lower() for mm in RX_TIP.finditer(j))
     for fname, d in m['others'].items():
         if fname.lower() == 'war3map.wts':
@@ -1497,6 +1520,12 @@ def _lua_rawcodes(t):
         if m.group('fourcc'):
             ids.append(m.group('id'))
             return b' @%d@ ' % (len(ids) - 1)
+        if m.group('num'):
+            x = _id_of_number(m.group('num'))
+            if x:
+                ids.append(x)
+                return b' @%d@ ' % (len(ids) - 1)
+            return m.group(0)
         if m.group('str'):
             return b' $ '
         if m.group('comment'):
@@ -1514,6 +1543,14 @@ def _lua_rawcodes(t):
         return script_flow.resultado()
     except RecursionError:
         return set(ids)
+
+
+def _id_of_number(body_text):
+    v = lua_number(body_text)
+    if not 0 < v <= M32:
+        return None
+    b = v.to_bytes(4, 'big')
+    return b if all(b) else None
 
 
 def _dont_rewrite(fname, d, lang):
