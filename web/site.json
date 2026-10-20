@@ -15,7 +15,8 @@
   "worker.py",
   "wasi_mini.js",
   "fs_windows.js",
-  "mpqcrypt.js"
+  "mpqcrypt.js",
+  "setor512.js"
  ],
  "manifest": {
   "name": "DevoProtect",
@@ -25,6 +26,7 @@
  "cache_prefix": "devoprotect",
  "size_limit_mb": 250,
  "mpqcrypt_c": "engine/mpqcrypt.c",
+ "setor512_wasm": "engine/setor512.wasm",
  "inline_script": "page.js",
  "after": []
 }
