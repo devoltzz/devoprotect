@@ -440,6 +440,22 @@ def parse_or_tolerant(data):
         return parse_tolerant(data)[0]
 
 
+LOSSLESS_DEVIATIONS = frozenset(('tail_ff', 'truncated_tail', 'trailing_zeros'))
+
+
+def parse_lossless(data):
+    try:
+        return parse(data), []
+    except Exception as e:
+        strict = '%s: %s' % (type(e).__name__, e)
+    m, deviations = parse_tolerant(data)
+    outside = sorted(set(deviations) - LOSSLESS_DEVIATIONS)
+    if outside:
+        raise ValueError('the w3i does not read strictly (%s) and the tolerant read has a deviation that loses data: %s'
+                         % (strict[:80], ', '.join(outside)))
+    return m, deviations
+
+
 def write(m, version=None):
     v = version if version is not None else m['version']
     w = W()
