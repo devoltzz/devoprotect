@@ -247,7 +247,19 @@ def _prove(old, new, kept, lossy, tol):
     return True, '', worst
 
 
-def optimize(data, lossy=False, tolerance=1.0):
+def optimize(data, lossy=False, tolerance=1.0, floats=False):
+    new, report = _optimize_keys(data, lossy, tolerance)
+    if not floats:
+        return new, report
+    q, rq = quantize(new if new is not None else data, 'auto', tolerance=tolerance)
+    report['floats'] = dict((k, rq[k]) for k in ('bits', 'refused', 'max_error', 'error') if k in rq)
+    report['floats']['changed'] = q is not None
+    if q is None:
+        return new, report
+    return q, report
+
+
+def _optimize_keys(data, lossy=False, tolerance=1.0):
     data = bytes(data)
     m = mdx_struct.read(data)
     seqs = [(s['start'], s['end']) for s in m.seqs]
@@ -303,4 +315,236 @@ def optimize(data, lossy=False, tolerance=1.0):
         report['bytes_after'] = len(data)
         return None, report
     return new, report
+
+
+FLOAT_CLASSES = ('vertex', 'normal', 'uv', 'translation', 'rotation', 'scale', 'other')
+FLOAT_LIMIT = {'vertex': 0.05, 'normal': 0.01, 'uv': 1.0 / 4096, 'translation': 0.05, 'rotation': 0.002,
+               'scale': 0.002, 'other': 0.002}
+FLOAT_REACH_SHARE = 1.0 / 2000
+
+
+def _reach(floats, buf):
+    import numpy as np
+    s = 0.0
+    for cls in ('vertex', 'translation'):
+        for _w, offs in floats.get(cls, ()):
+            v = _gather(buf, offs).view('<f4')
+            v = np.abs(v[np.isfinite(v)])
+            if len(v):
+                s = max(s, float(v.max()))
+    return s
+
+
+def float_limits(reach, tolerance=1.0):
+    out = dict((k, v * float(tolerance)) for k, v in FLOAT_LIMIT.items())
+    for cls in ('vertex', 'translation'):
+        out[cls] = min(out[cls], FLOAT_REACH_SHARE * float(tolerance) * reach)
+    return out
+
+
+def float_spans(m):
+    out = dict((c, {}) for c in FLOAT_CLASSES)
+
+    def put(cls, width, starts):
+        out[cls].setdefault(width, []).extend(starts)
+
+    for tag, size, off in m.chunks:
+        if tag == b'PIVT':
+            put('vertex', 3, range(off, off + size // 12 * 12, 12))
+    d = m.data
+    for g in m.geos:
+        parts = g.get('parts') or {}
+        if 'mats_end' not in g or g.get('uvas') is None:
+            continue
+        cnt, at = parts['VRTX']
+        put('vertex', 3, range(at, at + 12 * cnt, 12))
+        cnt, at = parts['NRMS']
+        put('normal', 3, range(at, at + 12 * cnt, 12))
+        if g.get('tang'):
+            cnt, at = g['tang']
+            put('normal', 4, range(at, at + 16 * cnt, 16))
+        nsets, r = g['uvas']
+        for _i in range(nsets):
+            cnt = struct.unpack_from('<I', d, r + 4)[0]
+            put('uv', 2, range(r + 8, r + 8 + 8 * cnt, 8))
+            r += 8 + 8 * cnt
+    for t in m.tracks:
+        if t.event or t.kind != 'f':
+            continue
+        cls = _class(t.tag) or 'other'
+        w = t.words
+        per = 3 if t.interp > 1 else 1
+        starts = []
+        for i in range(t.count):
+            p = t.body + i * t.stride + 4
+            starts.extend(p + 4 * w * j for j in range(per))
+        put(cls, w, starts)
+    return out
+
+
+def _offsets(starts, width):
+    import numpy as np
+    s = np.asarray(starts, dtype=np.int64)
+    return (s[:, None] + 4 * np.arange(width, dtype=np.int64)).reshape(-1)
+
+
+def _gather(buf, offs):
+    import numpy as np
+    b = buf[(offs[:, None] + np.arange(4, dtype=np.int64)).reshape(-1)]
+    return b.reshape(-1, 4).copy().view('<u4').reshape(-1)
+
+
+def _scatter(buf, offs, words):
+    import numpy as np
+    buf[(offs[:, None] + np.arange(4, dtype=np.int64)).reshape(-1)] = words.astype('<u4').view(np.uint8)
+
+
+def _cut(u, n, rounding=True):
+    import numpy as np
+    if n <= 0:
+        return u.copy()
+    mask = np.uint32((0xFFFFFFFF << n) & 0xFFFFFFFF)
+    cut = u & mask
+    if rounding:
+        r = (u + np.uint32(1 << (n - 1))) & mask
+        cut = np.where((r & np.uint32(0x7F800000)) == np.uint32(0x7F800000), cut, r)
+    return np.where((u & np.uint32(0x7F800000)) == np.uint32(0x7F800000), u, cut)
+
+
+def _quat_matrix(q):
+    import numpy as np
+    x, y, z, w = q[:, 0], q[:, 1], q[:, 2], q[:, 3]
+    return np.stack([1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w),
+                     2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w),
+                     2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)], axis=1)
+
+
+def float_error(cls, width, old, new):
+    import numpy as np
+    if not len(old):
+        return 0.0
+    ok = np.isfinite(old).all(axis=1) & np.isfinite(new).all(axis=1)
+    a, b = old[ok], new[ok]
+    if not len(a):
+        return 0.0
+    if cls in ('vertex', 'uv'):
+        return float(np.abs(b - a).max())
+    if cls == 'translation':
+        return float(np.sqrt(((b - a) ** 2).sum(axis=1)).max())
+    if cls == 'normal':
+        u, v = a[:, :3], b[:, :3]
+        ang = np.arctan2(np.sqrt((np.cross(u, v) ** 2).sum(axis=1)), (u * v).sum(axis=1))
+        live = (u * u).sum(axis=1) > 0
+        e = float(np.abs(ang[live]).max()) if live.any() else 0.0
+        if width == 4:
+            e = max(e, float(np.abs(b[:, 3] - a[:, 3]).max()))
+        return e
+    if cls == 'rotation' and width == 4:
+        return float(np.sqrt(((_quat_matrix(b) - _quat_matrix(a)) ** 2).sum(axis=1)).max() / math.sqrt(2))
+    return float((np.abs(b - a) / np.maximum(1.0, np.abs(a))).max())
+
+
+def _class_floats(spans):
+    out = {}
+    for cls, by_w in spans.items():
+        for w, starts in sorted(by_w.items()):
+            if starts:
+                out.setdefault(cls, []).append((w, _offsets(starts, w)))
+    return out
+
+
+AUTO_BITS = tuple(range(20, 7, -1))
+
+
+def quantize(data, bits, limits=None, tolerance=1.0, rounding=True, candidates=AUTO_BITS):
+    import numpy as np
+    data = bytes(data)
+    m = mdx_struct.read(data)
+    report = {'floats': {}, 'bits': {}, 'max_error': {}, 'refused': {}}
+    if m.notes:
+        report['error'] = 'the model does not read cleanly (%s)' % m.notes[0]
+        return None, report
+    auto = bits == 'auto'
+    if auto and limits is False:
+        raise ValueError("bits='auto' needs the limits")
+    want = dict((c, int(bits)) for c in FLOAT_CLASSES) if isinstance(bits, int) else {} if auto else dict(bits)
+    floats = _class_floats(float_spans(m))
+    buf = np.frombuffer(data, dtype=np.uint8).copy()
+    if limits is None:
+        limits = float_limits(_reach(floats, buf), tolerance)
+    if limits is not False:
+        report['limits'] = dict(limits)
+    changed = []
+    for cls, groups in floats.items():
+        report['floats'][cls] = sum(len(o) for _w, o in groups)
+        tries = [n for n in (candidates if auto else (want.get(cls, 0),)) if 0 < n < 24]
+        if not tries:
+            continue
+        olds = [(w, offs, _gather(buf, offs)) for w, offs in groups]
+        chosen = None
+        for n in tries:
+            err, plan = 0.0, []
+            for w, offs, u in olds:
+                v = _cut(u, n, rounding)
+                if limits is not False:
+                    err = max(err, float_error(cls, w, u.view('<f4').astype(np.float64).reshape(-1, w),
+                                               v.view('<f4').astype(np.float64).reshape(-1, w)))
+                plan.append((offs, u, v))
+            if limits is False or err <= limits.get(cls, 0.0):
+                chosen = n
+                break
+        if limits is not False:
+            report['max_error'][cls] = err
+        if chosen is None:
+            report['refused'][cls] = err
+            continue
+        for offs, u, v in plan:
+            if (u != v).any():
+                _scatter(buf, offs, v)
+                changed.append(cls)
+        report['bits'][cls] = chosen
+    if not changed:
+        return None, report
+    new = buf.tobytes()
+    try:
+        ok, why = _prove_floats(data, new, report['bits'], limits, rounding)
+    except (ValueError, struct.error, IndexError) as e:
+        ok, why = False, 'the output does not read back (%s)' % e
+    if not ok:
+        report['error'] = why
+        return None, report
+    return new, report
+
+
+def _prove_floats(old, new, bits, limits, rounding):
+    import numpy as np
+    a, b = mdx_struct.read(old), mdx_struct.read(new)
+    if b.notes or a.chunks != b.chunks or a.version != b.version:
+        return False, 'the output reads differently'
+    if [(t.tag, t.start, t.count, t.interp, t.gseq, t.frames) for t in a.tracks] != \
+            [(t.tag, t.start, t.count, t.interp, t.gseq, t.frames) for t in b.tracks]:
+        return False, 'a track changed'
+    fa, fb = _class_floats(float_spans(a)), _class_floats(float_spans(b))
+    if sorted(fa) != sorted(fb) or any([(w, o.tolist()) for w, o in fa[c]] != [(w, o.tolist()) for w, o in fb[c]]
+                                       for c in fa):
+        return False, 'the floats are not where they were'
+    ba, bb = np.frombuffer(old, dtype=np.uint8), np.frombuffer(new, dtype=np.uint8)
+    inside = np.zeros(len(ba), dtype=bool)
+    for cls, n in bits.items():
+        for w, offs in fa.get(cls, ()):
+            inside[(offs[:, None] + np.arange(4, dtype=np.int64)).reshape(-1)] = True
+            u, v = _gather(ba, offs), _gather(bb, offs)
+            if not (v == _cut(u, n, rounding)).all():
+                return False, 'a %s float is not its original with %d bits cut' % (cls, n)
+            if limits is not False:
+                e = float_error(cls, w, u.view('<f4').astype(np.float64).reshape(-1, w),
+                                v.view('<f4').astype(np.float64).reshape(-1, w))
+                if e > limits.get(cls, 0.0):
+                    return False, '%s moved by %.6g, above %.6g' % (cls, e, limits.get(cls, 0.0))
+    if (ba[~inside] != bb[~inside]).any():
+        return False, 'a byte outside the cut floats changed'
+    chunks, err = mdxcheck.walk(new)
+    if err:
+        return False, 'the output chunk walk does not close (%s)' % err
+    return True, ''
 
