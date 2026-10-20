@@ -73,7 +73,23 @@ import protect_app
 
 
 def hello():
-    return json.dumps({'app': protect_app.APP, 'options': protect_app.default_options()})
+    return json.dumps({'app': protect_app.APP, 'options': protect_app.default_options(),
+                       'tables': protect_app.tables_info()})
+
+
+def call(fn, arg):
+    data = json.loads(arg)
+    if fn == 'preset_text':
+        return protect_app.preset_text(data)
+    if fn == 'preset_read':
+        try:
+            options, warnings = protect_app.read_preset(data)
+        except ValueError as e:
+            return json.dumps({'error': str(e)})
+        return json.dumps({'options': options, 'warnings': warnings})
+    if fn == 'folder_report':
+        return json.dumps(protect_app.folder_report(data['maps'], data['out']))
+    raise ValueError('unknown call: %s' % fn)
 
 
 def files_now():
