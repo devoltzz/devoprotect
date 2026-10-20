@@ -3,6 +3,16 @@
 What each version of DevoProtect brought, the newest first. The downloads are on the
 [Releases](https://github.com/devoltzz/devoprotect/releases) page.
 
+## 0.1.9.1 (2026-10-20)
+
+- Shuffle IDs now also changes the object IDs that a Lua script writes as plain numbers. WCSharp (C# to Lua) writes
+  them that way, so a WCSharp map protected with Shuffle IDs on no longer found its own units: the War of Races map
+  that was reported stayed on its race selection screen. Before, only `FourCC('h000')` was changed in a Lua script.
+  An ID used in math keeps its value, as with `FourCC`, and the check after the step now counts these numbers too, so
+  a number left with an old ID stops the protection instead of giving you a broken map.
+- A Lua script that was already obfuscated with names made of I, l and 1 can be protected again. Before, the run
+  stopped with "pop from empty list".
+
 ## 0.1.9 (2026-10-20)
 
 - Three new options, off by default until they are tested in game. Turn them on in Custom or on the command line.
