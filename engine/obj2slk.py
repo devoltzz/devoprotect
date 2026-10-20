@@ -1,5 +1,7 @@
-# Writes the map's object data as the game's own SLK and TXT tables, read from the installed game.
+# Writes the map's object data as the game's own SLK and TXT tables, read from the installed game or from the downloaded tables pack.
 import collections
+import fnmatch
+import os
 import re
 
 import slk_cols
@@ -468,3 +470,88 @@ def convert(read, base, names=(), species=SPECIES, txt='full', fill_levels=True,
         out.setdefault('converted', {})[s] = (kind, conv, objs)
     return out
 
+
+def check_pack(folder):
+    import hashlib
+    import json
+    import casc_wc3
+    with open(os.path.join(folder, casc_wc3.PACK_MANIFEST), encoding='utf-8') as f:
+        m = json.load(f)
+    for path, md5 in m['files'].items():
+        try:
+            with open(casc_wc3.pack_file_path(folder, path), 'rb') as f:
+                ok = hashlib.md5(f.read()).hexdigest() == md5
+        except OSError:
+            ok = False
+        if not ok:
+            raise ValueError('the tables pack in %s is damaged (%s)' % (folder, path))
+    return m
+
+
+def unzip_pack(zip_path, folder):
+    import shutil
+    import zipfile
+    tmp = folder + '.tmp'
+    if os.path.isdir(tmp):
+        shutil.rmtree(tmp)
+    with zipfile.ZipFile(zip_path) as z:
+        for info in z.infolist():
+            if info.is_dir():
+                continue
+            parts = info.filename.split('/')
+            if info.filename.startswith('/') or any(c in info.filename for c in '\\:') or \
+                    any(p in ('', '.', '..') for p in parts):
+                raise ValueError('the tables pack has a name outside its folder: %r' % info.filename)
+            target = os.path.join(tmp, *parts)
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            with open(target, 'wb') as f:
+                f.write(z.read(info))
+    m = check_pack(tmp)
+    if os.path.isdir(folder):
+        shutil.rmtree(folder)
+    os.replace(tmp, folder)
+    return m
+
+
+def fetch_pack(url, sha256, cache, timeout=60, agent='obj2slk'):
+    import hashlib
+    import urllib.request
+    import casc_wc3
+    folder = os.path.join(cache, sha256[:16])
+    if os.path.isfile(os.path.join(folder, casc_wc3.PACK_MANIFEST)):
+        return folder
+    req = urllib.request.Request(url, headers={'User-Agent': agent})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        data = r.read(64 << 20)
+    got = hashlib.sha256(data).hexdigest()
+    if got != sha256.lower():
+        raise ValueError('the tables pack from %s is not the expected one (sha256 %s, expected %s)'
+                         % (url, got[:16], sha256[:16]))
+    os.makedirs(cache, exist_ok=True)
+    zip_path = folder + '.zip'
+    with open(zip_path + '.tmp', 'wb') as f:
+        f.write(data)
+    os.replace(zip_path + '.tmp', zip_path)
+    try:
+        unzip_pack(zip_path, folder)
+    finally:
+        os.remove(zip_path)
+    return folder
+
+
+def open_tables(game=None, pack=None):
+    import casc_wc3
+    if game:
+        casc = casc_wc3.CascWC3(game)
+    else:
+        try:
+            casc = casc_wc3.CascWC3(casc_wc3.DEFAULT_GAME)
+        except Exception:
+            if not pack:
+                raise
+            casc = casc_wc3.CascWC3(pack() if callable(pack) else pack)
+    return casc, {
+        'source': 'pack' if casc.is_pack else 'game',
+        'version': casc.version_num,
+        'build_key': casc.build_key,
+    }
