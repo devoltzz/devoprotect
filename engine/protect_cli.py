@@ -9,11 +9,30 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 USAGE = r"""DevoProtect: protect a Warcraft III map from casual editing.
 
     DevoProtect-cli <map.w3x|campaign.w3n> [out.w3x] [options]
+    DevoProtect-cli <folder> [out folder] [options]      every map of the folder, one at a time
+    DevoProtect-cli --save-preset=<file.json> [options]  write the options to a preset, no map needed
     DevoProtect-cli --help | --version
   (on Linux, the same options after the program: ./DevoProtect-linux-x86_64 <map> <out> [options])
 
+  A folder: each .w3x, .w3m and .w3n in it (not its subfolders) is protected into the out folder (default:
+  <folder>_protected) under the same name, each with its own key next to it; a map that fails does not stop the
+  others, and a summary at the end says why. With a folder, --previous-key is the keys folder of the previous
+  release (its out folder).
+
+    --preset=<file.json>                       start from the options of a preset (saved by the window, the site or
+                                               --save-preset); the options on the command line win over it
+    --save-preset=<file.json>                  write a preset with the options given (and the preset's, if any)
+
 Options (each toggle of each step; default: full protection, ASCII IDs, no decoys, no MPQ variants):
     --skip=shuffle,obfuscate,block,decoys,pack,dds   steps to skip
+    --rename-imports                           rename the imported files to meaningless names of the same length,
+                                               in the archive and in every reference (object data, models and
+                                               script). Off by default until it is proven in the game
+    --encrypt-files                            store the files whose names the map gives encrypted in the sector-512
+                                               pack (the key comes from the name). Off by default until it is proven
+                                               in the game
+    --remove-error-logs                        remove the compiler error messages vJass and Wurst leave in the
+                                               script. Off by default until it is proven in the game
     --block=w3i,wtg,extra,units,doo,w3r        the editor-file mechanisms (default: w3i,wtg,extra,units,doo)
     --decoys=wtg,listfile,imp[,preview][,fill]   write decoy files (off by default; listfile removes the
                                                 file list; preview only if named; fill fills the hash
@@ -31,9 +50,10 @@ Options (each toggle of each step; default: full protection, ASCII IDs, no decoy
     --to-lua                                   convert a JASS script to Lua first (the map then needs 1.31+)
     --to-slk                                   convert the object data to the game's SLK tables (fewer objects are
                                                built on load, which helps Reforged; the editor no longer shows the
-                                               custom objects). Needs Warcraft III installed; on Windows it is found
-                                               automatically, on Linux pass --game
-    --game=<folder>                            the Warcraft III folder, for --to-slk on Linux (Windows finds it)
+                                               custom objects). Uses the tables of the installed Warcraft III (found
+                                               on Windows); without it, the Warcraft III tables pack is downloaded
+                                               from protect.devoltz.party once (1.2 MB, checked) and kept
+    --game=<folder>                            the Warcraft III folder (or a tables pack folder) for --to-slk
     --lua-layers=N                             loader layers for Lua maps (default 2)
     --blp                                      lossless BLP re-optimization in the protect pack (sector 512)
     --seed=N                                   shuffle seed (default: from the map's sha256)
@@ -51,14 +71,26 @@ Options (each toggle of each step; default: full protection, ASCII IDs, no decoy
     --lossy                                    only for a map above the game's 512 MiB limit: textures at half size
                                                and WAV sounds mono 22 kHz, until it fits
     --models[=lossless|lossy]                  drop the animation keys of the MDX models that change nothing
-                                               (lossless, the default); lossy also thins straight animation tracks,
-                                               within 0.05 units and 0.002 radians
+                                               (lossless, the default); lossy also thins straight animation tracks
+                                               and rounds the low bits of the model numbers, so the map packs the
+                                               models 15% to 20% smaller, within 0.05 units and 0.002 radians
     --mp3[=32|48|64|96|128]                    re-encode the MP3 sounds in mono, 22 kHz, at that rate in kbps (64 by
                                                default). The big gain in a map with music, but it loses quality.
                                                Needs ffmpeg on the PATH, or --ffmpeg=<path to ffmpeg>
     --minify                                   minify the JASS script before the obfuscator: unreachable functions and
                                                unused globals out, constants written in; with --skip=obfuscate it
                                                also shortens the names
+    --tga-png                                  convert the imported .tga and .png images to BLP and repoint every
+                                               reference: the palette without loss when the image has 256 colors or
+                                               fewer, else JPEG at high quality, and only when it is smaller in the
+                                               map. Kept as they are: the map preview, what no file of the map cites,
+                                               names the script builds while the game runs, sides that are not a power
+                                               of two, and sides above 512 in a map older than 1.31
+    --smaller-textures[=64|128|256]            lossy: the textures that only models use at half size (from their own
+                                               mipmaps when the file has them), never below that side (128 by
+                                               default). Icons, the interface, the loading screen and the minimap
+                                               stay as they are. Far away models look the same; up close they are
+                                               blurrier
     --dds                                      convert .dds textures to BLP (smaller, native) and repoint references
 
   In-game anti-cheat (off by default):
@@ -89,8 +121,8 @@ def _opt(argv, name, default=None):
 
 
 VALUE_FLAGS = ('skip', 'block', 'decoys', 'variant', 'lua-layers', 'seed', 'previous-key', 'game',
-               'anti-cheat-actions', 'anti-cheat-gold-jump', 'anti-cheat-codes-mode', 'ffmpeg')
-OPTIONAL_VALUE_FLAGS = ('anti-cheat', 'models', 'mp3')
+               'anti-cheat-actions', 'anti-cheat-gold-jump', 'anti-cheat-codes-mode', 'ffmpeg', 'preset', 'save-preset')
+OPTIONAL_VALUE_FLAGS = ('anti-cheat', 'models', 'mp3', 'smaller-textures')
 BARE_FLAGS = (
     'ids-non-ascii',
     'to-lua',
@@ -105,10 +137,17 @@ BARE_FLAGS = (
     'bombs',
     'cut-hash',
     'minify',
+    'tga-png',
+    'rename-imports',
+    'remove-error-logs',
+    'encrypt-files',
     'cli',
     'help',
     'version',
 )
+ON_FLAGS = (('ids-non-ascii', 'non_ascii_ids'), ('to-lua', 'to_lua'), ('blp', 'blp'), ('dds', 'dds'),
+            ('bombs', 'bombs'), ('cut-hash', 'cut_hash'), ('to-slk', 'to_slk'), ('rename-imports', 'imports'),
+            ('remove-error-logs', 'error_logs'), ('encrypt-files', 'encrypt'))
 
 
 def positional(argv):
@@ -130,6 +169,16 @@ def parse_options(argv, extra_value=(), extra_bare=()):
             raise ValueError('--%s takes no value' % name)
     o = protect_app.default_options()
     warnings = []
+    preset = _opt(argv, 'preset')
+    if preset is not None:
+        if not preset or not os.path.isfile(preset):
+            raise ValueError('--preset: not found: %s' % preset)
+        try:
+            with open(preset, encoding='utf-8') as f:
+                o, preset_warnings = protect_app.read_preset(f.read())
+        except (OSError, ValueError) as e:
+            raise ValueError('--preset: %s' % e)
+        warnings.extend('--preset: %s' % w for w in preset_warnings)
 
     def names_of(name, valid):
         items = [x for x in (_opt(argv, name, '') or '').split(',') if x]
@@ -186,13 +235,23 @@ def parse_options(argv, extra_value=(), extra_bare=()):
             o['block_' + k] = False
         for k in block:
             o['block_' + k] = True
+    if _opt(argv, 'decoys') is not None:
+        for k in protect_app.DECOYS:
+            o.pop('decoy_' + k, None)
     for k in decoys:
         o['decoy_' + k] = True
+    if _opt(argv, 'variant') is not None:
+        for k in protect_app.VARIANTS:
+            o.pop('variant_' + k, None)
     for k in variant:
         o['variant_' + k.replace('-', '_')] = True
-    bare = [f for f in ('--lossy', '--no-recompress', '--no-dedup', '--no-blp-opt', '--minify') if f in argv]
-    content = [f for f in ('--models', '--mp3', '--ffmpeg') if any(a == f or a.startswith(f + '=') for a in argv)]
-    if (bare or content) and '--optimize' not in argv:
+    bare = [
+        f for f in ('--lossy', '--no-recompress', '--no-dedup', '--no-blp-opt', '--minify', '--tga-png') if f in argv
+    ]
+    content = [f for f in ('--models', '--mp3', '--ffmpeg', '--smaller-textures')
+               if any(a == f or a.startswith(f + '=') for a in argv)]
+    optimize = '--optimize' in argv or bool(o.get('optimize'))
+    if (bare or content) and not optimize:
         warnings.append('%s only work with --optimize: ignored' % ' '.join(bare + content))
     models = _opt(argv, 'models', 'lossless' if '--models' in argv else None)
     if models is not None and models not in protect_app.MODELS:
@@ -200,27 +259,39 @@ def parse_options(argv, extra_value=(), extra_bare=()):
     mp3 = _opt(argv, 'mp3', '64' if '--mp3' in argv else None)
     if mp3 is not None and (not mp3.isdigit() or int(mp3) not in protect_app.MP3_KBPS):
         raise ValueError('--mp3: %s is not one of %s (kbps)' % (mp3, ', '.join(str(k) for k in protect_app.MP3_KBPS)))
-    o['non_ascii_ids'] = '--ids-non-ascii' in argv
-    o['to_lua'] = '--to-lua' in argv
-    o['blp'] = '--blp' in argv
-    o['dds'] = '--dds' in argv
-    o['bombs'] = '--bombs' in argv
-    o['cut_hash'] = '--cut-hash' in argv
-    o['to_slk'] = '--to-slk' in argv
+    sides = protect_app.TEXTURE_MIN_SIDES
+    small = _opt(argv, 'smaller-textures', str(sides[1]) if '--smaller-textures' in argv else None)
+    if small is not None and (not small.isdigit() or int(small) not in sides):
+        raise ValueError('--smaller-textures: %s is not one of %s (pixels)' % (small, ', '.join(str(k) for k in sides)))
+    for flag, key in ON_FLAGS:
+        o[key] = '--' + flag in argv or bool(o.get(key))
+    if '--encrypt-files' in argv and 'pack' in skip:
+        warnings.append('--encrypt-files only works with the sector-512 pack: ignored with --skip=pack')
     if _opt(argv, 'game') is not None:
         o['game'] = _opt(argv, 'game')
-    if '--optimize' in argv:
+    if optimize:
         o['optimize'] = True
-        o['opt_recompress'] = '--no-recompress' not in argv
-        o['opt_dedup'] = '--no-dedup' not in argv
-        o['opt_blp'] = '--no-blp-opt' not in argv
-        o['opt_lossy'] = '--lossy' in argv
-        o['opt_models'] = models is not None
-        o['opt_models_lossy'] = models == 'lossy'
-        o['opt_mp3'] = mp3 is not None
+        if '--no-recompress' in argv:
+            o['opt_recompress'] = False
+        if '--no-dedup' in argv:
+            o['opt_dedup'] = False
+        if '--no-blp-opt' in argv:
+            o['opt_blp'] = False
+        if '--lossy' in argv:
+            o['opt_lossy'] = True
+        if models is not None:
+            o['opt_models'] = True
+            o['opt_models_lossy'] = models == 'lossy'
         if mp3 is not None:
+            o['opt_mp3'] = True
             o['opt_mp3_kbps'] = int(mp3)
-        o['opt_minify'] = '--minify' in argv
+        if '--minify' in argv:
+            o['opt_minify'] = True
+        if '--tga-png' in argv:
+            o['opt_tga_png'] = True
+        if small is not None:
+            o['opt_small_textures'] = True
+            o['opt_texture_min_side'] = int(small)
         if _opt(argv, 'ffmpeg'):
             o['ffmpeg'] = _opt(argv, 'ffmpeg')
     for p in skip:
@@ -235,7 +306,7 @@ def parse_options(argv, extra_value=(), extra_bare=()):
     return o, warnings
 
 
-def main(argv=None, version='0.1.8'):
+def main(argv=None, version='0.1.9'):
     import protect_app
     argv = sys.argv[1:] if argv is None else list(argv)
     try:
@@ -246,7 +317,8 @@ def main(argv=None, version='0.1.8'):
         print('DevoProtect %s' % version)
         return 0
     args = positional(argv)
-    if '--help' in argv or '-h' in argv or not args:
+    save = _opt(argv, 'save-preset')
+    if '--help' in argv or '-h' in argv or not (args or save):
         print(USAGE)
         return 0 if ('--help' in argv or '-h' in argv) else 2
     try:
@@ -256,13 +328,28 @@ def main(argv=None, version='0.1.8'):
     except ValueError as e:
         print('ERROR: %s' % e)
         return 2
+    for w in warnings:
+        print('WARNING: %s' % w)
+    if save is not None:
+        if not save:
+            print('ERROR: --save-preset needs a file name')
+            return 2
+        try:
+            with open(save, 'w', encoding='utf-8', newline='\n') as f:
+                f.write(protect_app.preset_text(o))
+        except OSError as e:
+            print('ERROR: --save-preset: %s' % e)
+            return 2
+        print('preset saved: %s' % save)
+        if not args:
+            return 0
     map_path = args[0]
+    if os.path.isdir(map_path):
+        return _folder(map_path, args[1] if len(args) > 1 else None, o)
     if not os.path.isfile(map_path):
         print('map not found: %s' % map_path)
         return 2
     out_path = args[1] if len(args) > 1 else None
-    for w in warnings:
-        print('WARNING: %s' % w)
     job = {'task': 'protect', 'map': map_path, 'out': out_path, 'options': o}
     state = {'ok': False}
 
@@ -284,6 +371,28 @@ def main(argv=None, version='0.1.8'):
             print('  %d -> %d bytes (%.1fs)' % (res['bytes_in'], res['bytes_out'], res.get('seconds', 0)))
         if res.get('ok') and res.get('key'):
             print('  key (keep it, not in the map): %s' % res['key'])
+    return 0 if res.get('ok') else 1
+
+
+def _folder(folder, out, o):
+    import protect_app
+
+    def emit(ev):
+        t = ev.get('type')
+        if t == 'progress' and ev.get('text') and ev.get('step') == 'map':
+            print(ev['text'])
+        elif t == 'progress' and ev.get('text'):
+            print('  [%s] %s' % (ev.get('step') or '-', ev['text']))
+        elif t == 'error':
+            print('ERROR: %s' % ev.get('message'))
+    res = protect_app.run_folder({'task': 'protect', 'folder': folder, 'out': out, 'options': o}, emit)
+    if not res.get('maps'):
+        return 2
+    print()
+    for st, tx in res.get('lines', []):
+        print(('  ! ' if st == 'bad' else '  ') + tx)
+    print('\n%s' % res.get('summary'))
+    print('  keys (keep them, not in the maps): next to each map in %s' % res['out'])
     return 0 if res.get('ok') else 1
 
 
