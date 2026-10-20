@@ -425,7 +425,7 @@ def _read_simple_tracks(m, size, off, what):
     q = off
     while q + 4 <= end:
         inc = _u32(d, q)
-        if inc < 8 or q + inc > end:
+        if inc < (4 if what == 'TXAN' else 8) or q + inc > end:
             m.note('%s: an entry of %d bytes' % (what, inc))
             return
         m.containers.append((q, q, q + inc, 0))
