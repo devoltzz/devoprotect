@@ -191,6 +191,62 @@ def unnamed_encrypted(entry):
     return (a.blocks[nameless[0]][0] if nameless else None), name_list
 
 
+def inspect_archive(file_path):
+    import editor_lock
+    import mpqadd
+    import mpqread
+    import sector_pack
+
+    out = {
+        'campaign': file_path.lower().endswith('.w3n'),
+        'bytes': os.path.getsize(file_path) if os.path.isfile(file_path) else 0,
+        'refusal': None,
+        'lang': None,
+        'w3i': None,
+        'unnamed': False,
+        'map_blizzard': False,
+        'last_unit': None,
+    }
+    version_num, why = mpqadd.format(file_path, why=True)
+    if version_num is None:
+        out['refusal'] = 'cannot read the map: %s' % why
+        return out
+    if version_num != 0:
+        out['refusal'] = (
+            'the MPQ header of this map is not a normal MPQ v1 header (a map already protected by another '
+            'tool?): use the original map, as the World Editor saves it'
+        )
+        return out
+    a = mpqread.Archive(file_path)
+    name_list = list(editor_lock.map_names(a))
+    encrypted_count = [bi for bi in a.pointed_blocks() if a.blocks[bi][3] & sector_pack.MPQ_FILE_ENCRYPTED]
+    if encrypted_count:
+        with_name = set(e[3] for n in list(sector_pack.SPECIAL_FILES) + name_list for e in a.hash_entries(n))
+        out['unnamed'] = any(bi not in with_name for bi in encrypted_count)
+    hn = a.hash_n_read
+    if hn >= 2:
+        h1, h2, _loc, bi = a.ht[(hn - 1) * 4:(hn - 1) * 4 + 4]
+        bm = bi & 0x0FFFFFFF
+        if bi < 0xFFFFFFFE and bm < len(a.bt) // 4 and a.bt[bm * 4 + 3] & sector_pack.MPQ_FILE_EXISTS:
+            out['last_unit'] = '?'
+            for n in list(sector_pack.SPECIAL_FILES) + name_list:
+                if any(e[0] == hn - 1 for e in a.hash_entries(n)):
+                    out['last_unit'] = n.lower()
+                    break
+    if out['campaign']:
+        return out
+    if a.find('war3map.lua') is not None:
+        out['lang'] = 'lua'
+    elif a.find('war3map.j') is not None or a.find('scripts\\war3map.j') is not None:
+        out['lang'] = 'jass'
+    d = a.read('war3map.w3i') if a.find('war3map.w3i') is not None else None
+    if d and len(d) >= 4:
+        out['w3i'] = int.from_bytes(d[:4], 'little')
+    out['map_blizzard'] = any(a.find(n) is not None for n in ('scripts\\blizzard.j', 'scripts\\common.j',
+                                                              'blizzard.j', 'common.j'))
+    return out
+
+
 def _deliver(tmp_folder, dest):
     done_list = []
     if not os.path.isdir(tmp_folder):
@@ -598,6 +654,15 @@ def _recipe(
         raise SystemExit(
             'unknown mechanism in --block: %s (valid: %s)'
             % (sorted(mechanisms - valid_ids), ', '.join(sorted(valid_ids)))
+        )
+    if (
+        'bit31' in variant
+        and 'protect' not in skip
+        and ((bulk and 'bulk' not in skip) or (cut_step and 'cut_step' not in skip))
+    ):
+        raise SystemExit(
+            'ABORT: the bit31 variant does not combine with the extract-all bombs (--bombs) nor with the hash table cut '
+            '(--cut-hash): both rewrite the tables and the mark is lost; turn one of them off'
         )
     if anticheat is not None:
         import anticheat as _anticheat
