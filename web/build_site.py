@@ -26,7 +26,7 @@ DEFAULT = {
     'inject_before': '<script src="i18n_data.js"></script>',
     'inject': ['config.js', 'ponte.js'],
     'head_anchor': '</head>',
-    'web_files': ['ponte.js', 'worker.js', 'worker.py', 'wasi_mini.js', 'fs_windows.js', 'mpqcrypt.js'],
+    'web_files': ['ponte.js', 'worker.js', 'worker.py', 'wasi_mini.js', 'fs_windows.js', 'mpqcrypt.js', 'setor512.js'],
     'manifest': {
         'name': 'DevoProtect',
         'short_name': 'DevoProtect',
@@ -35,6 +35,7 @@ DEFAULT = {
     'cache_prefix': 'devoprotect',
     'size_limit_mb': 250,
     'mpqcrypt_c': 'engine/mpqcrypt.c',
+    'setor512_wasm': 'engine/setor512.wasm',
     'inline_script': 'page.js',
     'after': [],
 }
@@ -75,7 +76,7 @@ def engine_zip(engine, target, prod=None):
         for root, dirs, files in os.walk(os.path.join(engine, prod['engine_dir'])):
             dirs[:] = sorted(d for d in dirs if d not in ('__pycache__', 'cache'))
             for f in sorted(files):
-                if f.endswith(('.exe', '.pyc', '.dll')):
+                if f.endswith(('.exe', '.pyc', '.dll', '.so', '.lib', '.wasm')):
                     continue
                 p = os.path.join(root, f)
                 z.write(p, os.path.relpath(p, engine).replace(os.sep, '/'))
@@ -218,8 +219,18 @@ def native_decryption(engine, out, wasm=None, prod=None):
         raise SystemExit('build_site: zig could not build mpqcrypt.wasm\n%s%s' % (r.stdout, r.stderr))
 
 
+def sector_codec(engine, out, wasm=None, prod=None):
+    rel = (prod or {}).get('setor512_wasm')
+    source = wasm or (os.path.join(engine, *rel.split('/')) if rel else None)
+    if not source or not os.path.isfile(source):
+        if rel:
+            print('build_site: no %s: the site packs maps with the browser\'s zlib' % (wasm or rel))
+        return
+    shutil.copyfile(source, os.path.join(out, 'setor512.wasm'))
+
+
 def build(engine, out, ui=None, pjass=None, data=None, index=None, pyodide_dir=None, wheels=None, repository=None,
-          zip_path=None, mpqcrypt=None, site=None):
+          zip_path=None, mpqcrypt=None, site=None, setor512=None):
     prod = product(site)
     engine = os.path.abspath(engine)
     if not os.path.isfile(os.path.join(engine, prod['entry'])):
@@ -237,6 +248,7 @@ def build(engine, out, ui=None, pjass=None, data=None, index=None, pyodide_dir=N
                          'need it')
     shutil.copyfile(pjass, os.path.join(out, 'pjass.wasm'))
     native_decryption(engine, out, mpqcrypt, prod)
+    sector_codec(engine, out, setor512, prod)
     py_version = pyodide(pyodide_dir or os.path.join(HERE, 'node_modules', 'pyodide'), os.path.join(out, 'pyodide'),
                          wheels or os.path.join(HERE, 'wheels'))
     if data:
@@ -260,7 +272,7 @@ def build(engine, out, ui=None, pjass=None, data=None, index=None, pyodide_dir=N
 USAGE = ('usage: python web/build_site.py --engine=<release folder> --out=<folder> [--ui=<page folder>] '
          '[--pjass=<pjass.wasm>] [--data=<game data pack>] [--index=<names.npz>] [--pyodide=<node_modules/pyodide>] '
          '[--wheels=<cache folder>] [--repository=owner/name] [--zip=<site zip>] [--mpqcrypt=<mpqcrypt.wasm>] '
-         '[--site=<site.json>]')
+         '[--site=<site.json>] [--setor512=<setor512.wasm>]')
 
 
 def main(argv):
@@ -270,7 +282,7 @@ def main(argv):
         return 2
     r = build(op['engine'], os.path.abspath(op['out']), op.get('ui'), op.get('pjass'), op.get('data'), op.get('index'),
               op.get('pyodide'), op.get('wheels'), op.get('repository'), op.get('zip'), op.get('mpqcrypt'),
-              op.get('site') or None)
+              op.get('site') or None, op.get('setor512') or None)
     print('site %s (cache %s, Pyodide %s, %d engine files) -> %s' % (r['version'], r['cache'], r['pyodide'],
                                                                     r['engine_files'], op['out']))
     return 0
