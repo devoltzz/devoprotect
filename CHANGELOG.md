@@ -3,6 +3,30 @@
 What each version of DevoProtect brought, the newest first. The downloads are on the
 [Releases](https://github.com/devoltzz/devoprotect/releases) page.
 
+## 0.1.9.2 (2026-10-20)
+
+- A new layout for the program and the site. Every option is on the left in groups that follow the steps: object IDs,
+  script, editor files, size, the final pack, decoys, the anti-cheat and an advanced group. A ready mode keeps the
+  groups closed; Custom opens them, and changing any option turns the mode into Custom. On the right, the map is
+  checked as soon as you choose it (JASS or Lua, campaign or single map, game version, size) and the steps that will
+  run are listed in order.
+- Options that don't fit together, or don't fit the map, are locked before you start, with the reason next to them:
+  the markers and the file encryption without the 512-byte pack, Convert to Lua on a Lua map or on a map that carries
+  its own Blizzard.j, the bombs and the hash table cut on a campaign, the cut when the last entry of the map's hash
+  table holds a file, the JASS-only and Lua-only pieces of the anti-cheat, and the 512-byte pack on a map with an
+  encrypted file that has no name. A map that can't be protected at all says why, and the Protect button stays off.
+  What you had chosen comes back when the lock goes away, and the list on the right says what was turned off.
+- The three options that came in 0.1.9 (rename imported files, encrypt files, remove the vJass and Wurst error
+  messages) were tested in game and lose the "not proven" note. They stay off by default.
+- New on the page: the loader layers of a Lua script, removing the regions file (`war3map.w3r`), the decoy preview
+  image and the shuffle seed. Before, they were only on the command line. The DDS to BLP option moved to the size
+  group and the malformed-MPQ markers to the final pack, where they belong.
+- The "block table bit31" variant can't be used together with the extract-all bombs or the hash table cut: both
+  rewrite the tables after the pack and the mark is lost. Before, the page let you turn all of them on and the run
+  stopped only at the very end, after minutes of work. Now the checkbox is locked off while the bombs or the cut are
+  on, and the program and the command line refuse the combination before they start.
+- The log of the program and the site names the imported files step and the error messages step, like the others.
+
 ## 0.1.9.1 (2026-10-20)
 
 - Shuffle IDs now also changes the object IDs that a Lua script writes as plain numbers. WCSharp (C# to Lua) writes
