@@ -87,6 +87,7 @@
   <section class="card">
     <div class="row">
       <button id="pick">Choose a map...</button>
+      <button class="small" id="pickfolder">Protect a folder...</button>
       <span class="name" id="mapname">no map selected (.w3x, .w3m, .w3n)</span>
     </div>
     <div class="row">
@@ -105,6 +106,11 @@
         <label><input type="radio" name="mode" value="custom"> Custom</label>
       </div>
       <div class="hint" id="modehint"></div>
+      <div class="row" style="margin-top:10px">
+        <span class="name" id="presetname">The options of every release in one file.</span>
+        <button class="small" id="loadpreset">Load preset...</button>
+        <button class="small" id="savepreset">Save preset...</button>
+      </div>
     </section>
 
     <section class="card" id="steps" hidden>
@@ -120,6 +126,7 @@
           </div>
           <div class="hint">The key of this map's previous release: objects in both keep their IDs, so save codes keep working. A campaign takes the keys folder.</div>
           <label class="tog"><input type="checkbox" data-opt="non_ascii_ids"> non-printable IDs</label>
+          <label class="tog"><input type="checkbox" data-opt="imports"> rename imported files to meaningless names of the same length, everywhere they are cited (not proven in the game yet)</label>
         </details>
       </div>
       <div class="step">
@@ -128,6 +135,7 @@
         <details>
           <summary>Advanced</summary>
           <label class="tog"><input type="checkbox" data-opt="to_lua"> convert a JASS script to Lua first (the map then needs Warcraft III 1.31 or newer)</label>
+          <label class="tog"><input type="checkbox" data-opt="error_logs"> remove the error messages vJass and Wurst leave in the script (not proven in the game yet)</label>
         </details>
       </div>
       <div class="step">
@@ -140,7 +148,7 @@
           <label class="tog"><input type="checkbox" data-opt="block_extra"> extra (w3c/w3s/imp)</label>
           <label class="tog"><input type="checkbox" data-opt="block_units"> unit placement (units.doo)</label>
           <label class="tog"><input type="checkbox" data-opt="block_doo"> doodads (war3map.doo, only if the script creates every one)</label>
-          <label class="tog" id="slkrow"><input type="checkbox" data-opt="to_slk"> convert object data to SLK tables (fewer objects are built on load, which helps Reforged; needs Warcraft III installed)<span class="gated" id="slknote" hidden> &mdash; desktop only: the browser cannot read your game</span></label>
+          <label class="tog" id="slkrow"><input type="checkbox" data-opt="to_slk"> <span>convert object data to SLK tables (fewer objects are built on load, which helps Reforged)<span id="slkwrap" style="color:var(--muted)" hidden> — <span id="slknote"></span></span></span></label>
         </details>
       </div>
       <div class="step">
@@ -153,7 +161,7 @@
           <label class="tog"><input type="checkbox" data-opt="opt_dedup"> store identical files once</label>
           <label class="tog"><input type="checkbox" data-opt="opt_lossy"> <span class="gated">lossy, only above the game's 512 MiB limit: half-size textures, mono 22 kHz sound</span></label>
           <label class="tog"><input type="checkbox" data-opt="opt_models"> shrink MDX models: drop the animation keys that change nothing (lossless)</label>
-          <label class="tog"><input type="checkbox" data-opt="opt_models_lossy"> <span class="gated">models, lossy: also thin straight animation tracks (off by less than 0.05 units)</span></label>
+          <label class="tog"><input type="checkbox" data-opt="opt_models_lossy"> <span class="gated">models, lossy: also thin straight animation tracks and round the low bits of their numbers (the models pack 15 to 20% smaller; off by less than 0.05 units)</span></label>
           <label class="tog" id="mp3row"><input type="checkbox" data-opt="opt_mp3"> <span class="gated">re-encode MP3 sounds in mono, 22 kHz (lossy; the big gain in a map with music; needs ffmpeg)</span>
             <select data-optv="opt_mp3_kbps">
               <option value="32">32 kbps</option>
@@ -163,6 +171,13 @@
               <option value="128">128 kbps</option>
             </select><span class="gated" id="mp3note" hidden> &mdash; desktop only</span></label>
           <label class="tog"><input type="checkbox" data-opt="opt_minify"> minify the JASS script: unreachable code out, constants written in (names shortened when the script is not obfuscated)</label>
+          <label class="tog"><input type="checkbox" data-opt="opt_tga_png"> convert imported TGA and PNG images to BLP: the palette without loss when the image has 256 colors or fewer, else JPEG at high quality, only when it gets smaller (the preview and the names the script builds stay)</label>
+          <label class="tog"><input type="checkbox" data-opt="opt_small_textures"> <span class="gated">smaller textures, lossy: the textures only models use at half size (models look the same far away and blurrier up close; icons and the interface stay), never below</span>
+            <select data-optv="opt_texture_min_side">
+              <option value="64">64 px</option>
+              <option value="128">128 px</option>
+              <option value="256">256 px</option>
+            </select></label>
         </details>
       </div>
       <div class="step">
@@ -175,6 +190,8 @@
         <details>
           <summary>Extras</summary>
           <label class="tog"><input type="checkbox" data-opt="dds"> Convert DDS textures to BLP (smaller, native)</label>
+          <label class="tog"><input type="checkbox" data-opt="encrypt"> encrypt the files whose names the map gives, with the key taken from the name (sector-512 pack; not proven in the game yet)</label>
+          <label class="tog" id="samerow" hidden><input type="checkbox" data-opt="same_bytes"> same bytes as the desktop program (slower: about 8 times on big maps)</label>
         </details>
       </div>
     </section>
@@ -243,6 +260,7 @@
 
   var JOB = null;
   var KEY = null, KEY_CAMPAIGN = false;
+  var BATCH = null, DEFAULTS = {};
   function api(){ return (window.pywebview && window.pywebview.api) || window._fakeApi; }
   function $(id){ return document.getElementById(id); }
   function opt(k){ return document.querySelector('input[data-opt="' + k + '"]'); }
@@ -253,9 +271,11 @@
   function defaultOut(p){ return p.replace(/(\.[^.\\/]+)?$/, function(ext){ return '_protected' + (ext || ''); }); }
 
   function setRunnable(){
-    $('run').disabled = !MAP || RUNNING;
+    $('run').disabled = !(MAP || BATCH) || RUNNING;
     $('pick').disabled = RUNNING;
-    $('pickout').disabled = !MAP || RUNNING;
+    $('pickfolder').disabled = RUNNING;
+    $('loadpreset').disabled = RUNNING;
+    $('pickout').disabled = !(MAP || BATCH) || RUNNING;
     $('form').disabled = RUNNING;
     $('pickkey').disabled = RUNNING || !OPTIONS['shuffle'];
     setAntiCheat();
@@ -270,7 +290,7 @@
 
   function setOut(path){
     OUT = path || null;
-    $('outname').textContent = MAP ? shown(OUT || defaultOut(MAP)) : '-';
+    $('outname').textContent = MAP ? shown(OUT || defaultOut(MAP)) : BATCH ? shown(OUT || BATCH.out) : '-';
   }
 
   function showLog(on){
@@ -298,6 +318,7 @@
     custom: {hint: 'Pick each step below. Changing the mode again resets the main steps.'}
   };
   var MAIN = ['shuffle', 'obfuscate', 'block', 'optimize'];
+  var UNPROVEN = ['anti_cheat', 'imports', 'error_logs', 'encrypt'];
   function applyMode(mode){
     var m = MODES[mode] || MODES.custom;
     MAIN.forEach(function(k){
@@ -308,11 +329,14 @@
     $('steps').hidden = mode !== 'custom';
     $('experimental').hidden = mode !== 'custom';
     $('anticheat').hidden = mode !== 'custom';
-    if(mode !== 'custom'){ OPTIONS['anti_cheat'] = false; opt('anti_cheat').checked = false; setAntiCheat(); }
+    if(mode !== 'custom'){
+      UNPROVEN.forEach(function(k){ OPTIONS[k] = false; opt(k).checked = false; delete ANTES[k]; });
+      setAntiCheat();
+    }
     setRunnable();
   }
   function modeOf(o){
-    if(o.anti_cheat){ return 'custom'; }
+    if(UNPROVEN.some(function(k){ return o[k]; })){ return 'custom'; }
     var p = packOf(o);
     for(var k in MODES){
       var m = MODES[k];
@@ -324,6 +348,7 @@
   }
 
   var VARIANTES = ['variant_header', 'variant_high_sector', 'variant_bit31'];
+  var SO_512 = VARIANTES.concat(['encrypt']);
   var DO_512 = ['opt_recompress', 'opt_dedup'];
   var ANTES = {};
   var PACK_DESC = {
@@ -354,7 +379,7 @@
     document.querySelectorAll('input[name="pack"]').forEach(function(r){ r.checked = r.value === pack; });
     $('packdesc').textContent = PACK_DESC[pack];
     $('optdesc').textContent = OPT_DESC[pack];
-    VARIANTES.forEach(function(k){ lock(k, !on, false); });
+    SO_512.forEach(function(k){ lock(k, !on, false); });
     DO_512.forEach(function(k){ lock(k, on, true); });
   }
 
@@ -377,7 +402,8 @@
       var k = el.getAttribute('data-optv');
       if(k in OPTIONS){ el.value = OPTIONS[k]; }
       el.addEventListener('change', function(){
-        OPTIONS[k] = el.type === 'number' ? (parseInt(el.value, 10) || 400) : el.value;
+        OPTIONS[k] = el.type === 'number' ? (parseInt(el.value, 10) || 400) :
+          (typeof DEFAULTS[k] === 'number' ? parseInt(el.value, 10) : el.value);
       });
     });
     document.querySelectorAll('input[name="pack"]').forEach(function(r){
@@ -393,16 +419,22 @@
     var h = await a.hello();
     $('ver').textContent = 'v' + String(h.version || '');
     OPTIONS = h.options || {};
+    DEFAULTS = Object.assign({}, OPTIONS);
     bindControls();
+    var tb = h.tables || {};
+    if($('slknote') && tb.version){
+      var size = (Number(tb.bytes || 0) / 1e6).toFixed(1) + ' MB';
+      $('slknote').textContent = WEB ? 'downloads the Warcraft III ' + tb.version + ' tables once (' + size + ')' :
+        'uses the installed Warcraft III; without it, downloads the Warcraft III ' + tb.version + ' tables once (' + size + ')';
+      $('slkwrap').hidden = false;
+    }
     if(WEB){
-      var slk = opt('to_slk');
-      if(slk){ slk.checked = false; slk.disabled = true; OPTIONS['to_slk'] = false; }
-      if($('slknote')){ $('slknote').hidden = false; }
       var mp3 = opt('opt_mp3');
       if(mp3){ mp3.checked = false; mp3.disabled = true; OPTIONS['opt_mp3'] = false; }
       var kb = document.querySelector('[data-optv="opt_mp3_kbps"]');
       if(kb){ kb.disabled = true; }
       if($('mp3note')){ $('mp3note').hidden = false; }
+      if($('samerow')){ $('samerow').hidden = false; }
     }
     setPack(packOf(OPTIONS));
     var mode = modeOf(OPTIONS);
@@ -426,7 +458,7 @@
   }
 
   function setMap(path){
-    MAP = path;
+    MAP = path; BATCH = null;
     $('mapname').textContent = shown(path);
     setOut(null);
     sumEl.textContent = ''; clearLog();
@@ -439,28 +471,84 @@
     setRunnable();
   }
 
+  function setBatch(b){
+    MAP = null; BATCH = b;
+    $('mapname').textContent = 'Folder: ' + shown(b.folder) + ' (' + b.maps.length + ' maps)';
+    setOut(null);
+    sumEl.textContent = ''; clearLog();
+    $('pickkey').textContent = 'Previous keys folder...';
+    if(KEY && !KEY_CAMPAIGN){
+      setKey(null);
+      sumEl.textContent = 'Previous key cleared: a folder takes the keys folder.';
+    }
+    setRunnable();
+  }
+
   $('pick').addEventListener('click', async function(){
     var p = await api().pick_map();
     if(p) setMap(p);
   });
+  if(WEB){ $('pickfolder').textContent = 'Protect several maps...'; }
+  $('pickfolder').addEventListener('click', async function(){
+    var b = await api().pick_folder();
+    if(!b) return;
+    if(!b.maps || !b.maps.length){ sumEl.textContent = 'No map in this folder (.w3x, .w3m, .w3n).'; return; }
+    setBatch(b);
+  });
   $('pickout').addEventListener('click', async function(){
-    var p = await api().pick_save(baseName(OUT || defaultOut(MAP)));
+    var p = BATCH ? await api().pick_out_folder() : await api().pick_save(baseName(OUT || defaultOut(MAP)));
     if(p) setOut(p);
   });
   $('pickkey').addEventListener('click', async function(){
-    var camp = isCampaign(MAP);
+    var camp = isCampaign(MAP) || !!BATCH;
     var p = await api().pick_key(camp);
     if(p){ KEY_CAMPAIGN = camp; setKey(p); }
+  });
+
+  function applyOptions(o){
+    var keep = OPTIONS['previous_key'];
+    OPTIONS = Object.assign({}, o);
+    if(keep){ OPTIONS['previous_key'] = keep; }
+    if(WEB){ OPTIONS['opt_mp3'] = false; }
+    ANTES = {};
+    document.querySelectorAll('input[data-opt]').forEach(function(el){ el.checked = !!OPTIONS[el.getAttribute('data-opt')]; });
+    document.querySelectorAll('[data-optv]').forEach(function(el){
+      var k = el.getAttribute('data-optv');
+      if(k in OPTIONS){ el.value = OPTIONS[k]; }
+    });
+    setPack(packOf(OPTIONS));
+    var mode = modeOf(OPTIONS);
+    var extra = Object.keys(OPTIONS).some(function(k){
+      return MAIN.indexOf(k) < 0 && k !== 'pack' && k !== 'previous_key' && !!OPTIONS[k] !== !!DEFAULTS[k] &&
+        !(typeof OPTIONS[k] === 'number' && OPTIONS[k] === DEFAULTS[k]);
+    });
+    if(extra){ mode = 'custom'; }
+    document.querySelectorAll('input[name="mode"]').forEach(function(r){ r.checked = r.value === mode; });
+    applyMode(mode);
+    setAntiCheat(); setRunnable();
+  }
+  $('savepreset').addEventListener('click', async function(){
+    var p = await api().save_preset(OPTIONS);
+    if(p){ $('presetname').textContent = 'Preset saved: ' + shown(p); }
+  });
+  $('loadpreset').addEventListener('click', async function(){
+    var r = await api().load_preset();
+    if(!r) return;
+    if(r.error){ $('presetname').textContent = 'Not a preset: ' + r.error; return; }
+    applyOptions(r.options);
+    $('presetname').textContent = 'Preset loaded: ' + r.name;
+    (r.warnings || []).forEach(function(w){ addLine('info', w); });
   });
   $('clearkey').addEventListener('click', function(){ setKey(null); });
 
   $('run').addEventListener('click', async function(){
-    if(!MAP || RUNNING) return;
+    if(!(MAP || BATCH) || RUNNING) return;
     RUNNING = true; setRunnable();
     clearLog(); sumEl.textContent = 'Working...';
     JOB = null;
     try{
-      JOB = await api().start({map: MAP, out: OUT, options: OPTIONS});
+      JOB = await api().start(BATCH ? {folder: BATCH.folder, maps: BATCH.maps, out: OUT || BATCH.out, options: OPTIONS}
+                                    : {map: MAP, out: OUT, options: OPTIONS});
       if(!JOB){ throw new Error('busy: a job is already running'); }
     }catch(e){
       addLine('bad', 'ERROR: ' + (e && e.message ? e.message : e));
