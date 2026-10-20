@@ -14,3 +14,5 @@ with a folder, the previous key is the keys folder of the previous release: {0} 
 Left out, too big for the browser ({0} MB): {1}
 {0} ignored: a preset carries no file paths
 {0} ignored: not an option of this version
+Seed {0}
+the map carries its own Blizzard.j or common.j
