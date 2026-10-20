@@ -14,7 +14,7 @@
   }
   *{box-sizing:border-box}
   body{margin:0;font-family:var(--sans);color:var(--text);background:var(--bg);min-height:100vh}
-  .wrap{max-width:760px;margin:0 auto;padding:22px 18px 0}
+  .wrap{max-width:1080px;margin:0 auto;padding:22px 18px 24px}
   header{display:flex;align-items:baseline;gap:12px;padding-bottom:14px;margin-bottom:16px;border-bottom:1px solid var(--line)}
   h1{font-size:20px;letter-spacing:.12em;margin:0}
   .ver{color:var(--muted);font:12px/1 var(--mono)}
@@ -28,41 +28,48 @@
   button:hover:not(:disabled){border-color:var(--accent2);background:#1a222c}
   button:disabled{opacity:.5;cursor:default}
   button.small{padding:5px 10px;font-size:12px}
-  button.go{background:var(--accent2);border-color:var(--accent);color:#06121d;font-weight:600;padding:11px 26px}
+  button.go{background:var(--accent2);border-color:var(--accent);color:#06121d;font-weight:600;padding:11px 26px;width:100%}
   fieldset{border:0;margin:0;padding:0;min-width:0}
+  input[type=text],select{background:var(--card2);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:3px 6px;font:12px var(--sans)}
   .seg{display:flex;flex-wrap:wrap;gap:6px}
   .seg label{flex:1 1 140px;border:1px solid var(--line);border-radius:8px;padding:9px 12px;cursor:pointer;
     font-size:13px;background:var(--card2);display:flex;align-items:center;gap:8px}
   .seg input{accent-color:var(--accent);margin:0}
   .seg label:has(input:checked){border-color:var(--accent2);background:#16222f}
+  .seg label:has(input:disabled){opacity:.5;cursor:default}
   #modes label:first-child{flex-basis:230px;white-space:nowrap}
   .seg em{color:var(--ok);font-style:normal;font-size:11px}
-  .hint{color:var(--muted);font-size:12px;line-height:1.45;margin-top:10px}
-  .step{padding:12px 0;border-top:1px solid var(--line)}
-  .step:first-child{border-top:0;padding-top:2px}
-  .step:last-child{padding-bottom:2px}
+  .hint{color:var(--muted);font-size:12px;line-height:1.45;margin-top:8px}
+  .layout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:14px;align-items:start}
+  @media (max-width:900px){ .layout{grid-template-columns:minmax(0,1fr)} .side{position:static} }
+  .grp{padding:10px 14px}
+  .gh{display:flex;align-items:center;gap:10px}
+  .gt{font-size:14px;font-weight:600}
+  .gsum{color:var(--muted);font-size:12px;margin-left:auto;white-space:nowrap}
+  .gx{min-width:34px}
+  .gb{margin:8px 0 2px 25px}
   .sw{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;cursor:pointer}
-  .sw input,.tog input{accent-color:var(--accent);width:15px;height:15px;margin:0}
-  .title{font-size:14px;font-weight:600;margin-bottom:8px}
-  .desc{color:var(--muted);font-size:12px;margin:4px 0 0 25px;line-height:1.45}
-  details{margin:8px 0 0 25px}
-  summary{cursor:pointer;color:var(--accent);font-size:12px;user-select:none}
-  .tog{display:flex;align-items:center;gap:9px;padding:5px 0;font-size:13px;cursor:pointer}
-  details .tog{padding-left:4px}
-  .keyrow{display:flex;align-items:center;gap:8px;margin:6px 0 2px 4px}
+  .sw input,.tog input{accent-color:var(--accent);width:15px;height:15px;margin:0;flex:none}
+  .title{font-size:13px;font-weight:600;margin:12px 0 6px}
+  .desc{color:var(--muted);font-size:12px;margin:0 0 6px;line-height:1.45}
+  .tog{display:flex;align-items:center;gap:9px;padding:4px 0;font-size:13px;cursor:pointer}
+  .tog:has(input:disabled){color:var(--muted);cursor:default}
+  .why{margin-left:auto;padding-left:10px;font-size:11.5px;color:var(--warn);white-space:nowrap}
+  .why:empty{display:none}
+  .keyrow{display:flex;align-items:center;gap:8px;margin:6px 0 2px}
   .keyrow .name{font-size:11.5px}
   .gated{color:var(--warn)}
-  .step .seg{margin-left:25px}
-  .step .seg label{flex:1 1 150px;padding:7px 10px;font-size:12.5px}
-  details.card{padding:12px 16px;margin:0 0 12px}
-  details.card summary{font-size:13px;color:var(--text);font-weight:600}
-  details.card summary .gated{font-weight:400;font-size:12px;margin-left:6px}
-  details.card .tog{padding-left:2px}
-  .exp-body{margin-top:8px}
-  .bar{position:sticky;bottom:0;background:linear-gradient(transparent,var(--bg) 18%);padding:18px 0 16px;
-    display:flex;align-items:center;gap:14px}
-  .sum{color:var(--muted);font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  #log{background:#080a0d;border:1px solid var(--line);border-radius:10px;padding:14px;margin:0 0 18px;
+  .gb .seg label{flex:1 1 150px;padding:7px 10px;font-size:12.5px}
+  .side{position:sticky;top:12px}
+  .side .title:first-child{margin-top:0}
+  .mc div{font-size:12.5px;line-height:1.5}
+  .mc .warn{color:var(--warn)}
+  .mc .bad{color:var(--bad)}
+  .plan{margin:0 0 6px;padding-left:20px;color:var(--muted);font-size:12.5px;line-height:1.55}
+  #offlist div{font-size:12px;line-height:1.45;color:var(--muted)}
+  #offlist span.r{color:var(--warn)}
+  .sum{color:var(--muted);font-size:12.5px;margin-top:10px;line-height:1.4;overflow-wrap:anywhere}
+  #log{background:#080a0d;border:1px solid var(--line);border-radius:10px;padding:14px;margin:12px 0 0;
     font:12.5px/1.55 var(--mono);white-space:pre-wrap;max-height:320px;overflow:auto}
   #log .info{color:var(--text)} #log .bad{color:var(--bad)} #log .ok{color:var(--ok)}
   #log .title{color:var(--accent);font-weight:600;font-size:inherit;margin:0} #log .prog{color:var(--muted)}
@@ -113,141 +120,201 @@
       </div>
     </section>
 
-    <section class="card" id="steps" hidden>
-      <div class="step">
-        <label class="sw"><input type="checkbox" data-opt="shuffle"> Shuffle object IDs</label>
-        <div class="desc">Custom IDs (h000, A00B...) become meaningless ones everywhere. The key (.tsv) is saved next to the output and stays with you.</div>
-        <details>
-          <summary>Advanced</summary>
-          <div class="keyrow">
-            <button class="small" id="pickkey">Previous key...</button>
-            <span class="name" id="keyname">none: every ID is drawn anew</span>
-            <button class="small" id="clearkey" title="Forget the previous key" hidden>Clear</button>
+    <div class="layout">
+      <div id="groups">
+        <section class="card grp">
+          <div class="gh">
+            <label class="sw"><input type="checkbox" data-opt="shuffle"> Shuffle object IDs</label>
+            <span class="gsum" id="gs-ids"></span>
+            <button class="small gx" id="gx-ids" aria-label="Show or hide the options">+</button>
           </div>
-          <div class="hint">The key of this map's previous release: objects in both keep their IDs, so save codes keep working. A campaign takes the keys folder.</div>
-          <label class="tog"><input type="checkbox" data-opt="non_ascii_ids"> non-printable IDs</label>
-          <label class="tog"><input type="checkbox" data-opt="imports"> rename imported files to meaningless names of the same length, everywhere they are cited (not proven in the game yet)</label>
-        </details>
-      </div>
-      <div class="step">
-        <label class="sw"><input type="checkbox" data-opt="obfuscate"> Obfuscate the script</label>
-        <div class="desc">Names, strings and rawcodes of the JASS or Lua script become unreadable; the map behaves the same.</div>
-        <details>
-          <summary>Advanced</summary>
-          <label class="tog"><input type="checkbox" data-opt="to_lua"> convert a JASS script to Lua first (the map then needs Warcraft III 1.31 or newer)</label>
-          <label class="tog"><input type="checkbox" data-opt="error_logs"> remove the error messages vJass and Wurst leave in the script (not proven in the game yet)</label>
-        </details>
-      </div>
-      <div class="step">
-        <label class="sw"><input type="checkbox" data-opt="block"> Remove editor-only files</label>
-        <div class="desc">What only the World Editor uses goes out: the map no longer opens there as a normal map.</div>
-        <details>
-          <summary>Advanced</summary>
-          <label class="tog"><input type="checkbox" data-opt="block_w3i"> w3i counters</label>
-          <label class="tog"><input type="checkbox" data-opt="block_wtg"> triggers (wtg+wct)</label>
-          <label class="tog"><input type="checkbox" data-opt="block_extra"> extra (w3c/w3s/imp)</label>
-          <label class="tog"><input type="checkbox" data-opt="block_units"> unit placement (units.doo)</label>
-          <label class="tog"><input type="checkbox" data-opt="block_doo"> doodads (war3map.doo, only if the script creates every one)</label>
-          <label class="tog" id="slkrow"><input type="checkbox" data-opt="to_slk"> <span>convert object data to SLK tables (fewer objects are built on load, which helps Reforged)<span id="slkwrap" style="color:var(--muted)" hidden> — <span id="slknote"></span></span></span></label>
-        </details>
-      </div>
-      <div class="step">
-        <label class="sw"><input type="checkbox" data-opt="optimize"> Optimize size</label>
-        <div class="desc" id="optdesc"></div>
-        <details>
-          <summary>Optimize options</summary>
-          <label class="tog"><input type="checkbox" data-opt="opt_recompress"> recompress (best stream per sector)</label>
-          <label class="tog"><input type="checkbox" data-opt="opt_blp"> re-optimize BLP textures (lossless)</label>
-          <label class="tog"><input type="checkbox" data-opt="opt_dedup"> store identical files once</label>
-          <label class="tog"><input type="checkbox" data-opt="opt_lossy"> <span class="gated">lossy, only above the game's 512 MiB limit: half-size textures, mono 22 kHz sound</span></label>
-          <label class="tog"><input type="checkbox" data-opt="opt_models"> shrink MDX models: drop the animation keys that change nothing (lossless)</label>
-          <label class="tog"><input type="checkbox" data-opt="opt_models_lossy"> <span class="gated">models, lossy: also thin straight animation tracks and round the low bits of their numbers (the models pack 15 to 20% smaller; off by less than 0.05 units)</span></label>
-          <label class="tog" id="mp3row"><input type="checkbox" data-opt="opt_mp3"> <span class="gated">re-encode MP3 sounds in mono, 22 kHz (lossy; the big gain in a map with music; needs ffmpeg)</span>
-            <select data-optv="opt_mp3_kbps">
-              <option value="32">32 kbps</option>
-              <option value="48">48 kbps</option>
-              <option value="64">64 kbps</option>
-              <option value="96">96 kbps</option>
-              <option value="128">128 kbps</option>
-            </select><span class="gated" id="mp3note" hidden> &mdash; desktop only</span></label>
-          <label class="tog"><input type="checkbox" data-opt="opt_minify"> minify the JASS script: unreachable code out, constants written in (names shortened when the script is not obfuscated)</label>
-          <label class="tog"><input type="checkbox" data-opt="opt_tga_png"> convert imported TGA and PNG images to BLP: the palette without loss when the image has 256 colors or fewer, else JPEG at high quality, only when it gets smaller (the preview and the names the script builds stay)</label>
-          <label class="tog"><input type="checkbox" data-opt="opt_small_textures"> <span class="gated">smaller textures, lossy: the textures only models use at half size (models look the same far away and blurrier up close; icons and the interface stay), never below</span>
-            <select data-optv="opt_texture_min_side">
-              <option value="64">64 px</option>
-              <option value="128">128 px</option>
-              <option value="256">256 px</option>
-            </select></label>
-        </details>
-      </div>
-      <div class="step">
-        <div class="title">Final pack</div>
-        <div class="seg" id="packs">
-          <label><input type="radio" name="pack" value="protect"> Protect (sector 512)</label>
-          <label><input type="radio" name="pack" value="none"> None</label>
-        </div>
-        <div class="desc" id="packdesc"></div>
-        <details>
-          <summary>Extras</summary>
-          <label class="tog"><input type="checkbox" data-opt="dds"> Convert DDS textures to BLP (smaller, native)</label>
-          <label class="tog"><input type="checkbox" data-opt="encrypt"> encrypt the files whose names the map gives, with the key taken from the name (sector-512 pack; not proven in the game yet)</label>
-          <label class="tog" id="samerow" hidden><input type="checkbox" data-opt="same_bytes"> same bytes as the desktop program (slower: about 8 times on big maps)</label>
-        </details>
-      </div>
-    </section>
+          <div class="gb" id="gb-ids" hidden>
+            <div class="desc">Custom IDs (h000, A00B...) become meaningless ones everywhere. The key (.tsv) is saved next to the output and stays with you.</div>
+            <div class="keyrow">
+              <button class="small" id="pickkey">Previous key...</button>
+              <span class="name" id="keyname">none: every ID is drawn anew</span>
+              <button class="small" id="clearkey" title="Forget the previous key" hidden>Clear</button>
+            </div>
+            <div class="hint" style="margin-top:2px">The key of this map's previous release: objects in both keep their IDs, so save codes keep working. A campaign takes the keys folder.</div>
+            <label class="tog"><input type="checkbox" data-opt="non_ascii_ids"> non-printable IDs<span class="why" id="w-non_ascii_ids"></span></label>
+            <label class="tog"><input type="checkbox" data-opt="imports"> rename imported files to meaningless names of the same length, everywhere they are cited<span class="why" id="w-imports"></span></label>
+          </div>
+        </section>
 
-    <details class="card" id="experimental" hidden>
-      <summary>Decoys and markers</summary>
-      <div class="exp-body">
-        <div class="hint" style="margin-top:0">Fake files and malformed-MPQ markers. The markers only apply to the sector-512 pack, and add no barrier of their own: MPQ Editor already refuses that archive.</div>
-        <label class="tog"><input type="checkbox" data-opt="decoy_wtg"> decoy triggers (fake wtg+wct)</label>
-        <label class="tog"><input type="checkbox" data-opt="decoy_listfile"> remove the file list (no names to mine)</label>
-        <label class="tog"><input type="checkbox" data-opt="decoy_imp"> decoy imports</label>
-        <label class="tog"><input type="checkbox" data-opt="decoy_fill"> fill the hash table with decoys (no new file can be added)</label>
-        <label class="tog"><input type="checkbox" data-opt="variant_header"> variant: header size</label>
-        <label class="tog"><input type="checkbox" data-opt="variant_high_sector"> variant: sector high byte</label>
-        <label class="tog"><input type="checkbox" data-opt="variant_bit31"> variant: block table bit31</label>
-        <label class="tog"><input type="checkbox" data-opt="bombs"> extract-all bombs (a full extract balloons on disk; the game never reads them)</label>
-        <label class="tog"><input type="checkbox" data-opt="cut_hash"> cut the hash table (MPQ Editor opens read-only: list and extract, no edit)</label>
+        <section class="card grp">
+          <div class="gh">
+            <label class="sw"><input type="checkbox" data-opt="obfuscate"> Obfuscate the script</label>
+            <span class="gsum" id="gs-script"></span>
+            <button class="small gx" id="gx-script" aria-label="Show or hide the options">+</button>
+          </div>
+          <div class="gb" id="gb-script" hidden>
+            <div class="desc">Names, strings and rawcodes of the JASS or Lua script become unreadable; the map behaves the same.</div>
+            <label class="tog"><input type="checkbox" data-opt="to_lua"> convert a JASS script to Lua first (the map then needs Warcraft III 1.31 or newer)<span class="why" id="w-to_lua"></span></label>
+            <label class="tog">loader layers of a Lua script
+              <select data-optv="lua_layers" id="luasel">
+                <option value="0">0</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+              </select><span class="why" id="w-lua_layers"></span></label>
+            <label class="tog"><input type="checkbox" data-opt="error_logs"> remove the error messages vJass and Wurst leave in the script<span class="why" id="w-error_logs"></span></label>
+          </div>
+        </section>
+
+        <section class="card grp">
+          <div class="gh">
+            <label class="sw"><input type="checkbox" data-opt="block"> Remove editor-only files</label>
+            <span class="gsum" id="gs-editor"></span>
+            <button class="small gx" id="gx-editor" aria-label="Show or hide the options">+</button>
+          </div>
+          <div class="gb" id="gb-editor" hidden>
+            <div class="desc">What only the World Editor uses goes out: the map no longer opens there as a normal map.</div>
+            <label class="tog"><input type="checkbox" data-opt="block_w3i"> w3i counters<span class="why" id="w-block_w3i"></span></label>
+            <label class="tog"><input type="checkbox" data-opt="block_wtg"> triggers (wtg+wct)<span class="why" id="w-block_wtg"></span></label>
+            <label class="tog"><input type="checkbox" data-opt="block_extra"> extra (w3c/w3s/imp)<span class="why" id="w-block_extra"></span></label>
+            <label class="tog"><input type="checkbox" data-opt="block_units"> unit placement (units.doo)<span class="why" id="w-block_units"></span></label>
+            <label class="tog"><input type="checkbox" data-opt="block_doo"> doodads (war3map.doo, only if the script creates every one)<span class="why" id="w-block_doo"></span></label>
+            <label class="tog"><input type="checkbox" data-opt="block_w3r"> regions (war3map.w3r)<span class="why" id="w-block_w3r"></span></label>
+            <label class="tog" id="slkrow"><input type="checkbox" data-opt="to_slk"> <span>convert object data to SLK tables (fewer objects are built on load, which helps Reforged)<span id="slkwrap" style="color:var(--muted)" hidden> — <span id="slknote"></span></span></span></label>
+          </div>
+        </section>
+
+        <section class="card grp">
+          <div class="gh">
+            <label class="sw"><input type="checkbox" data-opt="optimize"> Optimize size</label>
+            <span class="gsum" id="gs-size"></span>
+            <button class="small gx" id="gx-size" aria-label="Show or hide the options">+</button>
+          </div>
+          <div class="gb" id="gb-size" hidden>
+            <div class="desc" id="optdesc"></div>
+            <label class="tog"><input type="checkbox" data-opt="opt_recompress"> recompress (best stream per sector)<span class="why" id="w-opt_recompress"></span></label>
+            <label class="tog"><input type="checkbox" data-opt="opt_blp"> re-optimize BLP textures (lossless)<span class="why" id="w-opt_blp"></span></label>
+            <label class="tog"><input type="checkbox" data-opt="opt_dedup"> store identical files once<span class="why" id="w-opt_dedup"></span></label>
+            <label class="tog"><input type="checkbox" data-opt="opt_models"> shrink MDX models: drop the animation keys that change nothing (lossless)<span class="why" id="w-opt_models"></span></label>
+            <label class="tog"><input type="checkbox" data-opt="opt_models_lossy"> <span class="gated">models, lossy: also thin straight animation tracks and round the low bits of their numbers (the models pack 15 to 20% smaller; off by less than 0.05 units)</span><span class="why" id="w-opt_models_lossy"></span></label>
+            <label class="tog" id="mp3row"><input type="checkbox" data-opt="opt_mp3"> <span class="gated">re-encode MP3 sounds in mono, 22 kHz (lossy; the big gain in a map with music; needs ffmpeg)</span>
+              <select data-optv="opt_mp3_kbps">
+                <option value="32">32 kbps</option>
+                <option value="48">48 kbps</option>
+                <option value="64">64 kbps</option>
+                <option value="96">96 kbps</option>
+                <option value="128">128 kbps</option>
+              </select><span class="why" id="w-opt_mp3"></span></label>
+            <label class="tog"><input type="checkbox" data-opt="opt_minify"> minify the JASS script: unreachable code out, constants written in (names shortened when the script is not obfuscated)<span class="why" id="w-opt_minify"></span></label>
+            <label class="tog"><input type="checkbox" data-opt="opt_tga_png"> convert imported TGA and PNG images to BLP: the palette without loss when the image has 256 colors or fewer, else JPEG at high quality, only when it gets smaller (the preview and the names the script builds stay)<span class="why" id="w-opt_tga_png"></span></label>
+            <label class="tog"><input type="checkbox" data-opt="opt_small_textures"> <span class="gated">smaller textures, lossy: the textures only models use at half size (models look the same far away and blurrier up close; icons and the interface stay), never below</span>
+              <select data-optv="opt_texture_min_side">
+                <option value="64">64 px</option>
+                <option value="128">128 px</option>
+                <option value="256">256 px</option>
+              </select><span class="why" id="w-opt_small_textures"></span></label>
+            <label class="tog"><input type="checkbox" data-opt="dds"> Convert DDS textures to BLP (smaller, native)</label>
+            <label class="tog"><input type="checkbox" data-opt="opt_lossy"> <span class="gated">lossy, only above the game's 512 MiB limit: half-size textures, mono 22 kHz sound</span><span class="why" id="w-opt_lossy"></span></label>
+          </div>
+        </section>
+
+        <section class="card grp">
+          <div class="gh">
+            <span class="gt">Final pack</span>
+            <span class="gsum" id="gs-pack"></span>
+            <button class="small gx" id="gx-pack" aria-label="Show or hide the options">+</button>
+          </div>
+          <div class="gb" id="gb-pack" hidden>
+            <div class="seg" id="packs">
+              <label><input type="radio" name="pack" value="protect"> Protect (sector 512)</label>
+              <label><input type="radio" name="pack" value="none"> None</label>
+            </div>
+            <div class="desc" id="packdesc" style="margin-top:8px"></div>
+            <label class="tog"><input type="checkbox" data-opt="encrypt"> encrypt the files whose names the map gives, with the key taken from the name (sector-512 pack)<span class="why" id="w-encrypt"></span></label>
+            <label class="tog" id="samerow" hidden><input type="checkbox" data-opt="same_bytes"> same bytes as the desktop program (slower: about 8 times on big maps)<span class="why" id="w-same_bytes"></span></label>
+            <div class="title">Malformed-MPQ markers</div>
+            <div class="hint" style="margin:0 0 4px">They mark the header of the sector-512 pack and add no barrier of their own: MPQ Editor already refuses that archive.</div>
+            <label class="tog"><input type="checkbox" data-opt="variant_header"> variant: header size<span class="why" id="w-variant_header"></span></label>
+            <label class="tog"><input type="checkbox" data-opt="variant_high_sector"> variant: sector high byte<span class="why" id="w-variant_high_sector"></span></label>
+            <label class="tog"><input type="checkbox" data-opt="variant_bit31"> variant: block table bit31 (not with the bombs or the hash table cut)<span class="why" id="w-variant_bit31"></span></label>
+          </div>
+        </section>
+
+        <section class="card grp">
+          <div class="gh">
+            <span class="gt">Decoys and extract-all defenses</span>
+            <span class="gsum" id="gs-decoys"></span>
+            <button class="small gx" id="gx-decoys" aria-label="Show or hide the options">+</button>
+          </div>
+          <div class="gb" id="gb-decoys" hidden>
+            <div class="desc">Fake files, and defenses against tools that extract everything. The game never reads them.</div>
+            <label class="tog"><input type="checkbox" data-opt="decoy_wtg"> decoy triggers (fake wtg+wct)</label>
+            <label class="tog"><input type="checkbox" data-opt="decoy_listfile"> remove the file list (no names to mine)</label>
+            <label class="tog"><input type="checkbox" data-opt="decoy_imp"> decoy imports</label>
+            <label class="tog"><input type="checkbox" data-opt="decoy_preview"> decoy preview image (the game may show it in the map list)</label>
+            <label class="tog"><input type="checkbox" data-opt="decoy_fill"> fill the hash table with decoys (no new file can be added)</label>
+            <label class="tog"><input type="checkbox" data-opt="bombs"> extract-all bombs (a full extract balloons on disk; the game never reads them)<span class="why" id="w-bombs"></span></label>
+            <label class="tog"><input type="checkbox" data-opt="cut_hash"> cut the hash table (MPQ Editor opens read-only: list and extract, no edit)<span class="why" id="w-cut_hash"></span></label>
+          </div>
+        </section>
+
+        <section class="card grp">
+          <div class="gh">
+            <label class="sw"><input type="checkbox" data-opt="anti_cheat"> Add the in-game anti-cheat</label>
+            <span class="gsum" id="gs-ac"></span>
+            <button class="small gx" id="gx-ac" aria-label="Show or hide the options">+</button>
+          </div>
+          <div class="gb" id="gb-ac" hidden>
+            <div class="desc">It watches the map while it runs, undoes what no part of the map explains and acts on it.</div>
+            <div id="acbody">
+              <div class="title">What it watches</div>
+              <label class="tog"><input type="checkbox" data-opt="ac_ledger"> ledger: gold, lumber, hero level, attributes, skill points, XP handicap and research that no call of the map explains are undone<span class="why" id="w-ac_ledger"></span></label>
+              <label class="tog"><input type="checkbox" data-opt="ac_codes"> the game's own cheat codes, in single player only<span class="why" id="w-ac_codes"></span></label>
+              <label class="tog"><input type="checkbox" data-opt="ac_names"> decoy names: a cheat pack pasted by hand does not compile (JASS maps)<span class="why" id="w-ac_names"></span></label>
+              <label class="tog"><input type="checkbox" data-opt="ac_bj"> Lua guard: restores the engine functions a Lua cheat pack replaces and reports a replaced main (Lua maps)<span class="why" id="w-ac_bj"></span></label>
+              <div class="title">When a cheat is found</div>
+              <label class="tog"><input type="checkbox" data-opt="ac_warn"> tell every player<span class="why" id="w-ac_warn"></span></label>
+              <label class="tog"><input type="checkbox" data-opt="ac_nosave"> block saves: the save code of the cheater is not written<span class="why" id="w-ac_nosave"></span></label>
+              <label class="tog"><input type="checkbox" data-opt="ac_defeat"> defeat the cheater<span class="why" id="w-ac_defeat"></span></label>
+              <label class="tog"><input type="checkbox" data-opt="ac_end"> end the game<span class="why" id="w-ac_end"></span></label>
+              <div class="hint">When the map itself was modified nobody can be singled out: blocking saves blocks every save, and defeat defeats every human player.</div>
+              <div class="title">Measures</div>
+              <label class="tog">gold or lumber jump with no event that counts as a cheat <input type="number" min="1" step="1" style="width:80px" data-optv="ac_gold_jump"></label>
+              <label class="tog">the cheat codes are watched
+                <select data-optv="ac_codes_mode">
+                  <option value="auto">automatically</option>
+                  <option value="humans">when one human plays</option>
+                  <option value="reload">when the game reloads from disk</option>
+                  <option value="humans+reload">when both say single player</option>
+                </select></label>
+              <div class="hint">A map can ask for the result: see DevoProtect_CheatUsed in the readme.</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card grp">
+          <div class="gh">
+            <span class="gt">Advanced</span>
+            <span class="gsum" id="gs-adv"></span>
+            <button class="small gx" id="gx-adv" aria-label="Show or hide the options">+</button>
+          </div>
+          <div class="gb" id="gb-adv" hidden>
+            <label class="tog">shuffle seed <input type="text" inputmode="numeric" style="width:150px" data-optv="seed" id="seedin" placeholder="from the map"></label>
+            <div class="hint" style="margin-top:2px">The same map and the same seed give the same IDs. Empty: the seed comes from the map itself.</div>
+          </div>
+        </section>
       </div>
-    </details>
-    <details class="card" id="anticheat" hidden>
-      <summary>In-game anti-cheat</summary>
-      <div class="exp-body">
-        <label class="sw"><input type="checkbox" data-opt="anti_cheat"> Add the in-game anti-cheat</label>
-        <div class="hint" style="margin-top:4px">It watches the map while it runs, undoes what no part of the map explains and acts on it.</div>
-        <div id="acbody">
-          <div class="title" style="margin-top:12px">What it watches</div>
-          <label class="tog"><input type="checkbox" data-opt="ac_ledger"> ledger: gold, lumber, hero level, attributes, skill points, XP handicap and research that no call of the map explains are undone</label>
-          <label class="tog"><input type="checkbox" data-opt="ac_codes"> the game's own cheat codes, in single player only</label>
-          <label class="tog"><input type="checkbox" data-opt="ac_names"> decoy names: a cheat pack pasted by hand does not compile (JASS maps)</label>
-          <label class="tog"><input type="checkbox" data-opt="ac_bj"> Lua guard: restores the engine functions a Lua cheat pack replaces and reports a replaced main (Lua maps)</label>
-          <div class="title" style="margin-top:12px">When a cheat is found</div>
-          <label class="tog"><input type="checkbox" data-opt="ac_warn"> tell every player</label>
-          <label class="tog"><input type="checkbox" data-opt="ac_nosave"> block saves: the save code of the cheater is not written</label>
-          <label class="tog"><input type="checkbox" data-opt="ac_defeat"> defeat the cheater</label>
-          <label class="tog"><input type="checkbox" data-opt="ac_end"> end the game</label>
-          <div class="hint">When the map itself was modified nobody can be singled out: blocking saves blocks every save, and defeat defeats every human player.</div>
-          <div class="title" style="margin-top:12px">Measures</div>
-          <label class="tog">gold or lumber jump with no event that counts as a cheat <input type="number" min="1" step="1" style="width:80px" data-optv="ac_gold_jump"></label>
-          <label class="tog">the cheat codes are watched
-            <select data-optv="ac_codes_mode">
-              <option value="auto">automatically</option>
-              <option value="humans">when one human plays</option>
-              <option value="reload">when the game reloads from disk</option>
-              <option value="humans+reload">when both say single player</option>
-            </select></label>
-          <div class="hint">A map can ask for the result: see DevoProtect_CheatUsed in the readme.</div>
+
+      <aside class="card side" id="side">
+        <div class="title">Map check</div>
+        <div class="mc" id="mapcheck"></div>
+        <div class="title">What will run</div>
+        <ol class="plan" id="plan"></ol>
+        <div id="offwrap" hidden>
+          <div class="title" style="color:var(--warn)">Turned off</div>
+          <div id="offlist"></div>
         </div>
-      </div>
-    </details>
+        <div style="margin-top:12px"><button class="go" id="run" disabled>Protect</button></div>
+        <div class="sum" id="summary"></div>
+        <div style="margin-top:8px"><button class="small" id="togglelog" hidden>Show details</button></div>
+      </aside>
+    </div>
   </fieldset>
 
-  <div class="bar">
-    <button class="go" id="run" disabled>Protect</button>
-    <span class="sum" id="summary"></span>
-    <button class="small" id="togglelog" hidden>Show details</button>
-  </div>
   <pre id="log" hidden></pre>
 </div>
 
@@ -261,6 +328,7 @@
   var JOB = null;
   var KEY = null, KEY_CAMPAIGN = false;
   var BATCH = null, DEFAULTS = {};
+  var MAPINFO = null;
   function api(){ return (window.pywebview && window.pywebview.api) || window._fakeApi; }
   function $(id){ return document.getElementById(id); }
   function opt(k){ return document.querySelector('input[data-opt="' + k + '"]'); }
@@ -269,15 +337,18 @@
   var WEB = !!window.DEVOPROTECT_WEB;
   function shown(p){ return WEB ? baseName(p) : p; }
   function defaultOut(p){ return p.replace(/(\.[^.\\/]+)?$/, function(ext){ return '_protected' + (ext || ''); }); }
+  function el(tag, cls, text){ var d = document.createElement(tag); if(cls){ d.className = cls; } if(text != null){ d.textContent = text; } return d; }
 
   function setRunnable(){
-    $('run').disabled = !(MAP || BATCH) || RUNNING;
+    var refused = !!(MAPINFO && MAPINFO.refused);
+    $('run').disabled = !(MAP || BATCH) || RUNNING || refused;
     $('pick').disabled = RUNNING;
     $('pickfolder').disabled = RUNNING;
     $('loadpreset').disabled = RUNNING;
     $('pickout').disabled = !(MAP || BATCH) || RUNNING;
     $('form').disabled = RUNNING;
     $('pickkey').disabled = RUNNING || !OPTIONS['shuffle'];
+    $('clearkey').disabled = RUNNING;
     setAntiCheat();
   }
 
@@ -308,49 +379,199 @@
   }
   logBtn.addEventListener('click', function(){ showLog(logEl.hidden); });
 
-  var MODES = {
-    full: {shuffle: true, obfuscate: true, block: true, optimize: false, pack: 'protect',
-           hint: 'The recommended set: shuffled IDs, obfuscated script, editor-only files removed, sector-512 pack.'},
-    script: {shuffle: true, obfuscate: true, block: false, optimize: false, pack: 'none',
-             hint: 'Only the script and the object IDs: no editor-only file is removed and the archive stays a normal one.'},
-    archive: {shuffle: false, obfuscate: false, block: true, optimize: false, pack: 'protect',
-              hint: 'Only the archive: editor-only files removed and the sector-512 pack; the script stays readable.'},
-    custom: {hint: 'Pick each step below. Changing the mode again resets the main steps.'}
+  var GROUPS = {
+    ids: {main: 'shuffle', items: ['non_ascii_ids', 'imports']},
+    script: {main: 'obfuscate', items: ['to_lua', 'error_logs']},
+    editor: {main: 'block', items: ['block_w3i', 'block_wtg', 'block_extra', 'block_units', 'block_doo', 'block_w3r', 'to_slk']},
+    size: {main: 'optimize', items: ['opt_blp', 'opt_models', 'opt_models_lossy', 'opt_mp3', 'opt_minify', 'opt_tga_png',
+                                     'opt_small_textures', 'dds', 'opt_lossy']},
+    pack: {items: ['encrypt', 'same_bytes', 'variant_header', 'variant_high_sector', 'variant_bit31']},
+    decoys: {items: ['decoy_wtg', 'decoy_listfile', 'decoy_imp', 'decoy_preview', 'decoy_fill', 'bombs', 'cut_hash']},
+    ac: {main: 'anti_cheat', items: ['ac_ledger', 'ac_codes', 'ac_names', 'ac_bj', 'ac_warn', 'ac_nosave', 'ac_defeat', 'ac_end']},
+    adv: {items: []}
   };
-  var MAIN = ['shuffle', 'obfuscate', 'block', 'optimize'];
-  var UNPROVEN = ['anti_cheat', 'imports', 'error_logs', 'encrypt'];
-  function applyMode(mode){
-    var m = MODES[mode] || MODES.custom;
-    MAIN.forEach(function(k){
-      if(k in m){ OPTIONS[k] = m[k]; opt(k).checked = m[k]; }
-    });
-    if(m.pack){ setPack(m.pack); }
-    $('modehint').textContent = m.hint;
-    $('steps').hidden = mode !== 'custom';
-    $('experimental').hidden = mode !== 'custom';
-    $('anticheat').hidden = mode !== 'custom';
-    if(mode !== 'custom'){
-      UNPROVEN.forEach(function(k){ OPTIONS[k] = false; opt(k).checked = false; delete ANTES[k]; });
-      setAntiCheat();
-    }
-    setRunnable();
+  function setOpen(id, on){
+    $('gb-' + id).hidden = !on;
+    $('gx-' + id).textContent = on ? '−' : '+';
   }
-  function modeOf(o){
-    if(UNPROVEN.some(function(k){ return o[k]; })){ return 'custom'; }
-    var p = packOf(o);
-    for(var k in MODES){
-      var m = MODES[k];
-      if(m.pack && m.pack === p && MAIN.every(function(x){ return m[x] === !!o[x]; })){
-        return k;
+  function openAll(on){ Object.keys(GROUPS).forEach(function(id){ setOpen(id, on); }); }
+  function groupSummaries(){
+    Object.keys(GROUPS).forEach(function(id){
+      var g = GROUPS[id], s = $('gs-' + id);
+      if(id === 'pack'){ s.textContent = OPTIONS['pack'] ? 'Protect (sector 512)' : 'None'; return; }
+      if(id === 'adv'){ s.textContent = OPTIONS['seed'] ? 'Seed ' + OPTIONS['seed'] : ''; return; }
+      if(g.main && !OPTIONS[g.main]){ s.textContent = 'not used'; return; }
+      var on = g.items.filter(function(k){ return !!OPTIONS[k]; }).length;
+      s.textContent = on + ' of ' + g.items.length + ' options on';
+    });
+  }
+  Object.keys(GROUPS).forEach(function(id){
+    $('gx-' + id).addEventListener('click', function(){ setOpen(id, $('gb-' + id).hidden); });
+  });
+
+  var MODES = {
+    full: {set: {shuffle: true, obfuscate: true, block: true, optimize: false, pack: true},
+           hint: 'The recommended set: shuffled IDs, obfuscated script, editor-only files removed, sector-512 pack.'},
+    script: {set: {shuffle: true, obfuscate: true, block: false, optimize: false, pack: false},
+             hint: 'Only the script and the object IDs: no editor-only file is removed and the archive stays a normal one.'},
+    archive: {set: {shuffle: false, obfuscate: false, block: true, optimize: false, pack: true},
+              hint: 'Only the archive: editor-only files removed and the sector-512 pack; the script stays readable.'},
+    custom: {hint: 'Your own set: every option on the left. Picking another mode resets them all to its set.'}
+  };
+  var NOT_SET = {previous_key: 1, seed: 1};
+  function modeSet(mode){ return Object.assign({}, DEFAULTS, MODES[mode].set); }
+  function intent(k){ return (k in ANTES) ? ANTES[k] : OPTIONS[k]; }
+  function modeOf(){
+    for(var m in MODES){
+      if(!MODES[m].set) continue;
+      var t = modeSet(m), same = true;
+      var keys = Object.keys(t).concat(Object.keys(OPTIONS));
+      for(var i = 0; i < keys.length && same; i++){
+        var k = keys[i];
+        if(NOT_SET[k]) continue;
+        var a = intent(k), b = t[k];
+        same = (typeof a === 'boolean' || typeof b === 'boolean' || a == null || b == null) ? !!a === !!b : String(a) === String(b);
       }
+      if(same) return m;
     }
     return 'custom';
   }
+  function setModeRadio(mode){
+    document.querySelectorAll('input[name="mode"]').forEach(function(r){ r.checked = r.value === mode; });
+    $('modehint').textContent = MODES[mode].hint;
+  }
+  function syncControls(){
+    document.querySelectorAll('input[data-opt]').forEach(function(e){ e.checked = !!OPTIONS[e.getAttribute('data-opt')]; });
+    document.querySelectorAll('[data-optv]').forEach(function(e){
+      var k = e.getAttribute('data-optv');
+      e.value = (k in OPTIONS && OPTIONS[k] != null) ? OPTIONS[k] : '';
+    });
+  }
+  function applyMode(mode){
+    if(MODES[mode].set){
+      var keep = OPTIONS['previous_key'];
+      OPTIONS = modeSet(mode);
+      if(keep){ OPTIONS['previous_key'] = keep; }
+      ANTES = {};
+      syncControls();
+      setPack(OPTIONS['pack'] ? 'protect' : 'none');
+    }
+    setModeRadio(mode);
+    openAll(mode === 'custom');
+    setRunnable();
+  }
 
-  var VARIANTES = ['variant_header', 'variant_high_sector', 'variant_bit31'];
-  var SO_512 = VARIANTES.concat(['encrypt']);
-  var DO_512 = ['opt_recompress', 'opt_dedup'];
+  var R = {
+    pack: 'needs the sector-512 pack',
+    bombs: 'not with the extract-all bombs',
+    cut: 'not with the hash table cut',
+    single: 'single maps only, not campaigns',
+    shuffle: 'needs Shuffle object IDs',
+    obf: 'needs Obfuscate the script',
+    block: 'needs Remove editor-only files',
+    opt: 'needs Optimize size',
+    models: 'needs the lossless model option',
+    always: 'the sector-512 pack always does it',
+    jass: 'JASS scripts only',
+    lua: 'Lua scripts only',
+    already: 'the script is already Lua',
+    ownbj: 'the map carries its own Blizzard.j or common.j',
+    desktop: 'desktop program only (needs ffmpeg)',
+    ac: 'needs the in-game anti-cheat',
+    lastfile: 'the last entry of the hash table holds a file of the map'
+  };
+  var PARENT = [R.shuffle, R.obf, R.block, R.opt, R.ac, R.always];
+  var NAMES = {
+    non_ascii_ids: 'Non-printable IDs', imports: 'Rename imported files', to_lua: 'Convert to Lua',
+    lua_layers: 'Lua loader layers', opt_models_lossy: 'Models, lossy', opt_mp3: 'Re-encode MP3 sounds',
+    opt_minify: 'Minify the JASS script', encrypt: 'Encrypt the files', same_bytes: 'Same bytes as the program',
+    variant_header: 'Marker: header size', variant_high_sector: 'Marker: sector high byte',
+    variant_bit31: 'Marker: block table bit31', bombs: 'Extract-all bombs', cut_hash: 'Cut the hash table',
+    ac_names: 'Anti-cheat decoy names', ac_bj: 'Anti-cheat Lua guard', pack: 'Protect (sector 512)'
+  };
+  function scriptOf(){ return MAPINFO && !MAPINFO.campaign ? (MAPINFO.script || null) : null; }
+  function campaign(){ return !!(MAPINFO && MAPINFO.campaign); }
+  var FREED_BY = {'war3map.wtg': 'block_wtg', 'war3map.wct': 'block_wtg', 'war3map.w3c': 'block_extra',
+                  'war3map.w3s': 'block_extra', 'war3map.imp': 'block_extra', 'war3mapunits.doo': 'block_units',
+                  'war3map.w3r': 'block_w3r', '(listfile)': 'decoy_listfile'};
+  function cutBlocked(o){
+    var f = MAPINFO && MAPINFO.last_file;
+    if(!f){ return false; }
+    var k = FREED_BY[f];
+    return !(k && o[k] && (k.indexOf('block_') !== 0 || o['block']));
+  }
+  var RULES = [
+    ['non_ascii_ids', function(o){ return !o.shuffle && R.shuffle; }],
+    ['imports', function(o){ return !o.shuffle && R.shuffle; }],
+    ['to_lua', function(){ return scriptOf() === 'lua' ? R.already : (MAPINFO && MAPINFO.own_blizzard) ? R.ownbj : null; }],
+    ['block_w3i', function(o){ return !o.block && R.block; }],
+    ['block_wtg', function(o){ return !o.block && R.block; }],
+    ['block_extra', function(o){ return !o.block && R.block; }],
+    ['block_units', function(o){ return !o.block && R.block; }],
+    ['block_doo', function(o){ return !o.block && R.block; }],
+    ['block_w3r', function(o){ return !o.block && R.block; }],
+    ['opt_recompress', function(o){ return !o.optimize ? R.opt : o.pack ? R.always : null; }],
+    ['opt_dedup', function(o){ return !o.optimize ? R.opt : o.pack ? R.always : null; }],
+    ['opt_blp', function(o){ return !o.optimize && R.opt; }],
+    ['opt_lossy', function(o){ return !o.optimize && R.opt; }],
+    ['opt_models', function(o){ return !o.optimize && R.opt; }],
+    ['opt_models_lossy', function(o){ return !o.optimize ? R.opt : !o.opt_models ? R.models : null; }],
+    ['opt_mp3', function(o){ return WEB ? R.desktop : !o.optimize && R.opt; }],
+    ['opt_minify', function(o){ return !o.optimize ? R.opt : (scriptOf() === 'lua' || (scriptOf() && o.to_lua)) ? R.jass : null; }],
+    ['opt_tga_png', function(o){ return !o.optimize && R.opt; }],
+    ['opt_small_textures', function(o){ return !o.optimize && R.opt; }],
+    ['encrypt', function(o){ return !o.pack && R.pack; }],
+    ['same_bytes', function(o){ return !o.pack && R.pack; }],
+    ['variant_header', function(o){ return !o.pack && R.pack; }],
+    ['variant_high_sector', function(o){ return !o.pack && R.pack; }],
+    ['variant_bit31', function(o){ return !o.pack ? R.pack : o.bombs ? R.bombs : o.cut_hash ? R.cut : null; }],
+    ['bombs', function(){ return campaign() && R.single; }],
+    ['cut_hash', function(o){ return campaign() ? R.single : cutBlocked(o) ? R.lastfile : null; }],
+    ['ac_ledger', function(o){ return !o.anti_cheat && R.ac; }],
+    ['ac_codes', function(o){ return !o.anti_cheat && R.ac; }],
+    ['ac_names', function(o){ return !o.anti_cheat ? R.ac : scriptOf() === 'lua' ? R.jass : null; }],
+    ['ac_bj', function(o){ return !o.anti_cheat ? R.ac : (scriptOf() === 'jass' && !o.to_lua) ? R.lua : null; }],
+    ['ac_warn', function(o){ return !o.anti_cheat && R.ac; }],
+    ['ac_nosave', function(o){ return !o.anti_cheat && R.ac; }],
+    ['ac_defeat', function(o){ return !o.anti_cheat && R.ac; }],
+    ['ac_end', function(o){ return !o.anti_cheat && R.ac; }]
+  ];
+  var LOCKED = {};
   var ANTES = {};
+  function lock(k, locked, value){
+    var e = opt(k);
+    if(!e){ return; }
+    e.disabled = locked;
+    if(locked){
+      if(!(k in ANTES)){ ANTES[k] = e.checked; }
+      e.checked = value; OPTIONS[k] = value;
+    }else if(k in ANTES){
+      e.checked = ANTES[k]; OPTIONS[k] = e.checked; delete ANTES[k];
+    }
+  }
+  function applyRules(){
+    for(var pass = 0; pass < 4; pass++){
+      var changed = false;
+      RULES.forEach(function(r){
+        var why = r[1](OPTIONS) || null, before = OPTIONS[r[0]];
+        LOCKED[r[0]] = why;
+        lock(r[0], !!why, why === R.always);
+        if($('w-' + r[0])){ $('w-' + r[0]).textContent = why && PARENT.indexOf(why) < 0 ? why : ''; }
+        if(OPTIONS[r[0]] !== before){ changed = true; }
+      });
+      if(!changed){ break; }
+    }
+    var s = scriptOf(), lw = !OPTIONS['obfuscate'] ? R.obf : (s === 'jass' && !OPTIONS['to_lua']) ? R.lua : null;
+    LOCKED['lua_layers'] = lw;
+    if($('luasel')){ $('luasel').disabled = !!lw; }
+    $('w-lua_layers').textContent = lw && PARENT.indexOf(lw) < 0 ? lw : '';
+    var pr = Array.prototype.filter.call(document.querySelectorAll('input[name="pack"]'),
+                                         function(r){ return r.value === 'protect'; })[0];
+    if(pr){ pr.disabled = !!(MAPINFO && MAPINFO.unnamed_block); }
+    groupSummaries();
+    renderSide();
+  }
+
   var PACK_DESC = {
     protect: 'Rebuilds the archive with 512-byte sectors: the game reads it, MPQ Editor and StormLib tools refuse it.',
     none: 'A normal archive that MPQ tools open. Only the live files are kept, so the old copies the steps replaced '
@@ -362,16 +583,6 @@
     none: 'The smallest map: repacked with 64 KB sectors and the best stream per sector, BLP textures rewritten '
       + 'without loss, identical files stored once.'
   };
-  function lock(k, locked, value){
-    var el = opt(k);
-    el.disabled = locked;
-    if(locked){
-      if(!(k in ANTES)){ ANTES[k] = el.checked; }
-      el.checked = value; OPTIONS[k] = value;
-    }else if(k in ANTES){
-      el.checked = ANTES[k]; OPTIONS[k] = el.checked; delete ANTES[k];
-    }
-  }
   function packOf(o){ return o.pack ? 'protect' : 'none'; }
   function setPack(pack){
     var on = pack === 'protect';
@@ -379,35 +590,107 @@
     document.querySelectorAll('input[name="pack"]').forEach(function(r){ r.checked = r.value === pack; });
     $('packdesc').textContent = PACK_DESC[pack];
     $('optdesc').textContent = OPT_DESC[pack];
-    SO_512.forEach(function(k){ lock(k, !on, false); });
-    DO_512.forEach(function(k){ lock(k, on, true); });
+    applyRules();
   }
 
   function setAntiCheat(){
     var on = !!OPTIONS['anti_cheat'];
-    document.querySelectorAll('#acbody input, #acbody select').forEach(function(el){ el.disabled = !on || RUNNING; });
+    document.querySelectorAll('#acbody input[type=number], #acbody select').forEach(function(e){ e.disabled = !on || RUNNING; });
   }
 
+  function renderSide(){
+    var mc = $('mapcheck');
+    mc.innerHTML = '';
+    if(BATCH){
+      mc.appendChild(el('div', '', 'Folder: ' + BATCH.maps.length + ' maps'));
+      mc.appendChild(el('div', '', 'Each map is checked when its turn comes.'));
+    }else if(!MAP){
+      mc.appendChild(el('div', '', 'Choose a map to check it.'));
+    }else if(!MAPINFO){
+      mc.appendChild(el('div', '', 'Checking the map...'));
+    }else{
+      var i = MAPINFO;
+      mc.appendChild(el('div', '', i.campaign ? 'Campaign' : 'Single map'));
+      if(!i.campaign){
+        mc.appendChild(el('div', '', i.script === 'lua' ? 'Lua script' : i.script === 'jass' ? 'JASS script' : 'no script'));
+        if(i.w3i){ mc.appendChild(el('div', '', i.w3i >= 28 ? 'Warcraft III 1.31 or newer' : 'made before Warcraft III 1.31')); }
+      }
+      if(i.bytes){ mc.appendChild(el('div', '', (i.bytes / 1048576).toFixed(1) + ' MB')); }
+      if(i.refused){ mc.appendChild(el('div', 'bad', 'This map cannot be protected: ' + i.refused)); }
+      if(i.unnamed_block){ mc.appendChild(el('div', 'warn', 'An encrypted file in this map has no name: only the None pack works.')); }
+    }
+    var o = OPTIONS, steps = [];
+    if(o.anti_cheat){ steps.push('Add the in-game anti-cheat'); }
+    if(o.shuffle){ steps.push('Shuffle the object IDs'); }
+    if(o.imports){ steps.push('Rename the imported files'); }
+    if(o.to_lua){ steps.push('Convert the script to Lua'); }
+    if(o.dds){ steps.push('Convert DDS textures to BLP'); }
+    if(o.error_logs){ steps.push('Remove the compiler error messages'); }
+    if(o.optimize && (o.opt_models || o.opt_mp3 || o.opt_minify || o.opt_tga_png || o.opt_small_textures)){
+      steps.push('Shrink the models, sounds, images and script');
+    }
+    if(o.obfuscate){ steps.push('Obfuscate the script'); }
+    if(o.to_slk){ steps.push('Convert object data to SLK tables'); }
+    if(o.block){ steps.push('Remove the editor-only files'); }
+    if(o.decoy_wtg || o.decoy_listfile || o.decoy_imp || o.decoy_preview || o.decoy_fill){ steps.push('Write the decoy files'); }
+    if(o.optimize){ steps.push('Optimize the size'); }
+    steps.push(o.pack ? (o.encrypt ? 'Repack with 512-byte sectors, files encrypted' : 'Repack with 512-byte sectors')
+                      : 'Save a normal archive');
+    if(o.bombs){ steps.push('Write the extract-all bombs'); }
+    if(o.cut_hash){ steps.push('Cut the hash table'); }
+    var plan = $('plan');
+    plan.innerHTML = '';
+    steps.forEach(function(s){ plan.appendChild(el('li', '', s)); });
+    var off = $('offlist'), n = 0;
+    off.innerHTML = '';
+    Object.keys(LOCKED).forEach(function(k){
+      var why = LOCKED[k];
+      if(!why || PARENT.indexOf(why) >= 0 || !(ANTES[k] === true)){ return; }
+      var d = el('div');
+      d.appendChild(el('span', '', NAMES[k] || k));
+      d.appendChild(el('span', '', ': '));
+      d.appendChild(el('span', 'r', why));
+      off.appendChild(d); n++;
+    });
+    if(MAPINFO && MAPINFO.unnamed_block && KEEP_PACK){
+      var p = el('div');
+      p.appendChild(el('span', '', NAMES.pack)); p.appendChild(el('span', '', ': '));
+      p.appendChild(el('span', 'r', 'an encrypted file has no name')); off.appendChild(p); n++;
+    }
+    $('offwrap').hidden = !n;
+  }
+  var KEEP_PACK = false;
+
   function bindControls(){
-    document.querySelectorAll('input[data-opt]').forEach(function(el){
-      var k = el.getAttribute('data-opt');
-      el.checked = !!OPTIONS[k];
-      el.addEventListener('change', function(){
-        OPTIONS[k] = el.checked;
-        if(k === 'shuffle') setRunnable();
-        if(k === 'anti_cheat') setAntiCheat();
+    document.querySelectorAll('input[data-opt]').forEach(function(e){
+      var k = e.getAttribute('data-opt');
+      e.checked = !!OPTIONS[k];
+      e.addEventListener('change', function(){
+        OPTIONS[k] = e.checked;
+        delete ANTES[k];
+        applyRules();
+        setModeRadio(modeOf());
+        setRunnable();
       });
     });
-    document.querySelectorAll('[data-optv]').forEach(function(el){
-      var k = el.getAttribute('data-optv');
-      if(k in OPTIONS){ el.value = OPTIONS[k]; }
-      el.addEventListener('change', function(){
-        OPTIONS[k] = el.type === 'number' ? (parseInt(el.value, 10) || 400) :
-          (typeof DEFAULTS[k] === 'number' ? parseInt(el.value, 10) : el.value);
+    document.querySelectorAll('[data-optv]').forEach(function(e){
+      var k = e.getAttribute('data-optv');
+      if(k in OPTIONS && OPTIONS[k] != null){ e.value = OPTIONS[k]; }
+      e.addEventListener('change', function(){
+        if(k === 'seed'){
+          var v = String(e.value || '').replace(/\D/g, '');
+          e.value = v;
+          if(v){ OPTIONS['seed'] = parseInt(v, 10); }else{ delete OPTIONS['seed']; }
+        }else{
+          OPTIONS[k] = e.type === 'number' ? (parseInt(e.value, 10) || 400) :
+            (typeof DEFAULTS[k] === 'number' ? parseInt(e.value, 10) : e.value);
+        }
+        groupSummaries();
+        setModeRadio(modeOf());
       });
     });
     document.querySelectorAll('input[name="pack"]').forEach(function(r){
-      r.addEventListener('change', function(){ if(r.checked) setPack(r.value); });
+      r.addEventListener('change', function(){ if(r.checked){ KEEP_PACK = false; setPack(r.value); setModeRadio(modeOf()); setRunnable(); } });
     });
     document.querySelectorAll('input[name="mode"]').forEach(function(r){
       r.addEventListener('change', function(){ if(r.checked) applyMode(r.value); });
@@ -429,17 +712,13 @@
       $('slkwrap').hidden = false;
     }
     if(WEB){
-      var mp3 = opt('opt_mp3');
-      if(mp3){ mp3.checked = false; mp3.disabled = true; OPTIONS['opt_mp3'] = false; }
       var kb = document.querySelector('[data-optv="opt_mp3_kbps"]');
       if(kb){ kb.disabled = true; }
-      if($('mp3note')){ $('mp3note').hidden = false; }
       if($('samerow')){ $('samerow').hidden = false; }
     }
-    setPack(packOf(OPTIONS));
-    var mode = modeOf(OPTIONS);
-    document.querySelectorAll('input[name="mode"]').forEach(function(r){ r.checked = r.value === mode; });
+    var mode = modeOf();
     applyMode(mode);
+    setPack(packOf(OPTIONS));
     setKey(OPTIONS['previous_key'] || null);
     setRunnable();
     if(h.map){ setMap(h.map); }
@@ -458,7 +737,7 @@
   }
 
   function setMap(path){
-    MAP = path; BATCH = null;
+    MAP = path; BATCH = null; MAPINFO = null;
     $('mapname').textContent = shown(path);
     setOut(null);
     sumEl.textContent = ''; clearLog();
@@ -468,11 +747,24 @@
       setKey(null);
       sumEl.textContent = 'Previous key cleared: ' + (camp ? 'a campaign takes the keys folder.' : 'a map takes its .tsv key.');
     }
+    if(KEEP_PACK){ KEEP_PACK = false; setPack('protect'); }
+    applyRules();
     setRunnable();
+    var a = api();
+    if(a && a.inspect_map){
+      a.inspect_map(path).then(function(info){
+        if(MAP !== path || !info){ return; }
+        MAPINFO = info;
+        if(info.unnamed_block && OPTIONS['pack']){ KEEP_PACK = true; setPack('none'); }
+        applyRules();
+        setModeRadio(modeOf());
+        setRunnable();
+      });
+    }
   }
 
   function setBatch(b){
-    MAP = null; BATCH = b;
+    MAP = null; BATCH = b; MAPINFO = null;
     $('mapname').textContent = 'Folder: ' + shown(b.folder) + ' (' + b.maps.length + ' maps)';
     setOut(null);
     sumEl.textContent = ''; clearLog();
@@ -481,6 +773,8 @@
       setKey(null);
       sumEl.textContent = 'Previous key cleared: a folder takes the keys folder.';
     }
+    if(KEEP_PACK){ KEEP_PACK = false; setPack('protect'); }
+    applyRules();
     setRunnable();
   }
 
@@ -509,26 +803,18 @@
     var keep = OPTIONS['previous_key'];
     OPTIONS = Object.assign({}, o);
     if(keep){ OPTIONS['previous_key'] = keep; }
-    if(WEB){ OPTIONS['opt_mp3'] = false; }
     ANTES = {};
-    document.querySelectorAll('input[data-opt]').forEach(function(el){ el.checked = !!OPTIONS[el.getAttribute('data-opt')]; });
-    document.querySelectorAll('[data-optv]').forEach(function(el){
-      var k = el.getAttribute('data-optv');
-      if(k in OPTIONS){ el.value = OPTIONS[k]; }
-    });
+    syncControls();
     setPack(packOf(OPTIONS));
-    var mode = modeOf(OPTIONS);
-    var extra = Object.keys(OPTIONS).some(function(k){
-      return MAIN.indexOf(k) < 0 && k !== 'pack' && k !== 'previous_key' && !!OPTIONS[k] !== !!DEFAULTS[k] &&
-        !(typeof OPTIONS[k] === 'number' && OPTIONS[k] === DEFAULTS[k]);
-    });
-    if(extra){ mode = 'custom'; }
-    document.querySelectorAll('input[name="mode"]').forEach(function(r){ r.checked = r.value === mode; });
-    applyMode(mode);
+    var mode = modeOf();
+    setModeRadio(mode);
+    openAll(mode === 'custom');
     setAntiCheat(); setRunnable();
   }
   $('savepreset').addEventListener('click', async function(){
-    var p = await api().save_preset(OPTIONS);
+    var o = Object.assign({}, OPTIONS);
+    Object.keys(ANTES).forEach(function(k){ o[k] = ANTES[k]; });
+    var p = await api().save_preset(o);
     if(p){ $('presetname').textContent = 'Preset saved: ' + shown(p); }
   });
   $('loadpreset').addEventListener('click', async function(){
