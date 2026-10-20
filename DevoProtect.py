@@ -8,7 +8,7 @@ ENGINE = os.path.join(getattr(sys, '_MEIPASS', HERE), 'engine')
 if ENGINE not in sys.path:
     sys.path.insert(0, ENGINE)
 
-VERSION = '0.1.8'
+VERSION = '0.1.9'
 
 
 def _no_console():
@@ -31,9 +31,9 @@ def main(argv=None):
     import protect_cli
     exe_cli = 'cli' in os.path.basename(sys.argv[0]).lower()
     args = [a for a in argv if not a.startswith('--')]
-    flags_cli = any(a.startswith(('--skip', '--block', '--decoys', '--variant', '--ids-non-ascii', '--optimize',
-                                  '--lossy', '--no-recompress', '--no-dedup', '--no-blp-opt', '--dds', '--blp',
-                                  '--lua-layers', '--seed', '--previous-key')) for a in argv)
+    cli_options = tuple(f for f in protect_cli.VALUE_FLAGS + protect_cli.BARE_FLAGS + protect_cli.OPTIONAL_VALUE_FLAGS
+                        if f not in ('cli', 'help', 'version'))
+    flags_cli = any(a.startswith('--') and a[2:].split('=', 1)[0] in cli_options for a in argv)
     wants_cli = ('--text' not in argv and
                 (exe_cli or '--cli' in argv or '--help' in argv or '-h' in argv or '--version' in argv or flags_cli
                  or len(args) >= 2 or (args and not os.path.isfile(args[0]))))
