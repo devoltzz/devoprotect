@@ -5,3 +5,12 @@ invalid option: {0}
 map not found: {0}
 {0}: skipped
 Everything runs in your browser: your map is never uploaded.
+Map {0} of {1}: {2}
+Protected {0} of {1} map(s). Saved to {2}
+folder not found: {0}
+no map in {0} (.w3x, .w3m, .w3n)
+the output folder must be another folder (the maps are never overwritten)
+with a folder, the previous key is the keys folder of the previous release: {0} is not a folder
+Left out, too big for the browser ({0} MB): {1}
+{0} ignored: a preset carries no file paths
+{0} ignored: not an option of this version
