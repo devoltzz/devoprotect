@@ -9,6 +9,150 @@ import zlib
 
 
 
+DECOY_KINDS = (
+    ('gold', {'gui': True, 'vars': ()}),
+    ('lumber', {'gui': True, 'vars': ()}),
+    ('level', {'gui': True, 'vars': ()}),
+    ('method', {'gui': True, 'vars': (('V1', 'integer', False),)}),
+    ('rate', {'gui': True, 'vars': (('V1', 'integer', False), ('V2', 'real', False))}),
+    ('save', {'gui': False, 'vars': (('V1', 'string', True),)}),
+    ('load', {'gui': True, 'vars': (('V1', 'integer', False),)}),
+)
+_KIND = dict(DECOY_KINDS)
+def _markers(k):
+    return {
+        'T': 'QT%02d' % k,
+        'V1': 'QV%02d' % (2 * k - 1),
+        'V2': 'QV%02d' % (2 * k),
+        'C': 'QC%02d' % k,
+        'X': DECOY_KINDS[k - 1][1]['gui'],
+        'N1': str(97000 + 10 * k + 1),
+        'N2': str(97000 + 10 * k + 2),
+        'R1': '%d.25' % (9700 + k),
+        'S1': 'QS%02d' % k,
+        'S2': 'QR%02d' % k,
+        'L1': 'QL%02d' % (3 * k - 2),
+        'L2': 'QL%02d' % (3 * k - 1),
+        'L3': 'QL%02d' % (3 * k),
+    }
+
+
+_PREFIXES = tuple(
+    'Admin Host Dev Debug Test Cheat Bonus Gm Owner Vip Mod Secret Hidden Quick Auto Extra Super Free Fast '
+    'Player Red Main Old New'.split()
+)
+_TRIGGER_WORDS = {
+    'gold': tuple('Gold Money Cash Coins Income Bank Rich'.split()),
+    'lumber': tuple('Lumber Wood Trees Logs Resources Mats'.split()),
+    'level': tuple('Level Lvl Xp Exp LevelUp Rank Hero'.split()),
+    'method': tuple('Mode Access Rights Power Status Toggle Unlock'.split()),
+    'rate': tuple('Rate Speed Boost Multiplier Bonus Factor Scale'.split()),
+    'save': tuple('Save SaveCode Backup Store Record Export Saver'.split()),
+    'load': tuple('Load LoadCode Restore Import Loader Code Reload'.split()),
+}
+_CHAT_COMMANDS = {
+    'gold': tuple('gold g money cash give gg addgold coin m'.split()),
+    'lumber': tuple('wood lumber lw addwood tree w l'.split()),
+    'level': tuple('lvl level lv xp exp up lvlup'.split()),
+    'method': tuple('admin gm host dev debug god test owner cheat'.split()),
+    'rate': tuple('rate speed xprate fast boost mult x2'.split()),
+    'save': tuple('save sv code backup store s'.split()),
+    'load': tuple('load ld restore import lc loadcode'.split()),
+}
+_MESSAGES = {
+    'method': tuple('Admin mode on|Debug enabled|Host commands unlocked|GM mode activated|Test mode: ON|Developer mode|'
+                    'Owner access granted|Cheats enabled|Commands unlocked'.split('|')),
+    'rate': tuple('Rate changed|Speed set|Experience rate updated|Boost applied|Rate is now active|Multiplier set|'
+                  'New rate saved'.split('|')),
+    'save': tuple('Save slot |Your code |Code for slot |Saved to slot |Backup |Slot |Save code '.split('|')),
+    'load': tuple('Loaded level |Code accepted: |Restored: |Welcome back, level |Load ok: |Level '.split('|')),
+}
+_VARIABLE_NAMES = {
+    ('method', 'V1'): tuple('AdminLevel GmLevel HostRank AccessLevel DebugMode CheatLevel PowerLevel'.split()),
+    ('rate', 'V1'): tuple('RateLevel BoostLevel SpeedTier RateTier BonusTier'.split()),
+    ('rate', 'V2'): tuple('Rate XpRate GoldRate SpeedRate Multiplier BoostFactor'.split()),
+    ('save', 'V1'): tuple('SaveCodes Codes PlayerCode SavedCode CodeSlot Backups'.split()),
+    ('load', 'V1'): tuple('LoadedLevel LoadValue CodeValue LoadedCode Restored'.split()),
+}
+_LOCAL_NAMES = (('L1', tuple('txt s str input msg raw chat cmd line data'.split())),
+                ('L2', tuple('acc out buf res sum tmp part got'.split())),
+                ('L3', tuple('i j k n idx pos c x'.split())))
+_CATEGORY_NAMES = tuple(
+    'Commands|Chat Commands|Admin|Cheats|Debug|Systems|Save Load|Testing|Host Commands|Misc|Gameplay|'
+    'Utility|Dev|Tools|Init|Player Commands'.split('|')
+)
+_HELPER_NAMES = tuple('Msg Clamp Chance Tell Roll Notify Limit'.split())
+_HELPERS = (
+    'function {F} takes player p, string s returns nothing\n    call DisplayTextToPlayer( p, 0, 0, s )\nendfunction\n',
+    'function {F} takes integer v, integer lo, integer hi returns integer\n    if v < lo then\n        return lo\n'
+    '    endif\n    if v > hi then\n        return hi\n    endif\n    return v\nendfunction\n',
+    'function {F} takes integer pct returns boolean\n    return GetRandomInt( 1, 100 ) <= pct\nendfunction\n',
+)
+
+
+def _name(rng, words, in_use, prefix=0.6):
+    while True:
+        fname = (rng.choice(_PREFIXES) if rng.random() < prefix else '') + rng.choice(words)
+        if rng.random() < 0.3:
+            fname += str(rng.randint(2, 9))
+        if fname.lower() not in in_use:
+            in_use.add(fname.lower())
+            return fname
+
+
+def _pick_number(rng, type_name, field_id, statement):
+    if type_name in ('gold', 'lumber'):
+        return str(rng.choice((rng.randint(5, 999) * rng.choice((10, 100)), rng.choice((99999, 50000, 25000, 10000)))))
+    if type_name == 'level':
+        return str(rng.randint(1, 10))
+    if type_name == 'method':
+        return str(rng.randint(1, 9))
+    if type_name == 'rate':
+        return str(rng.randint(0, 5))
+    if type_name == 'save':
+        return str(rng.randint(3, 12))
+    if field_id == 'N1':
+        return str(len(statement) + 1)
+    return str(rng.choice((2, 7, 10, 16, 31, 36)))
+
+
+def decoy_plan(rng):
+    types = [t for t, _s in DECOY_KINDS]
+    n = rng.randint(4, 9)
+    picked_kinds = [rng.choice([t for t in types if _KIND[t]['gui']]) for _ in range(2)] + \
+        [rng.choice([t for t in types if not _KIND[t]['gui']])] + [rng.choice(types) for _ in range(n - 3)]
+    rng.shuffle(picked_kinds)
+    in_use, statements, trigger_list = set(), set(), []
+    for type_name in picked_kinds:
+        v = {'T': _name(rng, _TRIGGER_WORDS[type_name], in_use)}
+        while True:
+            c = '-' + rng.choice(_CHAT_COMMANDS[type_name]) + (str(rng.randint(1, 9)) if rng.random() < 0.2 else '')
+            if c not in statements:
+                statements.add(c)
+                v['C'] = c
+                break
+        v['X'] = rng.random() < 0.5 if _KIND[type_name]['gui'] else False
+        for field_id, _t, _a in _KIND[type_name]['vars']:
+            v[field_id] = _name(rng, _VARIABLE_NAMES[(type_name, field_id)], in_use, prefix=0.3)
+        v['N1'] = _pick_number(rng, type_name, 'N1', v['C'])
+        v['N2'] = _pick_number(rng, type_name, 'N2', v['C'])
+        v['R1'] = rng.choice(
+            ('1.50', '2.00', '2.50', '3.00', '5.00', '10.00', '%d.%02d' % (rng.randint(1, 9), rng.randint(1, 99)))
+        )
+        v['S1'] = rng.choice(_MESSAGES.get(type_name, ('',)))
+        v['S2'] = rng.choice((': ', ' - ', ' = ', ' > ', ' | ', ' :: ', ' -> '))
+        local_vars = set()
+        for field_id, options in _LOCAL_NAMES:
+            v[field_id] = _name(rng, options, local_vars, prefix=0)
+        trigger_list.append((type_name, v))
+    cats = rng.sample(_CATEGORY_NAMES, rng.choice((1, 1, 2)))
+    within = [0 if len(cats) == 1 or k < len(trigger_list) // 2 else 1 for k in range(len(trigger_list))]
+    aux = ''
+    if rng.random() < 0.6:
+        aux = rng.choice(_HELPERS).replace('{F}', _name(rng, _HELPER_NAMES, in_use, prefix=0.8))
+    return {'trigger_list': trigger_list, 'categories': cats, 'within': within, 'helper': aux}
+
+
 FAKE_NAMES = (
     'war3map.j', 'war3map.imp', 'war3map.w3s', 'war3map.w3r', 'war3map.w3c', 'war3map.wtg',
     'war3map.wct', 'war3map.doo', 'war3mapUnits.doo', 'war3mapPreview.tga', 'war3mapMap.blp',
@@ -31,12 +175,76 @@ DECOY_PAIR = tuple(
 )
 
 
-def decoy_pair(log=print):
-    out = []
-    for p in DECOY_PAIR:
-        with open(p, 'rb') as f:
-            out.append(f.read())
-    return tuple(out)
+def _td():
+    import id_shuffle
+    return id_shuffle._td()
+
+
+def _mold_read():
+    if getattr(_mold_read, 'v', None) is None:
+        import wtg
+        with open(DECOY_PAIR[0], 'rb') as f:
+            mt = wtg.read_wtg(f.read(), _td())
+        with open(DECOY_PAIR[1], 'rb') as f:
+            ct = wtg.read_wct(f.read())
+        _mold_read.v = (mt, ct)
+    return _mold_read.v
+
+
+def _replace_in_model(obj, swap):
+    import dataclasses
+    for f in dataclasses.fields(obj):
+        x = getattr(obj, f.name)
+        if isinstance(x, str):
+            setattr(obj, f.name, swap(x))
+        elif dataclasses.is_dataclass(x):
+            _replace_in_model(x, swap)
+        elif isinstance(x, list):
+            for y in x:
+                if dataclasses.is_dataclass(y):
+                    _replace_in_model(y, swap)
+
+
+def _replacer(marks, value_list):
+    import re
+    map_path = dict((marks[k], value_list[k]) for k in marks if k != 'X' and k in value_list)
+    rx = re.compile('|'.join(re.escape(m) for m in sorted(map_path, key=len, reverse=True)))
+    exact_match = 'ChatMatchTypeExact' if value_list['X'] else 'ChatMatchTypeSubstring'
+
+    def swap(s):
+        s = rx.sub(lambda m: map_path[m.group(0)], s)
+        return exact_match if s == 'ChatMatchTypeExact' else s
+    return swap
+
+
+def decoy_model(plain_name):
+    import copy
+    import wtg
+    mt0, ct0 = _mold_read()
+    index_ = dict((t, k) for k, (t, _s) in enumerate(DECOY_KINDS))
+    marks = dict((t, _markers(k)) for k, (t, _s) in enumerate(DECOY_KINDS, 1))
+    vars0 = dict((v.name, v) for v in mt0.variables)
+    mt = wtg.MapTriggers(version=mt0.version, game_version=mt0.game_version,
+                         categories=[wtg.Category(id=k, name=n) for k, n in enumerate(plain_name['categories'])])
+    ct = wtg.CustomText(is_new_format=ct0.is_new_format, comment='',
+                        header=plain_name['helper'].replace('\n', '\r\n') or None, version=ct0.version)
+    for (type_name, value_list), cat in zip(plain_name['trigger_list'], plain_name['within']):
+        swap = _replacer(marks[type_name], value_list)
+        for field_id, _tp, _arr in _KIND[type_name]['vars']:
+            v = copy.deepcopy(vars0[marks[type_name][field_id]])
+            _replace_in_model(v, swap)
+            mt.variables.append(v)
+        t = copy.deepcopy(mt0.triggers[index_[type_name]])
+        _replace_in_model(t, swap)
+        t.description, t.category_id = '', cat
+        mt.triggers.append(t)
+        body_text = ct0.texts[index_[type_name]]
+        ct.texts.append(None if body_text is None else swap(body_text))
+    return mt, ct
+
+
+def pair_rng(seed):
+    return random.Random('wtg:%d' % seed)
 
 
 def imp_decoy(rng):
@@ -129,7 +337,31 @@ def _fill_refusal(details, why, log):
     return details
 
 
-def fill(file_path, seed=None, rng=None, log=print):
+def _spare_last(file_path, bcount0, log=print):
+    import mpqread as mr
+    import mpqlib as ml
+    a = mr.Archive(file_path)
+    h = a.h
+    tab = bytearray(ml.decrypt_bytes(a.d[h.hash_abs:h.hash_abs + a.hash_n * 16], ml.hashstr('(hash table)', 3)))
+    idx = a.hash_n - 1
+    bi = struct.unpack_from('<I', tab, idx * 16 + 12)[0]
+    if bi in (0xFFFFFFFF, 0xFFFFFFFE):
+        return 'free'
+    if (bi & 0x0FFFFFFF) < bcount0:
+        log(
+            '[fill] the LAST entry points at block %d of the real map: the cut afterwards refuses with the reason'
+            % (bi & 0x0FFFFFFF)
+        )
+        return 'of the map'
+    struct.pack_into('<I', tab, idx * 16 + 12, 0xFFFFFFFE)
+    with open(file_path, 'r+b') as f:
+        f.seek(h.hash_abs)
+        f.write(ml.encrypt_bytes(bytes(tab), ml.hashstr('(hash table)', 3)))
+    log('[fill] the LAST entry (the one the cut removes) was a decoy of this fill: it is now DELETED')
+    return 'spared'
+
+
+def fill(file_path, seed=None, rng=None, log=print, spare_last=False, together=False):
     import mpqadd
     import mpqread
     file_path = os.path.abspath(file_path)
@@ -149,6 +381,7 @@ def fill(file_path, seed=None, rng=None, log=print):
     game = dict((n, a.read(n)) for n in ('war3map.w3i', 'war3map.w3e', 'war3map.wpm', 'war3map.doo',
                                          'war3map.shd', 'war3map.mmp') if a.find(n) is not None)
     free0, deleted0, hash_entries = _free(a)
+    bcount0 = min(a.block_n, len(a.blocks))
     details['hash_entries'] = hash_entries
     details['free_before'] = free0 + deleted0
     if not details['free_before']:
@@ -171,7 +404,7 @@ def fill(file_path, seed=None, rng=None, log=print):
             fname, ext = _fill_name(rng, a.find, in_use)
             batch.append((fname, _fill_body(rng, ext)))
         no_slot = []
-        mpqadd.add_files(file_path, batch, no_slot=no_slot, log=lambda *x: None)
+        mpqadd.add_files(file_path, batch, no_slot=no_slot, log=lambda *x: None, together=together)
         outside = set(no_slot)
         written_count += [(n, d) for n, d in batch if n not in outside]
     b = mpqread.Archive(file_path)
@@ -182,9 +415,13 @@ def fill(file_path, seed=None, rng=None, log=print):
     for fname, data_bytes in game.items():
         if b.read(fname) != data_bytes:
             bad_ones.append('%s: what the GAME reads changed!' % fname)
+    if spare_last:
+        details['last_unit'] = _spare_last(file_path, bcount0, log=log)
+        b = mpqread.Archive(file_path)
     free_d, deleted_d, _n = _free(b)
     details['free_after'] = free_d + deleted_d
-    if details['free_after']:
+    last_dead = spare_last and b.ht[4 * (b.hash_n - 1) + 3] in (0xFFFFFFFF, 0xFFFFFFFE)
+    if details['free_after'] > (1 if last_dead else 0):
         bad_ones.append('the hash table did not fill up: %d free/deleted entry(ies) left over'
                         % details['free_after'])
     if bad_ones:
@@ -205,7 +442,7 @@ def fill(file_path, seed=None, rng=None, log=print):
 STANDARD = ('wtg', 'listfile', 'imp')
 
 
-def decoys(entry, output, chosen=STANDARD, seed=None, log=print):
+def decoys(entry, output, chosen=STANDARD, seed=None, log=print, spare_last=False):
     import editor_lock
     import mpqadd
     import mpqread
@@ -234,15 +471,22 @@ def decoys(entry, output, chosen=STANDARD, seed=None, log=print):
                                                 'why': 'the map still has the REAL wtg/wct: run after editor_lock'}
             log('[decoy] wtg+wct REFUSED: the map still has the real ones')
         else:
-            wtg, wct = decoy_pair(log=log)
+            plain_name = decoy_plan(pair_rng(seed))
+            mt, ct = decoy_model(plain_name)
+            import wtg as _wtg
+            wtg, wct = _wtg.write_wtg(mt, _td()), _wtg.write_wct(ct)
             write_out += [('war3map.wtg', wtg), ('war3map.wct', wct)]
+            trigger_names = ', '.join(t.name for t in mt.triggers)
             details['matrix']['war3map.wtg'] = {
                 'action_code': 'recorded',
                 'bytes': len(wtg),
-                'trigger_list': 'AdminGold, SaveSystem, LevelUp',
+                'trigger_list': trigger_names,
             }
             details['matrix']['war3map.wct'] = {'action_code': 'recorded', 'bytes': len(wct)}
-            log('[decoy] wtg+wct: %d + %d B (AdminGold/SaveSystem/LevelUp)' % (len(wtg), len(wct)))
+            log(
+                '[decoy] wtg+wct: %d + %d B (%d random triggers: %s)'
+                % (len(wtg), len(wct), len(mt.triggers), trigger_names)
+            )
     if 'listfile' in chosen:
         details['matrix']['(listfile)'] = {'action_code': 'deleted'}
         log('[decoy] (listfile): OUT of the map (the name "mining" has nothing to mine)')
@@ -266,7 +510,7 @@ def decoys(entry, output, chosen=STANDARD, seed=None, log=print):
         mpqadd.add_files(output, [], to_delete=['(listfile)'], log=lambda *x: None)
     filled = None
     if 'fill' in chosen:
-        filled = fill(output, rng=rng, log=log)
+        filled = fill(output, rng=rng, log=log, spare_last=spare_last)
         details['fill'] = dict((k, v) for k, v in filled.items()
                                if k in ('action_code', 'why', 'written_count', 'bytes', 'hash_entries', 'free_before',
                                         'free_after', 'gate', 'summary'))
