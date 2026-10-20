@@ -4,3 +4,4 @@ pywebview>=6.2
 pyinstaller>=6.0
 zopfli==0.4.3
 lupa==2.8
+ziglang==0.16.0
