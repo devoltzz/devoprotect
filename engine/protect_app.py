@@ -58,6 +58,22 @@ AC_ACTIONS = ('warn', 'nosave', 'defeat', 'end')
 AC_CODES_MODES = {'auto': 'auto', 'humans': 'humans', 'reload': 'reload', 'humans+reload': 'humans+reload'}
 MODELS = {'lossless': 'lossless_keys', 'lossy': 'lossy_keys'}
 MP3_KBPS = (32, 48, 64, 96, 128)
+TEXTURE_MIN_SIDES = (64, 128, 256)
+TABLES = {'version': '3.0.1.24371', 'bytes': 1200765,
+          'sha256': '0fd822bcb873d78fca04c492e632c126e779e1d9f261492b67e72327067b0396',
+          'url': 'https://protect.devoltz.party/data/slk_tables.zip'}
+
+
+def tables_cache():
+    if os.name == 'nt' and os.environ.get('LOCALAPPDATA'):
+        return os.path.join(os.environ['LOCALAPPDATA'], APP, 'tables')
+    return os.path.join(os.environ.get('XDG_CACHE_HOME') or os.path.join(os.path.expanduser('~'), '.cache'),
+                        APP.lower(), 'tables')
+
+
+def fetch_tables():
+    import obj2slk
+    return obj2slk.fetch_pack(TABLES['url'], TABLES['sha256'], tables_cache(), agent=APP)
 
 
 def _bulk_default():
@@ -84,7 +100,9 @@ def recipe_kwargs(options):
                    'sounds': int(o.get('opt_mp3_kbps') or 64) if o.get('opt_mp3') else None,
                    'script': bool(o.get('opt_minify')),
                    'ffmpeg': (str(o['ffmpeg']).strip() or None) if o.get('ffmpeg') else None}
-        if not (content['models'] or content['sounds'] or content['script']):
+        if o.get('opt_small_textures'):
+            content['textures'] = int(o.get('opt_texture_min_side') or TEXTURE_MIN_SIDES[1])
+        if not (content['models'] or content['sounds'] or content['script'] or content.get('textures')):
             content = None
     anti_cheat = None
     if o.get('anti_cheat'):
@@ -103,9 +121,15 @@ def recipe_kwargs(options):
         'non_ascii_ids': bool(o.get('non_ascii_ids')),
         'lua_layers': int(o.get('lua_layers', 2)),
         'blp': bool(o.get('blp')),
+        'imported': bool(o.get('imports')),
+        'error_list': bool(o.get('error_logs')),
+        'cipher': bool(o.get('encrypt')),
         'convert_dds': bool(o.get('dds')),
+        'convert_tga_png': bool(o.get('optimize') and o.get('opt_tga_png')),
         'convert_slk': bool(o.get('to_slk')),
         'slk_game': (str(o['game']).strip() or None) if o.get('game') else None,
+        'slk_pack': ((str(o['tables']).strip() or None) if o.get('tables') else fetch_tables)
+                       if o.get('to_slk') else None,
         'convert_lua': bool(o.get('to_lua')),
         'optimization': optimize,
         'content': content,
@@ -118,14 +142,20 @@ def recipe_kwargs(options):
 
 def default_options():
     return {'shuffle': True, 'obfuscate': True, 'block': True, 'pack': True,
+            'imports': False, 'error_logs': False, 'encrypt': False,
             'block_w3i': True, 'block_wtg': True, 'block_extra': True, 'block_units': True, 'block_doo': True,
             'block_w3r': False, 'lua_layers': 2,
             'optimize': False, 'opt_recompress': True, 'opt_blp': True, 'opt_dedup': True, 'opt_lossy': False,
             'opt_models': False, 'opt_models_lossy': False, 'opt_mp3': False, 'opt_mp3_kbps': 64, 'opt_minify': False,
+            'opt_tga_png': False, 'opt_small_textures': False, 'opt_texture_min_side': TEXTURE_MIN_SIDES[1],
             'dds': False, 'bombs': False, 'cut_hash': False, 'to_slk': False,
             'anti_cheat': False, 'ac_ledger': True, 'ac_codes': True, 'ac_names': True, 'ac_bj': True,
             'ac_warn': True, 'ac_nosave': False, 'ac_defeat': False, 'ac_end': False, 'ac_gold_jump': 400,
             'ac_codes_mode': 'auto'}
+
+
+def tables_info():
+    return {'version': TABLES['version'], 'bytes': TABLES['bytes'], 'sha256': TABLES['sha256']}
 
 
 def run_job(job, emit):
@@ -141,8 +171,15 @@ def run_job(job, emit):
     out_path = job.get('out') or _default_out(map_path)
     if out_path.endswith(('/', '\\')) or os.path.isdir(out_path):
         out_path = os.path.join(out_path, os.path.basename(_default_out(map_path)))
+    options = dict(job.get('options') or {})
+    if options.get('previous_key') and os.path.isdir(options['previous_key']) and not map_path.lower().endswith('.w3n'):
+        found = resolve_previous(map_path, options['previous_key'])
+        if found:
+            options['previous_key'] = found
+        else:
+            options.pop('previous_key')
     try:
-        kwargs = recipe_kwargs(job.get('options'))
+        kwargs = recipe_kwargs(options)
     except (ValueError, TypeError) as e:
         emit({'type': 'error', 'message': 'invalid option: %s' % e})
         return {'ok': False}
@@ -194,6 +231,152 @@ def run_job(job, emit):
 def _default_out(map_path):
     base, ext = os.path.splitext(map_path)
     return base + '_protected' + ext
+
+
+PRESET_FORMAT = 'devoprotect_preset'
+PRESET_PATHS = ('previous_key', 'ffmpeg', 'game', 'tables')
+
+
+def preset_keys():
+    keys = dict((k, type(v)) for k, v in default_options().items())
+    keys.update(('decoy_' + k, bool) for k in DECOYS)
+    keys.update(('variant_' + k, bool) for k in VARIANTS)
+    keys.update({'non_ascii_ids': bool, 'to_lua': bool, 'blp': bool, 'same_bytes': bool, 'seed': int})
+    return keys
+
+
+def preset_text(options):
+    import json
+    keys = preset_keys()
+    o = dict((k, v) for k, v in dict(options or {}).items()
+             if k in keys and k not in PRESET_PATHS and v is not None and v != '')
+    for k, v in o.items():
+        if keys[k] is int and isinstance(v, str) and v.strip().lstrip('-').isdigit():
+            o[k] = int(v)
+    return json.dumps({PRESET_FORMAT: 1, 'options': dict(sorted(o.items()))}, indent=1) + '\n'
+
+
+def read_preset(text):
+    import json
+    try:
+        data = json.loads(text)
+    except ValueError as e:
+        raise ValueError('the preset is not JSON (%s)' % e)
+    if not isinstance(data, dict) or data.get(PRESET_FORMAT) != 1 or not isinstance(data.get('options'), dict):
+        raise ValueError('not a DevoProtect preset: it needs "%s": 1 and "options"' % PRESET_FORMAT)
+    keys = preset_keys()
+    o, warnings = default_options(), []
+    for k, v in data['options'].items():
+        if k in PRESET_PATHS:
+            warnings.append('%s ignored: a preset carries no file paths' % k)
+            continue
+        if k not in keys:
+            warnings.append('%s ignored: not an option of this version' % k)
+            continue
+        want = keys[k]
+        if (want is bool) != isinstance(v, bool) or not isinstance(v, want):
+            raise ValueError('%s: %r is not a %s' % (k, v, {bool: 'true or false', int: 'whole number',
+                                                             str: 'text'}.get(want, want.__name__)))
+        o[k] = v
+    for k, valid in (('opt_mp3_kbps', MP3_KBPS), ('opt_texture_min_side', TEXTURE_MIN_SIDES),
+                     ('ac_codes_mode', tuple(AC_CODES_MODES))):
+        if o[k] not in valid:
+            raise ValueError('%s: %r is not one of %s' % (k, o[k], ', '.join(str(x) for x in valid)))
+    for k in ('lua_layers', 'ac_gold_jump'):
+        if o[k] < 1:
+            raise ValueError('%s: %r is below 1' % (k, o[k]))
+    return o, warnings
+
+
+MAP_EXTS = ('.w3x', '.w3m', '.w3n')
+
+
+def maps_in(folder):
+    return sorted((n for n in os.listdir(folder) if n.lower().endswith(MAP_EXTS)
+                   and os.path.isfile(os.path.join(folder, n))), key=lambda n: n.lower())
+
+
+def default_folder_out(folder):
+    return os.path.normpath(folder).rstrip('\\/') + '_protected'
+
+
+def resolve_previous(map_path, previous):
+    if not previous or not os.path.isdir(previous):
+        return previous or None
+    stem = os.path.splitext(os.path.basename(map_path))[0]
+    is_campaign = map_path.lower().endswith('.w3n')
+    for name in (stem + '_ids', stem + '_protected_ids'):
+        p = os.path.join(previous, name if is_campaign else name + '.tsv')
+        if os.path.isdir(p) if is_campaign else os.path.isfile(p):
+            return p
+    return previous if is_campaign else None
+
+
+def run_folder(job, emit, run_one=None):
+    run_one = run_one or run_job
+    folder = job.get('folder')
+    if not folder or not os.path.isdir(folder):
+        emit({'type': 'error', 'message': 'folder not found: %s' % folder})
+        return {'ok': False}
+    out = job.get('out') or default_folder_out(folder)
+    if os.path.normcase(os.path.abspath(out)) == os.path.normcase(os.path.abspath(folder)):
+        emit({'type': 'error', 'message': 'the output folder must be another folder (the maps are never overwritten)'})
+        return {'ok': False}
+    names = maps_in(folder)
+    if not names:
+        emit({'type': 'error', 'message': 'no map in %s (.w3x, .w3m, .w3n)' % folder})
+        return {'ok': False}
+    options = dict(job.get('options') or {})
+    previous = options.pop('previous_key', None)
+    if previous and not os.path.isdir(previous):
+        emit({'type': 'error', 'message': 'with a folder, the previous key is the keys folder of the previous release: '
+                                          '%s is not a folder' % previous})
+        return {'ok': False}
+    os.makedirs(out, exist_ok=True)
+    t0 = time.time()
+    maps = []
+    for i, name in enumerate(names):
+        src, dst = os.path.join(folder, name), os.path.join(out, name)
+        emit({'type': 'progress', 'step': 'map', 'text': 'Map %d of %d: %s' % (i + 1, len(names), name)})
+        opts = dict(options)
+        prev_key = resolve_previous(src, previous) if previous else None
+        if prev_key:
+            opts['previous_key'] = prev_key
+        failed = []
+
+        def sub(ev):
+            if ev.get('type') == 'error':
+                failed.append(ev.get('message') or 'aborted')
+            elif ev.get('type') == 'progress':
+                emit(ev)
+        res = run_one({'task': 'protect', 'map': src, 'out': dst, 'options': opts}, sub) or {}
+        maps.append({'name': name, 'ok': bool(res.get('ok')), 'out': dst if res.get('ok') else None,
+                     'key': res.get('key'), 'seconds': res.get('seconds'), 'bytes_in': os.path.getsize(src),
+                     'bytes_out': res.get('bytes_out'),
+                     'reason': None if res.get('ok') else (failed[-1] if failed else res.get('summary') or 'failed')})
+    result = folder_report(maps, out)
+    result.update(folder=folder, seconds=round(time.time() - t0, 1))
+    emit(dict(result, type='result'))
+    return result
+
+
+def folder_report(maps, out):
+    lines = [('title', 'Folder: %d map(s)' % len(maps))]
+    for m in maps:
+        if m['ok']:
+            lines.append(('info', 'ok  %s: %s -> %s bytes (%ss)%s' % (
+                m['name'], m['bytes_in'], m.get('bytes_out'), m.get('seconds'),
+                '; key: %s' % os.path.basename(m['key']) if m.get('key') else '')))
+        else:
+            lines.append(('bad', 'refused  %s: %s' % (m['name'], m.get('reason'))))
+    done = sum(1 for m in maps if m['ok'])
+    return {
+        'ok': done == len(maps),
+        'maps': maps,
+        'out': out,
+        'lines': lines,
+        'summary': 'Protected %d of %d map(s). Saved to %s' % (done, len(maps), os.path.basename(out.rstrip('\\/'))),
+    }
 
 
 def report_lines(report):
@@ -250,7 +433,8 @@ class Api:
         self._release = None
 
     def hello(self):
-        return {'version': self._version, 'app': APP, 'map': self._initial, 'options': default_options()}
+        return {'version': self._version, 'app': APP, 'map': self._initial, 'options': default_options(),
+                'tables': tables_info()}
 
     def check_update(self):
         try:
@@ -301,6 +485,39 @@ class Api:
             return self._dialog(webview.FileDialog.FOLDER)
         return self._dialog(webview.FileDialog.OPEN, file_types=('ID keys (*.tsv)', 'All files (*.*)'))
 
+    def pick_folder(self):
+        import webview
+        p = self._dialog(webview.FileDialog.FOLDER)
+        if not p:
+            return None
+        return {'folder': p, 'maps': maps_in(p), 'out': default_folder_out(p)}
+
+    def pick_out_folder(self):
+        import webview
+        return self._dialog(webview.FileDialog.FOLDER)
+
+    def save_preset(self, options):
+        import webview
+        p = self._dialog(webview.FileDialog.SAVE, save_filename='devoprotect_preset.json',
+                         file_types=('DevoProtect presets (*.json)', 'All files (*.*)'))
+        if not p:
+            return None
+        with open(p, 'w', encoding='utf-8', newline='\n') as f:
+            f.write(preset_text(options))
+        return p
+
+    def load_preset(self):
+        import webview
+        p = self._dialog(webview.FileDialog.OPEN, file_types=('DevoProtect presets (*.json)', 'All files (*.*)'))
+        if not p:
+            return None
+        try:
+            with open(p, encoding='utf-8') as f:
+                o, warnings = read_preset(f.read())
+        except (OSError, ValueError) as e:
+            return {'error': str(e)}
+        return {'options': o, 'warnings': warnings, 'name': os.path.basename(p)}
+
     def start(self, params=None):
         if any(t.is_alive() for t in self._jobs.values()):
             return None
@@ -313,7 +530,7 @@ class Api:
 
         def work():
             try:
-                run_job(job, emit)
+                (run_folder if job.get('folder') else run_job)(job, emit)
             except BaseException as e:
                 self._push(ident, {'type': 'error', 'message': str(e)})
         t = threading.Thread(target=work, daemon=True)
