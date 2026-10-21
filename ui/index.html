@@ -266,6 +266,7 @@
               <label class="tog"><input type="checkbox" data-opt="ac_codes"> the game's own cheat codes, in single player only<span class="why" id="w-ac_codes"></span></label>
               <label class="tog"><input type="checkbox" data-opt="ac_names"> decoy names: a cheat pack pasted by hand does not compile (JASS maps)<span class="why" id="w-ac_names"></span></label>
               <label class="tog"><input type="checkbox" data-opt="ac_bj"> Lua guard: restores the engine functions a Lua cheat pack replaces and reports a replaced main (Lua maps)<span class="why" id="w-ac_bj"></span></label>
+              <label class="tog"><input type="checkbox" data-opt="ac_globals"> Lua global watch: reports a global that code pasted after the map creates, a global the map does not define, or a known cheat pack's name (Lua maps; not proven in the game yet)<span class="why" id="w-ac_globals"></span></label>
               <div class="title">When a cheat is found</div>
               <label class="tog"><input type="checkbox" data-opt="ac_warn"> tell every player<span class="why" id="w-ac_warn"></span></label>
               <label class="tog"><input type="checkbox" data-opt="ac_nosave"> block saves: the save code of the cheater is not written<span class="why" id="w-ac_nosave"></span></label>
@@ -387,7 +388,7 @@
                                      'opt_small_textures', 'dds', 'opt_lossy']},
     pack: {items: ['encrypt', 'same_bytes', 'variant_header', 'variant_high_sector', 'variant_bit31']},
     decoys: {items: ['decoy_wtg', 'decoy_listfile', 'decoy_imp', 'decoy_preview', 'decoy_fill', 'bombs', 'cut_hash']},
-    ac: {main: 'anti_cheat', items: ['ac_ledger', 'ac_codes', 'ac_names', 'ac_bj', 'ac_warn', 'ac_nosave', 'ac_defeat', 'ac_end']},
+    ac: {main: 'anti_cheat', items: ['ac_ledger', 'ac_codes', 'ac_names', 'ac_bj', 'ac_globals', 'ac_warn', 'ac_nosave', 'ac_defeat', 'ac_end']},
     adv: {items: []}
   };
   function setOpen(id, on){
@@ -487,7 +488,7 @@
     opt_minify: 'Minify the JASS script', encrypt: 'Encrypt the files', same_bytes: 'Same bytes as the program',
     variant_header: 'Marker: header size', variant_high_sector: 'Marker: sector high byte',
     variant_bit31: 'Marker: block table bit31', bombs: 'Extract-all bombs', cut_hash: 'Cut the hash table',
-    ac_names: 'Anti-cheat decoy names', ac_bj: 'Anti-cheat Lua guard', pack: 'Protect (sector 512)'
+    ac_names: 'Anti-cheat decoy names', ac_bj: 'Anti-cheat Lua guard', ac_globals: 'Anti-cheat Lua global watch', pack: 'Protect (sector 512)'
   };
   function scriptOf(){ return MAPINFO && !MAPINFO.campaign ? (MAPINFO.script || null) : null; }
   function campaign(){ return !!(MAPINFO && MAPINFO.campaign); }
@@ -531,6 +532,7 @@
     ['ac_codes', function(o){ return !o.anti_cheat && R.ac; }],
     ['ac_names', function(o){ return !o.anti_cheat ? R.ac : scriptOf() === 'lua' ? R.jass : null; }],
     ['ac_bj', function(o){ return !o.anti_cheat ? R.ac : (scriptOf() === 'jass' && !o.to_lua) ? R.lua : null; }],
+    ['ac_globals', function(o){ return !o.anti_cheat ? R.ac : (scriptOf() === 'jass' && !o.to_lua) ? R.lua : null; }],
     ['ac_warn', function(o){ return !o.anti_cheat && R.ac; }],
     ['ac_nosave', function(o){ return !o.anti_cheat && R.ac; }],
     ['ac_defeat', function(o){ return !o.anti_cheat && R.ac; }],
