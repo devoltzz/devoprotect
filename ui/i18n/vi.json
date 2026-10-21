@@ -258,5 +258,7 @@
  "{0} of {1} options on": "{0} trên {1} tùy chọn đang bật",
  "rename imported files to meaningless names of the same length, everywhere they are cited": "đổi tên các tệp đã nhập thành tên vô nghĩa cùng độ dài, ở mọi nơi nhắc đến chúng",
  "remove the error messages vJass and Wurst leave in the script": "xóa các thông báo lỗi mà vJass và Wurst để lại trong script",
- "encrypt the files whose names the map gives, with the key taken from the name (sector-512 pack)": "mã hóa các tệp mà bản đồ cho biết tên, với khóa lấy từ tên (gói sector 512)"
+ "encrypt the files whose names the map gives, with the key taken from the name (sector-512 pack)": "mã hóa các tệp mà bản đồ cho biết tên, với khóa lấy từ tên (gói sector 512)",
+ "Lua global watch: reports a global that code pasted after the map creates, a global the map does not define, or a known cheat pack's name (Lua maps; not proven in the game yet)": "Giám sát biến toàn cục Lua: báo cáo biến toàn cục do mã dán sau bản đồ tạo ra, biến toàn cục mà bản đồ không định nghĩa, hoặc tên của gói cheat đã biết (bản đồ Lua; chưa được chứng minh trong game)",
+ "Anti-cheat Lua global watch": "Giám sát biến toàn cục Lua chống gian lận"
 }
