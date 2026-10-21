@@ -258,5 +258,7 @@
  "{0} of {1} options on": "{1} 個中 {0} 個のオプションがオン",
  "rename imported files to meaningless names of the same length, everywhere they are cited": "インポートしたファイルを同じ長さの意味のない名前に変え、参照しているすべての箇所も書き換える",
  "remove the error messages vJass and Wurst leave in the script": "vJass と Wurst がスクリプトに残すエラーメッセージを削除する",
- "encrypt the files whose names the map gives, with the key taken from the name (sector-512 pack)": "マップが名前を示すファイルを、名前から得たキーで暗号化する(セクター512パック)"
+ "encrypt the files whose names the map gives, with the key taken from the name (sector-512 pack)": "マップが名前を示すファイルを、名前から得たキーで暗号化する(セクター512パック)",
+ "Lua global watch: reports a global that code pasted after the map creates, a global the map does not define, or a known cheat pack's name (Lua maps; not proven in the game yet)": "Lua グローバル監視: マップの後ろに貼り付けられたコードが作ったグローバル、マップが定義していないグローバル、既知のチートパックの名前を報告する(Lua マップ。ゲーム内ではまだ未検証)",
+ "Anti-cheat Lua global watch": "アンチチート Lua グローバル監視"
 }
