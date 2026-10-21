@@ -3,6 +3,33 @@
 What each version of DevoProtect brought, the newest first. The downloads are on the
 [Releases](https://github.com/devoltzz/devoprotect/releases) page.
 
+## 0.1.10 (2026-10-21)
+
+- New in the anti-cheat, for Lua maps: a global watch (off by default, not proven in the game yet). A friend suggested
+  it: watch the map's global table for a variable it should not have. When the map script has finished loading, any
+  global created by code pasted after it is reported; while the game runs, a global the map's own code never defines
+  is reported; and the names of the public cheat packs are reported wherever they show up. It takes the list of the
+  map's globals from the script itself when you protect; a map that builds global names at run time has no reliable
+  list, so that one check is skipped and the log says why. It keeps its own copies of the functions it uses, so code pasted later
+  cannot blind it by replacing them. Command line: `--anti-cheat=ledger,codes,names,bj,globals`.
+- About the other half of that suggestion, counting a script's local variables: the Lua of Warcraft III has no
+  `debug` library and cannot read its own text (I tested it in game), so a map cannot count locals or read a cheat
+  pack's code while it runs. What a pack leaves where the map can see it is the globals it creates (the new watch),
+  the engine functions it replaces (the Lua guard) and the values it changes (the ledger). Reading a pack's code
+  directly stays a job for the protector, before the map ships: that is what the decoy names do on JASS maps.
+- Remove editor-only files, objects as SLK tables:
+  - an object whose ID differs from another only in letter case stays in the object files. The game finds a table row
+    and a profile section without looking at case, so the two became one row. The common case is the editor's first
+    custom unit `h000`, which the game data already uses as `H000`;
+  - the internal name of a unit (what `UnitId2String` returns, used by `GroupEnumUnitsOfType` and by train orders) is
+    no longer replaced with the unit's display name. A changed unit keeps the game's internal name and a new one gets
+    `custom_` and its ID, as without the conversion;
+  - a list with one model per weapon (`Missileart`) was written in quotes, which made it one value: the first weapon
+    got both paths and the second none. It is written as the game writes it now.
+  These came out of comparing the converter with a set of SLK fixes a friend made on top of W3x2lni Reforged.
+- The JASS check uses the `common.j` and `blizzard.j` of the current patch (3.0.1.24371): a map that calls one of its
+  4 new natives or uses one of its 110 new ability fields no longer fails the check.
+
 ## 0.1.9.2 (2026-10-20)
 
 - A new layout for the program and the site. Every option is on the left in groups that follow the steps: object IDs,
