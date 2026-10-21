@@ -207,9 +207,17 @@ def _route(kind, mod, txt, wts):
 
 
 class Converted(object):
-    def __init__(self, kind, objs, txt, wts, fill_levels=True):
+    def __init__(self, kind, objs, txt, wts, fill_levels=True, others=None):
         ob = _objects()
         self.kind = kind
+        letter_case = collections.defaultdict(set)
+        for i in kind.flat:
+            letter_case[i.lower()].add(i)
+        for _n, secs in kind.txt:
+            for i in secs:
+                letter_case[i.lower()].add(i)
+        for t, o, n, _m in objs:
+            letter_case[(n if t == 1 else o).lower()].add(n if t == 1 else o)
         self.rows = collections.OrderedDict()
         self.levels = {}
         self.parent = {}
@@ -231,6 +239,10 @@ class Converted(object):
                 why = 'based_on_ACac'
             elif oid in seen:
                 why = 'duplicate_id'
+            elif letter_case[oid.lower()] - {oid}:
+                why = 'id_case_conflict'
+            elif t == 1 and others and others.get(oid.lower()):
+                why = 'id_case_conflict_other_kind'
             if why:
                 self.rep['objects_kept'] += 1
                 self.kept['object_' + why] += 1
@@ -332,6 +344,11 @@ def write_slk(kind, conv):
                 for x, c in enumerate(lower, 1):
                     if x == 1:
                         cells[x] = '"%s"' % rid
+                    elif kind.species == 'unit' and c == 'name':
+                        if rid != conv.parent[rid]:
+                            cells[x] = '"custom_%s"' % rid
+                        elif x in prow:
+                            cells[x] = prow[x]
                     elif c and c in ch:
                         k = _slk_cell(kind, header[x - 1], ch[c])
                         if k is not None:
@@ -351,6 +368,8 @@ def write_slk(kind, conv):
 
 def _txt_value(kind, key, value):
     t = re.sub(r'\r\n|\r|\n', '|n', '' if value is None else str(value))
+    if ('Profile', key) in kind.multi:
+        return ','.join('"%s"' % p if p != p.strip() else p for p in t.split(','))
     mt = kind.meta_type(key)
     if (',' in t or t != t.strip()) and (mt is None or mt not in NUMBER_TYPES and not mt.endswith('List')):
         return '"%s"' % t
@@ -436,8 +455,17 @@ def convert(read, base, names=(), species=SPECIES, txt='full', fill_levels=True,
     p = progress or (lambda *_a, **_k: None)
     wts = read_wts(read)
     out = {'files': [], 'report': {}, 'skipped': {}}
+    read_count = dict((s, read_objects(read, s)) for s in species)
+    all_items = collections.defaultdict(set)
+    for s, (_v, objs, _f) in read_count.items():
+        if not objs:
+            continue
+        for t, o, n, _m in objs:
+            all_items[(n if t == 1 else o).lower()].add((s, n if t == 1 else o))
+        for i in base.table(s):
+            all_items[i.lower()].add((s, i))
     for s in species:
-        ver, objs, files = read_objects(read, s)
+        ver, objs, files = read_count[s]
         if not objs:
             out['skipped'][s] = 'no object file'
             continue
@@ -447,7 +475,8 @@ def convert(read, base, names=(), species=SPECIES, txt='full', fill_levels=True,
             continue
         p('Converting the %s objects' % s)
         kind = Kind(base, s, max_level)
-        conv = Converted(kind, objs, txt, wts, fill_levels)
+        others = dict((k, set(x for x in v if x[0] != s)) for k, v in all_items.items() if any(x[0] != s for x in v))
+        conv = Converted(kind, objs, txt, wts, fill_levels, others=others)
         mine = write_slk(kind, conv) + write_txt(kind, conv, txt)
         lvl = ob.uses_levels(ob.OBJ_KINDS[s]['map_path'])
         for f in files:
