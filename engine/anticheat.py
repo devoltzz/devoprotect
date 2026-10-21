@@ -1,7 +1,8 @@
 # The in-game anti-cheat as one step: the hook, the ledger, the cheat codes, decoy names, in order.
 
-PARTS = ('ledger', 'codes', 'decoys', 'bj')
-ORDER = {'jass': ('codes', 'ledger', 'decoys', 'bj'), 'lua': ('ledger', 'codes', 'bj', 'decoys')}
+PARTS = ('ledger', 'codes', 'decoys', 'bj', 'globals')
+STANDARD = ('ledger', 'codes', 'decoys', 'bj')
+ORDER = {'jass': ('codes', 'ledger', 'decoys', 'bj', 'globals'), 'lua': ('ledger', 'codes', 'globals', 'bj', 'decoys')}
 CODES_MODES = ('auto', 'humans', 'reload', 'humans+reload')
 
 
@@ -20,13 +21,16 @@ def _part(fname, body_text, language, hook, options, ref=None):
     if fname == 'bj':
         import anticheat_bj_lua
         return anticheat_bj_lua.inject(body_text, language, hook=hook, stub=False, ref=ref)
+    if fname == 'globals':
+        import anticheat_globals_lua
+        return anticheat_globals_lua.inject(body_text, language, hook=hook, stub=False, ref=ref)
     raise ValueError('piece %r: not one of %s' % (fname, ', '.join(PARTS)))
 
 
 def _effect(fname, details):
     if fname == 'decoys':
         return bool(details.get('applied')), details.get('why')
-    if fname == 'bj':
+    if fname in ('bj', 'globals'):
         return bool(details.get('changed')), details.get('why')
     if fname == 'codes' and details.get('already_injected'):
         return False, 'already injected'
@@ -36,7 +40,7 @@ def _effect(fname, details):
 def normalize(op):
     import anticheat_policy
     op = dict(op or {})
-    pieces = tuple(op.get('pieces') or PARTS)
+    pieces = tuple(op.get('pieces') or STANDARD)
     bad_ones = sorted(set(pieces) - set(PARTS))
     if bad_ones:
         raise SystemExit('anti-cheat piece %s: not one of %s' % (', '.join(bad_ones), ', '.join(PARTS)))
@@ -65,7 +69,7 @@ def normalize(op):
     }
 
 
-def applies(body_text, language, pieces=PARTS, action_codes=('warn',), gold_jump=400, codes_mode='auto', per_pack=4,
+def applies(body_text, language, pieces=STANDARD, action_codes=('warn',), gold_jump=400, codes_mode='auto', per_pack=4,
             hook=None, ref=None):
     import anticheat_policy
     hook = hook or anticheat_policy.HOOK
