@@ -258,5 +258,7 @@
  "{0} of {1} options on": "已開啟 {0} / {1} 個選項",
  "rename imported files to meaningless names of the same length, everywhere they are cited": "將匯入的檔案重新命名為同樣長度的無意義名稱，所有引用處一併修改",
  "remove the error messages vJass and Wurst leave in the script": "移除 vJass 和 Wurst 留在指令碼中的錯誤訊息",
- "encrypt the files whose names the map gives, with the key taken from the name (sector-512 pack)": "加密地圖給出名稱的檔案，金鑰取自檔名（sector 512 封裝）"
+ "encrypt the files whose names the map gives, with the key taken from the name (sector-512 pack)": "加密地圖給出名稱的檔案，金鑰取自檔名（sector 512 封裝）",
+ "Lua global watch: reports a global that code pasted after the map creates, a global the map does not define, or a known cheat pack's name (Lua maps; not proven in the game yet)": "Lua 全域變數監視：回報貼在地圖之後的程式碼所建立的全域變數、地圖未定義的全域變數，或已知作弊包的名稱（Lua 地圖；尚未在遊戲中驗證）",
+ "Anti-cheat Lua global watch": "防作弊 Lua 全域變數監視"
 }
