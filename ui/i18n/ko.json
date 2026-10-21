@@ -258,5 +258,7 @@
  "{0} of {1} options on": "옵션 {1}개 중 {0}개 켜짐",
  "rename imported files to meaningless names of the same length, everywhere they are cited": "임포트한 파일을 같은 길이의 의미 없는 이름으로 바꾸고, 그 파일을 가리키는 모든 곳도 함께 바꿈",
  "remove the error messages vJass and Wurst leave in the script": "vJass와 Wurst가 스크립트에 남기는 오류 메시지 제거",
- "encrypt the files whose names the map gives, with the key taken from the name (sector-512 pack)": "맵이 이름을 알려 주는 파일을 이름에서 얻은 키로 암호화 (섹터 512 묶기)"
+ "encrypt the files whose names the map gives, with the key taken from the name (sector-512 pack)": "맵이 이름을 알려 주는 파일을 이름에서 얻은 키로 암호화 (섹터 512 묶기)",
+ "Lua global watch: reports a global that code pasted after the map creates, a global the map does not define, or a known cheat pack's name (Lua maps; not proven in the game yet)": "Lua 전역 변수 감시: 맵 뒤에 붙여 넣은 코드가 만든 전역 변수, 맵이 정의하지 않은 전역 변수, 알려진 치트 팩의 이름을 보고합니다 (Lua 맵; 게임에서 아직 검증되지 않음)",
+ "Anti-cheat Lua global watch": "치트 방지 Lua 전역 변수 감시"
 }
