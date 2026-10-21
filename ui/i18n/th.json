@@ -258,5 +258,7 @@
  "{0} of {1} options on": "เปิดอยู่ {0} จาก {1} ตัวเลือก",
  "rename imported files to meaningless names of the same length, everywhere they are cited": "เปลี่ยนชื่อไฟล์ที่อิมพอร์ตเป็นชื่อไร้ความหมายที่ยาวเท่าเดิม ในทุกที่ที่อ้างถึง",
  "remove the error messages vJass and Wurst leave in the script": "ลบข้อความแจ้งข้อผิดพลาดที่ vJass และ Wurst ทิ้งไว้ในสคริปต์",
- "encrypt the files whose names the map gives, with the key taken from the name (sector-512 pack)": "เข้ารหัสไฟล์ที่แมประบุชื่อไว้ โดยใช้คีย์ที่ได้จากชื่อ (แพ็กแบบ sector 512)"
+ "encrypt the files whose names the map gives, with the key taken from the name (sector-512 pack)": "เข้ารหัสไฟล์ที่แมประบุชื่อไว้ โดยใช้คีย์ที่ได้จากชื่อ (แพ็กแบบ sector 512)",
+ "Lua global watch: reports a global that code pasted after the map creates, a global the map does not define, or a known cheat pack's name (Lua maps; not proven in the game yet)": "ตัวเฝ้าตัวแปรโกลบอล Lua: รายงานตัวแปรโกลบอลที่โค้ดซึ่งวางต่อท้ายแมปสร้างขึ้น ตัวแปรโกลบอลที่แมปไม่ได้กำหนด หรือชื่อของแพ็กโกงที่รู้จัก (แมป Lua; ยังไม่พิสูจน์ในเกม)",
+ "Anti-cheat Lua global watch": "ตัวเฝ้าตัวแปรโกลบอล Lua ป้องกันการโกง"
 }
