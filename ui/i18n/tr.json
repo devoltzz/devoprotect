@@ -258,5 +258,7 @@
  "{0} of {1} options on": "{1} seçenekten {0} tanesi açık",
  "rename imported files to meaningless names of the same length, everywhere they are cited": "içe aktarılan dosyaları, anıldıkları her yerde, aynı uzunlukta anlamsız adlarla yeniden adlandır",
  "remove the error messages vJass and Wurst leave in the script": "vJass ve Wurst'ün scriptte bıraktığı hata mesajlarını kaldır",
- "encrypt the files whose names the map gives, with the key taken from the name (sector-512 pack)": "haritanın adını verdiği dosyaları, anahtarı addan alınarak şifrele (sector-512 paketi)"
+ "encrypt the files whose names the map gives, with the key taken from the name (sector-512 pack)": "haritanın adını verdiği dosyaları, anahtarı addan alınarak şifrele (sector-512 paketi)",
+ "Lua global watch: reports a global that code pasted after the map creates, a global the map does not define, or a known cheat pack's name (Lua maps; not proven in the game yet)": "Lua global izleme: harita sonrasına yapıştırılan kodun oluşturduğu bir global'i, haritanın tanımlamadığı bir global'i veya bilinen bir hile paketinin adını bildirir (Lua haritaları; oyunda henüz kanıtlanmadı)",
+ "Anti-cheat Lua global watch": "Hile karşıtı Lua global izleme"
 }
