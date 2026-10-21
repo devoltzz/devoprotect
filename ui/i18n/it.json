@@ -258,5 +258,7 @@
  "{0} of {1} options on": "{0} opzioni su {1} attive",
  "rename imported files to meaningless names of the same length, everywhere they are cited": "rinomina i file importati con nomi senza senso della stessa lunghezza, ovunque siano citati",
  "remove the error messages vJass and Wurst leave in the script": "rimuovi i messaggi di errore che vJass e Wurst lasciano nello script",
- "encrypt the files whose names the map gives, with the key taken from the name (sector-512 pack)": "cifra i file di cui la mappa dà il nome, con la chiave ricavata dal nome (pacchetto a settori da 512)"
+ "encrypt the files whose names the map gives, with the key taken from the name (sector-512 pack)": "cifra i file di cui la mappa dà il nome, con la chiave ricavata dal nome (pacchetto a settori da 512)",
+ "Lua global watch: reports a global that code pasted after the map creates, a global the map does not define, or a known cheat pack's name (Lua maps; not proven in the game yet)": "Sorveglianza dei globali Lua: segnala un globale creato da codice incollato dopo la mappa, un globale che la mappa non definisce o il nome di un cheat pack noto (mappe Lua; non ancora provato nel gioco)",
+ "Anti-cheat Lua global watch": "Sorveglianza dei globali Lua anti-cheat"
 }
