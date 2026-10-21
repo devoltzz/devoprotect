@@ -55,7 +55,8 @@ STEP_KEYS = {
 BLOCKS = ('w3i', 'wtg', 'extra', 'units', 'doo', 'w3r')
 DECOYS = {'wtg': 'wtg', 'listfile': 'listfile', 'imp': 'imp', 'preview': 'preview', 'fill': 'fill'}
 VARIANTS = {'header': 'header_text', 'high_sector': 'high-sector', 'bit31': 'bit31'}
-AC_PARTS = {'ledger': 'ledger', 'codes': 'codes', 'names': 'decoys', 'bj': 'bj'}
+AC_PARTS = {'ledger': 'ledger', 'codes': 'codes', 'names': 'decoys', 'bj': 'bj', 'globals': 'globals'}
+AC_OFF = ('globals',)
 AC_ACTIONS = ('warn', 'nosave', 'defeat', 'end')
 AC_CODES_MODES = {'auto': 'auto', 'humans': 'humans', 'reload': 'reload', 'humans+reload': 'humans+reload'}
 MODELS = {'lossless': 'lossless_keys', 'lossy': 'lossy_keys'}
@@ -112,7 +113,9 @@ def recipe_kwargs(options):
     anti_cheat = None
     if o.get('anti_cheat'):
         anti_cheat = {
-            'pieces': [internal for public, internal in AC_PARTS.items() if o.get('ac_' + public, True)],
+            'pieces': [
+                internal for public, internal in AC_PARTS.items() if o.get('ac_' + public, public not in AC_OFF)
+            ],
             'action_codes': [a for a in AC_ACTIONS if o.get('ac_' + a, a == 'warn')],
             'gold_jump': o.get('ac_gold_jump') or 400,
             'codes_mode': AC_CODES_MODES.get(o.get('ac_codes_mode') or 'auto', 'auto'),
@@ -155,6 +158,7 @@ def default_options():
             'opt_tga_png': False, 'opt_small_textures': False, 'opt_texture_min_side': TEXTURE_MIN_SIDES[1],
             'dds': False, 'bombs': False, 'cut_hash': False, 'to_slk': False,
             'anti_cheat': False, 'ac_ledger': True, 'ac_codes': True, 'ac_names': True, 'ac_bj': True,
+            'ac_globals': False,
             'ac_warn': True, 'ac_nosave': False, 'ac_defeat': False, 'ac_end': False, 'ac_gold_jump': 400,
             'ac_codes_mode': 'auto'}
 
