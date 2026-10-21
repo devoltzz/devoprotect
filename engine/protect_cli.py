@@ -93,13 +93,17 @@ Options (each toggle of each step; default: full protection, ASCII IDs, no decoy
     --dds                                      convert .dds textures to BLP (smaller, native) and repoint references
 
   In-game anti-cheat (off by default):
-    --anti-cheat[=ledger,codes,names,bj]       add it. Pieces (default: all four): ledger = gold, lumber, hero
+    --anti-cheat[=ledger,codes,names,bj,globals]
+                                               add it. Pieces (default: the first four): ledger = gold, lumber, hero
                                                level, attributes, skill points, XP handicap and research that no call
                                                of the map explains are undone and reported; codes = the game's own
                                                cheat codes, in single player; names = decoy names of the public cheat
                                                packs, so a pack pasted by hand does not compile (JASS); bj = Lua
                                                guard: the engine functions a Lua cheat pack replaces are restored and a
-                                               replaced main is reported (Lua)
+                                               replaced main is reported (Lua); globals = Lua global watch: a global
+                                               created by code pasted after the map script, a global the map does not
+                                               define, or a public cheat pack's name is reported (Lua; not proven in
+                                               the game yet, only when named)
     --anti-cheat-actions=warn,nosave,defeat,end   what to do when a cheat is found (default: warn). warn = tell
                                                everyone; nosave = the map's PreloadGenEnd calls write nothing for the
                                                cheater; defeat = defeat the cheater; end = end the game. When the map
@@ -213,7 +217,7 @@ def parse_options(argv, extra_value=(), extra_bare=()):
             raise ValueError('--anti-cheat-gold-jump needs a whole number of 1 or more, not %r' % jump)
         o['anti_cheat'] = True
         for k in protect_app.AC_PARTS:
-            o['ac_' + k] = not parts or k in parts
+            o['ac_' + k] = (k in parts) if parts else (k not in protect_app.AC_OFF)
         for k in protect_app.AC_ACTIONS:
             o['ac_' + k] = k in actions
         o['ac_gold_jump'] = int(jump)
@@ -305,7 +309,7 @@ def parse_options(argv, extra_value=(), extra_bare=()):
     return o, warnings
 
 
-def main(argv=None, version='0.1.9.2'):
+def main(argv=None, version='0.1.10'):
     import protect_app
     argv = sys.argv[1:] if argv is None else list(argv)
     try:
