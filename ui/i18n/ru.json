@@ -258,5 +258,7 @@
  "{0} of {1} options on": "включено параметров: {0} из {1}",
  "rename imported files to meaningless names of the same length, everywhere they are cited": "переименовать импортированные файлы в бессмысленные имена той же длины везде, где на них ссылаются",
  "remove the error messages vJass and Wurst leave in the script": "удалить сообщения об ошибках, которые vJass и Wurst оставляют в скрипте",
- "encrypt the files whose names the map gives, with the key taken from the name (sector-512 pack)": "зашифровать файлы, имена которых даёт карта, ключом из имени (пакет с секторами 512)"
+ "encrypt the files whose names the map gives, with the key taken from the name (sector-512 pack)": "зашифровать файлы, имена которых даёт карта, ключом из имени (пакет с секторами 512)",
+ "Lua global watch: reports a global that code pasted after the map creates, a global the map does not define, or a known cheat pack's name (Lua maps; not proven in the game yet)": "Слежение за глобалами Lua: сообщает о глобальной переменной, созданной кодом, вставленным после карты, о глобальной переменной, которой нет в карте, или об имени известного чит-пакета (карты на Lua; в игре пока не проверено)",
+ "Anti-cheat Lua global watch": "Слежение за глобалами Lua от читов"
 }
