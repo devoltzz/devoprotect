@@ -1,7 +1,10 @@
 # Assembles the port layer: the JASS parts that give the platform natives a body on Warcraft III 3.0.
+import os
 import re
 
 
+HERE = os.path.dirname(os.path.abspath(__file__))
+KK_COMPAT = os.environ.get('KK_COMPAT_DIR') or os.path.join(HERE, 'compat')
 KW_JASS = set("""if and or not return function then else elseif endif loop endloop exitwhen set call
 local globals endglobals takes returns nothing array constant native type extends debug in null true
 false endfunction""".split())
