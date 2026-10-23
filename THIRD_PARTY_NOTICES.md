@@ -304,6 +304,13 @@ freely, subject to the following restrictions:
 3. This notice may not be removed or altered from any source distribution.
 ```
 
+## Tinker
+
+Tinker, by DooMWhite, reimplements the Warcraft Feature Extender for Warcraft III 1.26 and 1.28. The map size limits
+of the classic game in `engine/map_size.py` (where Game.dll checks the size of a map, and that the check only applies
+to a game with other players), behind the warning for a classic map that grows past them, come from DooMWhite's
+reverse engineering in Tinker, used with permission.
+
 ## Warcraft III files
 
 `engine/ref/3.0/common.j` and `engine/ref/3.0/blizzard.j` are the game's own script declarations, and
