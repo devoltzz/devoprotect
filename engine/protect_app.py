@@ -416,6 +416,8 @@ def report_lines(report):
         if p.get('summary'):
             txt += ' - ' + p['summary']
         out.append((style, txt))
+    for a in report.get('warnings') or []:
+        out.append(('warn', 'WARNING: %s' % a))
     return out
 
 
