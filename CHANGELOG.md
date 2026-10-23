@@ -3,6 +3,16 @@
 What each version of DevoProtect brought, the newest first. The downloads are on the
 [Releases](https://github.com/devoltzz/devoprotect/releases) page.
 
+## 0.1.11 (2026-10-23)
+
+- A warning when a classic map ends up too big to play with other people. Warcraft III 1.24 to 1.27a only send a map of
+  up to 8 MB to the other players of a game (1.27b and later, up to 128 MB); played alone or against computers, any size
+  opens. The decoys and the sector-512 pack make a map bigger, so a 7.9 MB map could come out above 8 MB and nobody
+  could join a game with it, with nothing saying so. Now the report says it, with the size of the original map. It only
+  shows for maps in the classic format (not for a map converted to Lua or saved by the Reforged editor). I measured the
+  limits in the game itself; where the game checks the size comes from the reverse engineering DooMWhite did in Tinker,
+  used with permission (credited in the third-party notices).
+
 ## 0.1.10 (2026-10-21)
 
 - New in the anti-cheat, for Lua maps: a global watch (off by default, not proven in the game yet). A friend suggested
