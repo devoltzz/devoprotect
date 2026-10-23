@@ -591,8 +591,28 @@ def _guard(fn, entry, output, kw):
             shutil.rmtree(tmp, ignore_errors=True)
 
 
+def _size_warning(entry, output, details):
+    import editor_lock
+    import map_size
+    import mpqread
+    if not os.path.isfile(output) or any(p.get('step') == 'lua' and p.get('status') == 'ok'
+                                         for p in details.get('steps', [])):
+        return None
+    try:
+        w3i = editor_lock._read(mpqread.Archive(entry), 'war3map.w3i')
+    except Exception:
+        return None
+    if not w3i:
+        return None
+    return map_size.classic_warning(os.path.getsize(output), os.path.getsize(entry), w3i)
+
+
 def recipe(entry, output, **kw):
-    return _guard(_recipe, entry, output, kw)
+    details = _guard(_recipe, entry, output, kw)
+    warning = _size_warning(entry, output, details)
+    if warning:
+        details.setdefault('warnings', []).append(warning)
+    return details
 
 
 def campaign(entry, output, **kw):
