@@ -315,4 +315,6 @@ reverse engineering in Tinker, used with permission.
 
 `engine/ref/3.0/common.j` and `engine/ref/3.0/blizzard.j` are the game's own script declarations, and
 `engine/game_triggerdata.txt` is the game's `UI/TriggerData.txt`, by Blizzard Entertainment: pjass checks a script
-against the first two, and the ID shuffle reads the trigger file's function list to rewrite a map's triggers.
+against the first two, and the ID shuffle reads the trigger file's function list to rewrite a map's triggers. The
+`common.j`, `blizzard.j` and `common.ai` under `engine/ref/1.24` and `engine/ref/1.29` are the same files of the classic
+game, which pjass uses for a map made for those versions.
