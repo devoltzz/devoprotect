@@ -34,11 +34,11 @@ def _jass(action_codes, hook, prefix, map_hook):
          '    string array %sqm' % P,
          '    integer %sqn = 0' % P,
          '    boolean %spend = false' % P,
-         '    timer %st = null' % P]
+         '    timer %st = CreateTimer()' % P]
     if defeat:
         g.append('    boolean array %sdq' % P)
     if end_pos:
-        g += ['    boolean %sended = false' % P, '    boolean %sendq = false' % P, '    timer %ste = null' % P]
+        g += ['    boolean %sended = false' % P, '    boolean %sendq = false' % P, '    timer %ste = CreateTimer()' % P]
     f = []
     f.append(
         'function %sSlot takes player p returns integer\n'
@@ -205,7 +205,8 @@ def _lua(action_codes, hook, prefix, map_hook):
     L = ['-- DevoProtect anti-cheat: what to do when something is found',
          '%s = (function()' % hook,
          '    local flag, said, dq, qm = {}, {}, {}, {}',
-         '    local pend, ended, endq, t, te = false, false, false, nil, nil',
+         '    local pend, ended, endq = false, false, false',
+         '    local t, te = CreateTimer(), %s' % ('CreateTimer()' if 'end' in action_codes else 'nil'),
          '    local function slot(p) if p == nil then return %d end return GetPlayerId(p) end' % SLOTS,
          '    local function msg(p, kind, detail)',
          '        if p == nil then return "|cffff3333[Anti-cheat]|r The map was modified (" .. detail .. ")." end',
