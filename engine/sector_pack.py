@@ -175,9 +175,9 @@ def special_key(b, off, sector_bytes, htab, bi, fpos, csize, fsize, flags, pairs
     return None
 
 
-def header_text(b):
+def header_text(b, fname=None):
     import mpqlib
-    h, _skipped = mpqlib.find_header(b)
+    h, _skipped = mpqlib.find_header(b, fname=fname)
     if h is None:
         raise SystemExit('MPQ signature not found (mpqlib.find_header)')
     return h.offset, struct.unpack_from(HDR, b, h.offset)
@@ -787,11 +787,11 @@ def _cut_gate(htab, btab, bcount):
                          'would eat a real file): use another map' % bi_m)
 
 
-def cut_hash(b, to_verify=True, stats=None, log=_log):
+def cut_hash(b, to_verify=True, stats=None, log=_log, fname=None):
     t0 = time.time()
     details = stats if stats is not None else {}
     import mpqlib
-    off, field_list = header_text(b)
+    off, field_list = header_text(b, fname=fname)
     magic, hsize, asize, ver, bshift, hoff, boff, hcount, bcount = field_list
     if ver != 0:
         raise SystemExit('cut-hash: MPQ version %d: this cut only handles version 1' % (ver + 1))
