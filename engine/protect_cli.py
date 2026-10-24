@@ -45,6 +45,14 @@ Options (each toggle of each step; default: full protection, ASCII IDs, no decoy
     --cut-hash                                 cut the hash table: MPQ Editor and StormLib open the map read-only
                                                (they list and extract, but cannot edit it); the game plays it
                                                unchanged. Not with --variant=bit31
+    --mpq-barrier=bitmap,header-128mib         MPQ barriers added at the very end (off by default; single maps,
+                                               not campaigns). bitmap: a block bitmap at the end of the file;
+                                               MPQ Editor does not open the map (its v1 mode opens it read-only),
+                                               a few bytes. header-128mib: the archive moved to 128 MiB into the
+                                               file; MPQ Editor does not open it even in v1 mode, and the map
+                                               grows by about 128 MB. Both load in Reforged. With the sector-512
+                                               pack MPQ Editor already refuses the map: they matter most with
+                                               --skip=pack
     --ids-non-ascii                            non-printable object IDs (control characters)
     --to-lua                                   convert a JASS script to Lua first (the map then needs 1.31+)
     --to-slk                                   convert the object data to the game's SLK tables (fewer objects are
@@ -54,18 +62,23 @@ Options (each toggle of each step; default: full protection, ASCII IDs, no decoy
                                                from protect.devoltz.party once (1.2 MB, checked) and kept
     --game=<folder>                            the Warcraft III folder (or a tables pack folder) for --to-slk
     --lua-layers=N                             loader layers for Lua maps (default 2)
-    --blp                                      lossless BLP re-optimization in the protect pack (sector 512)
+    --no-blp                                   keep the BLP textures as they are. By default the BLP JPEG textures are
+                                               rewritten without loss (the same pixels, a smaller map), with either
+                                               final pack (--no-blp-opt still works and means the same)
     --seed=N                                   shuffle seed (default: from the map's sha256)
     --previous-key=<tsv>                       the ID key of the PREVIOUS release of this map: every object that
                                                exists in both keeps the same shuffled ID (save codes keep working);
                                                only new objects are drawn. Campaign: the previous keys folder
 
   Optimize size (a step before the final pack; the final pack is the sector-512 protect, or none with --skip=pack):
-    --optimize                                 turn the step on. With the sector-512 pack it rewrites the BLP
-                                               textures without loss (that pack already recompresses every sector
-                                               and stores identical files once); with --skip=pack it repacks the
-                                               map with 64 KB sectors, the smallest it gets
-    --no-recompress / --no-dedup / --no-blp-opt   turn off a part of the optimize step (all on by default;
+    --no-optimize                              turn the step off. It is on by default with its lossless parts: the
+                                               files the game never reads are removed and the JASS script loses the
+                                               code nothing runs; with --skip=pack it also repacks the map with 64 KB
+                                               sectors, the smallest it gets (--optimize is still accepted)
+    --keep-unused                              keep the files the game never reads (imported files that nothing in
+                                               the map uses; removed by default, each one listed in the report)
+    --no-minify                                keep the JASS script's dead code (removed by default)
+    --no-recompress / --no-dedup               turn off a part of the optimize step (both on by default;
                                                the sector-512 pack always recompresses and dedups)
     --lossy                                    only for a map above the game's 512 MiB limit: textures at half size
                                                and WAV sounds mono 22 kHz, until it fits
@@ -76,9 +89,9 @@ Options (each toggle of each step; default: full protection, ASCII IDs, no decoy
     --mp3[=32|48|64|96|128]                    re-encode the MP3 sounds in mono, 22 kHz, at that rate in kbps (64 by
                                                default). The big gain in a map with music, but it loses quality.
                                                Needs ffmpeg on the PATH, or --ffmpeg=<path to ffmpeg>
-    --minify                                   minify the JASS script before the obfuscator: unreachable functions and
-                                               unused globals out, constants written in; with --skip=obfuscate it
-                                               also shortens the names
+    --minify                                   (on by default) minify the JASS script before the obfuscator:
+                                               unreachable functions and unused globals out, constants written in;
+                                               with --skip=obfuscate it also shortens the names
     --tga-png                                  convert the imported .tga and .png images to BLP and repoint every
                                                reference: the palette without loss when the image has 256 colors or
                                                fewer, else JPEG at high quality, and only when it is smaller in the
@@ -123,7 +136,7 @@ def _opt(argv, name, default=None):
     return default
 
 
-VALUE_FLAGS = ('skip', 'block', 'decoys', 'variant', 'lua-layers', 'seed', 'previous-key', 'game',
+VALUE_FLAGS = ('skip', 'block', 'decoys', 'variant', 'mpq-barrier', 'lua-layers', 'seed', 'previous-key', 'game',
                'anti-cheat-actions', 'anti-cheat-gold-jump', 'anti-cheat-codes-mode', 'ffmpeg', 'preset', 'save-preset')
 OPTIONAL_VALUE_FLAGS = ('anti-cheat', 'models', 'mp3', 'smaller-textures')
 BARE_FLAGS = (
@@ -131,7 +144,11 @@ BARE_FLAGS = (
     'to-lua',
     'to-slk',
     'blp',
+    'no-blp',
     'optimize',
+    'no-optimize',
+    'keep-unused',
+    'no-minify',
     'no-recompress',
     'no-dedup',
     'no-blp-opt',
@@ -193,6 +210,7 @@ def parse_options(argv, extra_value=(), extra_bare=()):
     block = names_of('block', protect_app.BLOCKS)
     decoys = names_of('decoys', tuple(protect_app.DECOYS))
     variant = names_of('variant', tuple(k.replace('_', '-') for k in protect_app.VARIANTS))
+    barrier = names_of('mpq-barrier', tuple(k.replace('_', '-') for k in protect_app.BARRIERS))
     ac_flags = [a for a in argv if a.startswith('--anti-cheat-')]
     anti_cheat = any(a == '--anti-cheat' or a.startswith('--anti-cheat=') for a in argv)
     if ac_flags and not anti_cheat:
@@ -248,12 +266,20 @@ def parse_options(argv, extra_value=(), extra_bare=()):
             o.pop('variant_' + k, None)
     for k in variant:
         o['variant_' + k.replace('-', '_')] = True
-    bare = [
-        f for f in ('--lossy', '--no-recompress', '--no-dedup', '--no-blp-opt', '--minify', '--tga-png') if f in argv
-    ]
+    if _opt(argv, 'mpq-barrier') is not None:
+        for k in protect_app.BARRIERS:
+            o['barrier_' + k] = False
+    for k in barrier:
+        o['barrier_' + k.replace('-', '_')] = True
+    bare = [f for f in ('--lossy', '--no-recompress', '--no-dedup', '--minify', '--tga-png', '--keep-unused',
+                        '--no-minify') if f in argv]
     content = [f for f in ('--models', '--mp3', '--ffmpeg', '--smaller-textures')
                if any(a == f or a.startswith(f + '=') for a in argv)]
-    optimize = '--optimize' in argv or bool(o.get('optimize'))
+    if '--optimize' in argv and '--no-optimize' in argv:
+        raise ValueError('--optimize and --no-optimize contradict each other: give one of them')
+    optimize = '--optimize' in argv or (bool(o.get('optimize')) and '--no-optimize' not in argv)
+    if '--minify' in argv and '--no-minify' in argv:
+        raise ValueError('--minify and --no-minify contradict each other: give one of them')
     if (bare or content) and not optimize:
         warnings.append('%s only work with --optimize: ignored' % ' '.join(bare + content))
     models = _opt(argv, 'models', 'lossless' if '--models' in argv else None)
@@ -268,18 +294,27 @@ def parse_options(argv, extra_value=(), extra_bare=()):
         raise ValueError('--smaller-textures: %s is not one of %s (pixels)' % (small, ', '.join(str(k) for k in sides)))
     for flag, key in ON_FLAGS:
         o[key] = '--' + flag in argv or bool(o.get(key))
+    no_blp_flags = [f for f in ('--no-blp', '--no-blp-opt') if f in argv]
+    if no_blp_flags and '--blp' in argv:
+        raise ValueError('--blp and %s contradict each other: give one of them' % no_blp_flags[0])
+    if no_blp_flags:
+        o['blp'] = False
     if '--encrypt-files' in argv and 'pack' in skip:
         warnings.append('--encrypt-files only works with the sector-512 pack: ignored with --skip=pack')
     if _opt(argv, 'game') is not None:
         o['game'] = _opt(argv, 'game')
+    if not optimize:
+        o['optimize'] = False
     if optimize:
         o['optimize'] = True
+        if '--keep-unused' in argv:
+            o['opt_unused'] = False
+        if '--no-minify' in argv:
+            o['opt_minify'] = False
         if '--no-recompress' in argv:
             o['opt_recompress'] = False
         if '--no-dedup' in argv:
             o['opt_dedup'] = False
-        if '--no-blp-opt' in argv:
-            o['opt_blp'] = False
         if '--lossy' in argv:
             o['opt_lossy'] = True
         if models is not None:
@@ -299,9 +334,9 @@ def parse_options(argv, extra_value=(), extra_bare=()):
             o['ffmpeg'] = _opt(argv, 'ffmpeg')
     for p in skip:
         o[p] = False
-    no_512 = [f for f in ('--variant', '--blp') if any(a == f or a.startswith(f + '=') for a in argv)]
+    no_512 = [f for f in ('--variant',) if any(a == f or a.startswith(f + '=') for a in argv)]
     if no_512 and 'pack' in skip:
-        warnings.append('%s ignored: they only apply to the sector-512 repack, which is skipped' % ' '.join(no_512))
+        warnings.append('%s ignored: it only applies to the sector-512 repack, which is skipped' % ' '.join(no_512))
     only_64k = [f for f in ('--no-recompress', '--no-dedup') if f in argv]
     if only_64k and o.get('optimize') and 'pack' not in skip:
         warnings.append('%s ignored: the sector-512 pack always recompresses every sector and stores identical files '
@@ -353,6 +388,9 @@ def main(argv=None, version='0.1.10'):
         print('map not found: %s' % map_path)
         return 2
     out_path = args[1] if len(args) > 1 else None
+    if any(o.get(k) for k in ('opt_models', 'opt_mp3', 'dds', 'opt_tga_png', 'opt_small_textures')):
+        for w in protect_app.option_warnings(o, protect_app.inspect_map(map_path)):
+            print('WARNING: %s' % w)
     job = {'task': 'protect', 'map': map_path, 'out': out_path, 'options': o}
     state = {'ok': False}
 
