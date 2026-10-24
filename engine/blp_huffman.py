@@ -6,7 +6,7 @@ from array import array
 
 
 SOF_NOT_BASELINE = {0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF}
-VERSION = 'blp_huffman/1'
+VERSION = 'blp_huffman/2'
 
 
 class _LeBits:
@@ -472,12 +472,15 @@ def otimiza_blp(c, proof=True):
     if not ent:
         return None, 'no mipmap'
     pos = 160 + hsz
+    joined = False
     for o, s in ent:
-        if o != pos:
-            return None, 'layout not contiguous'
-        pos += s
-    if pos != len(c):
-        return None, 'sobra no fim'
+        if o < pos:
+            return None, 'mipmaps overlap'
+        if o + s > len(c):
+            return None, 'a mipmap goes past the end'
+        joined = joined or o != pos
+        pos = o + s
+    joined = joined or pos != len(c)
     jpegs = {e: hdr + c[e[0]:e[0] + e[1]] for e in ent}
     try:
         an = {e: analyze(j) for e, j in jpegs.items()}
@@ -528,5 +531,5 @@ def otimiza_blp(c, proof=True):
     struct.pack_into('<16I', out, 92, *nms)
     if len(out) >= len(c):
         return None, 'did not get smaller'
-    return bytes(out), 'ok, ' + method
+    return bytes(out), 'ok, ' + method + (', mipmaps joined' if joined else '')
 
