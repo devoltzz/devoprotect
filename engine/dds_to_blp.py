@@ -84,6 +84,9 @@ def _call_of(toks, i):
 
 
 def built_prefixes(script, type_name):
+    if type_name not in _RX_BUILT:
+        _RX_BUILT[type_name] = re.compile(rb'(?:(?:\+|\.\.)\s*["\'][^"\'\r\n]*|["\'])\.' + re.escape(type_name.encode())
+                                          + rb'["\']', re.IGNORECASE)
     matches = list(_RX_BUILT[type_name].finditer(script))
     if not matches:
         return None
@@ -370,7 +373,7 @@ def converte(entry, output, only_smaller=False, log=print, types=('dds',), secto
     for n in name_list:
         if n.lower() in to_delete_low:
             continue
-        dd = b.read(n)
+        dd = editor_lock._read(b, n)
         if dd and rx_trocados.search(dd):
             mentions.append((n, dd))
     pend = []
