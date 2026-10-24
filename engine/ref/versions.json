@@ -1,0 +1,60 @@
+{
+ "scripts": {
+  "1.24": {
+   "common.j": "e688c3b3d5f18578c75bd3881d6e05ae7ce04864",
+   "blizzard.j": "72f6967d00e377be81a3c77118dcf0168aaedf75",
+   "common.ai": "51673027c6fdc8a9b4ae3c76ed537601168b6f97"
+  },
+  "1.29": {
+   "common.j": "99a1bb12048d3cceecf6f00b67e4f007fe0fa628",
+   "blizzard.j": "81b7dac16a32db0844a7fba259f717db63cd2b40",
+   "common.ai": "51673027c6fdc8a9b4ae3c76ed537601168b6f97"
+  }
+ },
+ "versions": {
+  "1.24a": {
+   "scripts": "1.24",
+   "range": "1.24-1.28"
+  },
+  "1.24b": {
+   "scripts": "1.24",
+   "range": "1.24-1.28"
+  },
+  "1.24c": {
+   "scripts": "1.24",
+   "range": "1.24-1.28"
+  },
+  "1.24d": {
+   "scripts": "1.24",
+   "range": "1.24-1.28"
+  },
+  "1.24e": {
+   "scripts": "1.24",
+   "range": "1.24-1.28"
+  },
+  "1.25b": {
+   "scripts": "1.24",
+   "range": "1.24-1.28"
+  },
+  "1.26a": {
+   "scripts": "1.24",
+   "range": "1.24-1.28"
+  },
+  "1.27a": {
+   "scripts": "1.24",
+   "range": "1.24-1.28"
+  },
+  "1.27b": {
+   "scripts": "1.24",
+   "range": "1.24-1.28"
+  },
+  "1.28.5": {
+   "scripts": "1.24",
+   "range": "1.24-1.28"
+  },
+  "1.29.2": {
+   "scripts": "1.29",
+   "range": "1.29"
+  }
+ }
+}
