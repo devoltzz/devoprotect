@@ -114,6 +114,10 @@ def _lookup2(k):
     return c - 0x100000000 if c >= 0x80000000 else c
 
 
+def signed(v):
+    return v - 0x100000000 if v >= 0x80000000 else v
+
+
 for _t, _v in MEASURED_IN_GAME:
     assert hybrid_stringhash(_t) == _v, (_t, _v)
     assert (hybrid_stringhash(_t, dobra=False) == _v) == (_t.upper() == _t), (_t, _v)
