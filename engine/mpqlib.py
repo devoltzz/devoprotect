@@ -126,6 +126,37 @@ def hashstr(s, ht, bar=False):
     return s1
 
 
+def hashstr_batch(name_list, ht, bar=False):
+    native = None if bar else (_NATIVE_HASH[0] if _NATIVE_HASH[0] is not None else _native_hash())
+    try:
+        import numpy as np
+    except ImportError:
+        if native:
+            return list(native[1]([bytes(n) for n in name_list], ht))
+        return [hashstr(n, ht, bar) for n in name_list]
+    if native:
+        return np.frombuffer(native[1]([bytes(n) for n in name_list], ht), dtype=np.uint32)
+    out = np.zeros(len(name_list), dtype=np.uint32)
+    by_size = {}
+    for i, b in enumerate(name_list):
+        by_size.setdefault(len(b), []).append(i)
+    crypt = np.array(CRYPT, dtype=np.uint32)
+    uppercase = np.frombuffer(UPPER_SLASH if bar else MPQ_UPPERCASE, dtype=np.uint8)
+    base = np.uint32(ht << 8)
+    for sz, idx in by_size.items():
+        m = len(idx)
+        s1 = np.full(m, 0x7FED7FED, dtype=np.uint32)
+        s2 = np.full(m, 0xEEEEEEEE, dtype=np.uint32)
+        if sz:
+            mat = uppercase[np.frombuffer(b''.join(name_list[i] for i in idx), dtype=np.uint8).reshape(m, sz)]
+            for j in range(sz):
+                c = mat[:, j].astype(np.uint32)
+                s1 = crypt[base + c] ^ (s1 + s2)
+                s2 = c + s1 + s2 + (s2 << np.uint32(5)) + np.uint32(3)
+        out[np.array(idx, dtype=np.int64)] = s1
+    return out
+
+
 HASH_TABLE_KEY = hashstr('(hash table)', 3)
 BLOCK_TABLE_KEY = hashstr('(block table)', 3)
 
