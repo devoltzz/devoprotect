@@ -143,7 +143,7 @@
 
         <section class="card grp">
           <div class="gh">
-            <label class="sw"><input type="checkbox" data-opt="obfuscate"> Obfuscate the script</label>
+            <label class="sw"><input type="checkbox" data-opt="obfuscate"> Obfuscate the script<span class="why" id="w-obfuscate"></span></label>
             <span class="gsum" id="gs-script"></span>
             <button class="small gx" id="gx-script" aria-label="Show or hide the options">+</button>
           </div>
@@ -187,7 +187,6 @@
           <div class="gb" id="gb-size" hidden>
             <div class="desc" id="optdesc"></div>
             <label class="tog"><input type="checkbox" data-opt="opt_recompress"> recompress (best stream per sector)<span class="why" id="w-opt_recompress"></span></label>
-            <label class="tog"><input type="checkbox" data-opt="opt_blp"> re-optimize BLP textures (lossless)<span class="why" id="w-opt_blp"></span></label>
             <label class="tog"><input type="checkbox" data-opt="opt_dedup"> store identical files once<span class="why" id="w-opt_dedup"></span></label>
             <label class="tog"><input type="checkbox" data-opt="opt_models"> shrink MDX models: drop the animation keys that change nothing (lossless)<span class="why" id="w-opt_models"></span></label>
             <label class="tog"><input type="checkbox" data-opt="opt_models_lossy"> <span class="gated">models, lossy: also thin straight animation tracks and round the low bits of their numbers (the models pack 15 to 20% smaller; off by less than 0.05 units)</span><span class="why" id="w-opt_models_lossy"></span></label>
@@ -199,6 +198,7 @@
                 <option value="96">96 kbps</option>
                 <option value="128">128 kbps</option>
               </select><span class="why" id="w-opt_mp3"></span></label>
+            <label class="tog"><input type="checkbox" data-opt="opt_unused"> remove the files the game never reads: imported files nothing in the map uses (each one is listed in the report)<span class="why" id="w-opt_unused"></span></label>
             <label class="tog"><input type="checkbox" data-opt="opt_minify"> minify the JASS script: unreachable code out, constants written in (names shortened when the script is not obfuscated)<span class="why" id="w-opt_minify"></span></label>
             <label class="tog"><input type="checkbox" data-opt="opt_tga_png"> convert imported TGA and PNG images to BLP: the palette without loss when the image has 256 colors or fewer, else JPEG at high quality, only when it gets smaller (the preview and the names the script builds stay)<span class="why" id="w-opt_tga_png"></span></label>
             <label class="tog"><input type="checkbox" data-opt="opt_small_textures"> <span class="gated">smaller textures, lossy: the textures only models use at half size (models look the same far away and blurrier up close; icons and the interface stay), never below</span>
@@ -207,7 +207,7 @@
                 <option value="128">128 px</option>
                 <option value="256">256 px</option>
               </select><span class="why" id="w-opt_small_textures"></span></label>
-            <label class="tog"><input type="checkbox" data-opt="dds"> Convert DDS textures to BLP (smaller, native)</label>
+            <label class="tog"><input type="checkbox" data-opt="dds"> Convert DDS textures to BLP (smaller, native)<span class="why" id="w-dds"></span></label>
             <label class="tog"><input type="checkbox" data-opt="opt_lossy"> <span class="gated">lossy, only above the game's 512 MiB limit: half-size textures, mono 22 kHz sound</span><span class="why" id="w-opt_lossy"></span></label>
           </div>
         </section>
@@ -224,6 +224,7 @@
               <label><input type="radio" name="pack" value="none"> None</label>
             </div>
             <div class="desc" id="packdesc" style="margin-top:8px"></div>
+            <label class="tog"><input type="checkbox" data-opt="blp"> rewrite the BLP textures without loss: the same pixels, a smaller map<span class="why" id="w-blp"></span></label>
             <label class="tog"><input type="checkbox" data-opt="encrypt"> encrypt the files whose names the map gives, with the key taken from the name (sector-512 pack)<span class="why" id="w-encrypt"></span></label>
             <label class="tog" id="samerow" hidden><input type="checkbox" data-opt="same_bytes"> same bytes as the desktop program (slower: about 8 times on big maps)<span class="why" id="w-same_bytes"></span></label>
             <div class="title">Malformed-MPQ markers</div>
@@ -231,6 +232,10 @@
             <label class="tog"><input type="checkbox" data-opt="variant_header"> variant: header size<span class="why" id="w-variant_header"></span></label>
             <label class="tog"><input type="checkbox" data-opt="variant_high_sector"> variant: sector high byte<span class="why" id="w-variant_high_sector"></span></label>
             <label class="tog"><input type="checkbox" data-opt="variant_bit31"> variant: block table bit31 (not with the bombs or the hash table cut)<span class="why" id="w-variant_bit31"></span></label>
+            <div class="title">MPQ barriers</div>
+            <div class="hint" style="margin:0 0 4px">Added at the very end; both load in Reforged. With the sector-512 pack MPQ Editor already refuses the map, so they matter most with the None pack.</div>
+            <label class="tog"><input type="checkbox" data-opt="barrier_bitmap"> block bitmap at the end of the file: MPQ Editor does not open the map (its v1 mode opens it read-only)<span class="why" id="w-barrier_bitmap"></span></label>
+            <label class="tog"><input type="checkbox" data-opt="barrier_header_128mib"> archive moved 128 MiB into the file: MPQ Editor does not open it, not even in v1 mode (the map grows by about 128 MB)<span class="why" id="w-barrier_header_128mib"></span></label>
           </div>
         </section>
 
@@ -254,7 +259,7 @@
 
         <section class="card grp">
           <div class="gh">
-            <label class="sw"><input type="checkbox" data-opt="anti_cheat"> Add the in-game anti-cheat</label>
+            <label class="sw"><input type="checkbox" data-opt="anti_cheat"> Add the in-game anti-cheat<span class="why" id="w-anti_cheat"></span></label>
             <span class="gsum" id="gs-ac"></span>
             <button class="small gx" id="gx-ac" aria-label="Show or hide the options">+</button>
           </div>
@@ -384,9 +389,10 @@
     ids: {main: 'shuffle', items: ['non_ascii_ids', 'imports']},
     script: {main: 'obfuscate', items: ['to_lua', 'error_logs']},
     editor: {main: 'block', items: ['block_w3i', 'block_wtg', 'block_extra', 'block_units', 'block_doo', 'block_w3r', 'to_slk']},
-    size: {main: 'optimize', items: ['opt_blp', 'opt_models', 'opt_models_lossy', 'opt_mp3', 'opt_minify', 'opt_tga_png',
+    size: {main: 'optimize', items: ['opt_unused', 'opt_models', 'opt_models_lossy', 'opt_mp3', 'opt_minify', 'opt_tga_png',
                                      'opt_small_textures', 'dds', 'opt_lossy']},
-    pack: {items: ['encrypt', 'same_bytes', 'variant_header', 'variant_high_sector', 'variant_bit31']},
+    pack: {items: ['blp', 'encrypt', 'same_bytes', 'variant_header', 'variant_high_sector', 'variant_bit31',
+                   'barrier_bitmap', 'barrier_header_128mib']},
     decoys: {items: ['decoy_wtg', 'decoy_listfile', 'decoy_imp', 'decoy_preview', 'decoy_fill', 'bombs', 'cut_hash']},
     ac: {main: 'anti_cheat', items: ['ac_ledger', 'ac_codes', 'ac_names', 'ac_bj', 'ac_globals', 'ac_warn', 'ac_nosave', 'ac_defeat', 'ac_end']},
     adv: {items: []}
@@ -411,17 +417,17 @@
   });
 
   var MODES = {
-    full: {set: {shuffle: true, obfuscate: true, block: true, optimize: false, pack: true},
-           hint: 'The recommended set: shuffled IDs, obfuscated script, editor-only files removed, sector-512 pack.'},
-    script: {set: {shuffle: true, obfuscate: true, block: false, optimize: false, pack: false},
+    full: {set: {shuffle: true, obfuscate: true, block: true, optimize: true, pack: true},
+           hint: 'The recommended set: shuffled IDs, obfuscated script, editor-only and unused files removed, the size optimized without loss, sector-512 pack.'},
+    script: {set: {shuffle: true, obfuscate: true, block: false, optimize: false, pack: false, blp: false},
              hint: 'Only the script and the object IDs: no editor-only file is removed and the archive stays a normal one.'},
-    archive: {set: {shuffle: false, obfuscate: false, block: true, optimize: false, pack: true},
-              hint: 'Only the archive: editor-only files removed and the sector-512 pack; the script stays readable.'},
+    archive: {set: {shuffle: false, obfuscate: false, block: true, optimize: true, opt_minify: false, pack: true},
+              hint: 'Only the archive: editor-only and unused files removed, the BLP textures rewritten without loss and the sector-512 pack; the script stays readable.'},
     custom: {hint: 'Your own set: every option on the left. Picking another mode resets them all to its set.'}
   };
   var NOT_SET = {previous_key: 1, seed: 1};
   function modeSet(mode){ return Object.assign({}, DEFAULTS, MODES[mode].set); }
-  function intent(k){ return (k in ANTES) ? ANTES[k] : OPTIONS[k]; }
+  function intent(k){ return (k === 'pack' && KEEP_PACK) ? true : (k in ANTES) ? ANTES[k] : OPTIONS[k]; }
   function modeOf(){
     for(var m in MODES){
       if(!MODES[m].set) continue;
@@ -455,7 +461,7 @@
       if(keep){ OPTIONS['previous_key'] = keep; }
       ANTES = {};
       syncControls();
-      setPack(OPTIONS['pack'] ? 'protect' : 'none');
+      setPack(packAllowed(OPTIONS['pack'] ? 'protect' : 'none'));
     }
     setModeRadio(mode);
     openAll(mode === 'custom');
@@ -479,19 +485,36 @@
     ownbj: 'the map carries its own Blizzard.j or common.j',
     desktop: 'desktop program only (needs ffmpeg)',
     ac: 'needs the in-game anti-cheat',
-    lastfile: 'the last entry of the hash table holds a file of the map'
+    classic: 'the map is for a game before 1.31, which runs no Lua (save it in the Reforged editor first)',
+    memhack: 'the script carries a memory hack, which needs its exact bytes',
+    old: 'the map is for 1.23 or older, which lacks the hashtables this uses',
+    lastfile: 'the last entry of the hash table holds a file of the map',
+    tolua: 'not with Convert to Lua (the script is Lua by then)',
+    noblp: 'no BLP texture in this map',
+    nomdx: 'no MDX model in this map',
+    nomodel: 'no model in this map',
+    nomp3: 'no MP3 sound in this map',
+    nodds: 'no DDS texture in this map',
+    notga: 'no TGA or PNG image in this map'
   };
   var PARENT = [R.shuffle, R.obf, R.block, R.opt, R.ac, R.always];
   var NAMES = {
     non_ascii_ids: 'Non-printable IDs', imports: 'Rename imported files', to_lua: 'Convert to Lua',
     lua_layers: 'Lua loader layers', opt_models_lossy: 'Models, lossy', opt_mp3: 'Re-encode MP3 sounds',
     opt_minify: 'Minify the JASS script', encrypt: 'Encrypt the files', same_bytes: 'Same bytes as the program',
+    opt_unused: 'Remove the unused files', blp: 'Rewrite the BLP textures', opt_models: 'Shrink MDX models',
+    opt_tga_png: 'TGA and PNG to BLP', opt_small_textures: 'Smaller textures', dds: 'Convert DDS textures',
     variant_header: 'Marker: header size', variant_high_sector: 'Marker: sector high byte',
     variant_bit31: 'Marker: block table bit31', bombs: 'Extract-all bombs', cut_hash: 'Cut the hash table',
-    ac_names: 'Anti-cheat decoy names', ac_bj: 'Anti-cheat Lua guard', ac_globals: 'Anti-cheat Lua global watch', pack: 'Protect (sector 512)'
+    barrier_bitmap: 'MPQ barrier: block bitmap', barrier_header_128mib: 'MPQ barrier: archive at 128 MiB',
+    ac_names: 'Anti-cheat decoy names', ac_bj: 'Anti-cheat Lua guard', ac_globals: 'Anti-cheat Lua global watch', pack: 'Protect (sector 512)',
+    obfuscate: 'Obfuscate the script', anti_cheat: 'Add the in-game anti-cheat'
   };
+  function memhack(){ return !!(MAPINFO && MAPINFO.memhack && MAPINFO.memhack.length); }
+  function eraOld(){ return !!(MAPINFO && MAPINFO.era === 'pre-1.24'); }
   function scriptOf(){ return MAPINFO && !MAPINFO.campaign ? (MAPINFO.script || null) : null; }
   function campaign(){ return !!(MAPINFO && MAPINFO.campaign); }
+  function noFiles(kind){ var c = MAPINFO && MAPINFO.counts; return !!c && !c[kind]; }
   var FREED_BY = {'war3map.wtg': 'block_wtg', 'war3map.wct': 'block_wtg', 'war3map.w3c': 'block_extra',
                   'war3map.w3s': 'block_extra', 'war3map.imp': 'block_extra', 'war3mapunits.doo': 'block_units',
                   'war3map.w3r': 'block_w3r', '(listfile)': 'decoy_listfile'};
@@ -502,9 +525,12 @@
     return !(k && o[k] && (k.indexOf('block_') !== 0 || o['block']));
   }
   var RULES = [
+    ['obfuscate', function(){ return memhack() ? R.memhack : (eraOld() && scriptOf() === 'jass') ? R.old : null; }],
+    ['anti_cheat', function(){ return eraOld() ? R.old : null; }],
     ['non_ascii_ids', function(o){ return !o.shuffle && R.shuffle; }],
     ['imports', function(o){ return !o.shuffle && R.shuffle; }],
-    ['to_lua', function(){ return scriptOf() === 'lua' ? R.already : (MAPINFO && MAPINFO.own_blizzard) ? R.ownbj : null; }],
+    ['to_lua', function(){ return scriptOf() === 'lua' ? R.already : (MAPINFO && MAPINFO.lua_ok === false) ? R.classic :
+                                  (MAPINFO && MAPINFO.own_blizzard) ? R.ownbj : null; }],
     ['block_w3i', function(o){ return !o.block && R.block; }],
     ['block_wtg', function(o){ return !o.block && R.block; }],
     ['block_extra', function(o){ return !o.block && R.block; }],
@@ -513,20 +539,27 @@
     ['block_w3r', function(o){ return !o.block && R.block; }],
     ['opt_recompress', function(o){ return !o.optimize ? R.opt : o.pack ? R.always : null; }],
     ['opt_dedup', function(o){ return !o.optimize ? R.opt : o.pack ? R.always : null; }],
-    ['opt_blp', function(o){ return !o.optimize && R.opt; }],
     ['opt_lossy', function(o){ return !o.optimize && R.opt; }],
-    ['opt_models', function(o){ return !o.optimize && R.opt; }],
-    ['opt_models_lossy', function(o){ return !o.optimize ? R.opt : !o.opt_models ? R.models : null; }],
-    ['opt_mp3', function(o){ return WEB ? R.desktop : !o.optimize && R.opt; }],
-    ['opt_minify', function(o){ return !o.optimize ? R.opt : (scriptOf() === 'lua' || (scriptOf() && o.to_lua)) ? R.jass : null; }],
-    ['opt_tga_png', function(o){ return !o.optimize && R.opt; }],
-    ['opt_small_textures', function(o){ return !o.optimize && R.opt; }],
+    ['opt_unused', function(o){ return !o.optimize && R.opt; }],
+    ['opt_models', function(o){ return !o.optimize ? R.opt : noFiles('mdx') ? R.nomdx : null; }],
+    ['opt_models_lossy', function(o){ return !o.optimize ? R.opt : noFiles('mdx') ? R.nomdx : !o.opt_models ? R.models :
+                                             null; }],
+    ['opt_mp3', function(o){ return WEB ? R.desktop : !o.optimize ? R.opt : noFiles('mp3') ? R.nomp3 : null; }],
+    ['opt_minify', function(o){ return !o.optimize ? R.opt : scriptOf() === 'lua' ? R.jass : o.to_lua ? R.tolua :
+                                       memhack() ? R.memhack : null; }],
+    ['opt_tga_png', function(o){ return !o.optimize ? R.opt : noFiles('tga_png') ? R.notga : null; }],
+    ['opt_small_textures', function(o){ return !o.optimize ? R.opt : noFiles('blp') ? R.noblp :
+                                               (noFiles('mdx') && noFiles('mdl')) ? R.nomodel : null; }],
+    ['dds', function(){ return noFiles('dds') ? R.nodds : null; }],
+    ['blp', function(){ return noFiles('blp') ? R.noblp : null; }],
     ['encrypt', function(o){ return !o.pack && R.pack; }],
     ['same_bytes', function(o){ return !o.pack && R.pack; }],
     ['variant_header', function(o){ return !o.pack && R.pack; }],
     ['variant_high_sector', function(o){ return !o.pack && R.pack; }],
     ['variant_bit31', function(o){ return !o.pack ? R.pack : o.bombs ? R.bombs : o.cut_hash ? R.cut : null; }],
     ['bombs', function(){ return campaign() && R.single; }],
+    ['barrier_bitmap', function(){ return campaign() && R.single; }],
+    ['barrier_header_128mib', function(){ return campaign() && R.single; }],
     ['cut_hash', function(o){ return campaign() ? R.single : cutBlocked(o) ? R.lastfile : null; }],
     ['ac_ledger', function(o){ return !o.anti_cheat && R.ac; }],
     ['ac_codes', function(o){ return !o.anti_cheat && R.ac; }],
@@ -563,6 +596,10 @@
       });
       if(!changed){ break; }
     }
+    [['opt_mp3', 'opt_mp3_kbps'], ['opt_small_textures', 'opt_texture_min_side']].forEach(function(p){
+      var sel = document.querySelector('[data-optv="' + p[1] + '"]');
+      if(sel){ sel.disabled = !OPTIONS[p[0]] || !!LOCKED[p[0]]; }
+    });
     var s = scriptOf(), lw = !OPTIONS['obfuscate'] ? R.obf : (s === 'jass' && !OPTIONS['to_lua']) ? R.lua : null;
     LOCKED['lua_layers'] = lw;
     if($('luasel')){ $('luasel').disabled = !!lw; }
@@ -580,10 +617,10 @@
       + '(the original script included) are left out.'
   };
   var OPT_DESC = {
-    protect: 'Smaller content before the pack: BLP textures rewritten without loss (same pixels). The sector-512 pack '
-      + 'already recompresses every sector and stores identical files once, but stays bigger than a 64 KB repack.',
-    none: 'The smallest map: repacked with 64 KB sectors and the best stream per sector, BLP textures rewritten '
-      + 'without loss, identical files stored once.'
+    protect: 'Smaller content before the pack: the options below. The sector-512 pack already recompresses every '
+      + 'sector and stores identical files once, but stays bigger than a 64 KB repack.',
+    none: 'The smallest map: repacked with 64 KB sectors and the best stream per sector, identical files stored '
+      + 'once.'
   };
   function packOf(o){ return o.pack ? 'protect' : 'none'; }
   function setPack(pack){
@@ -615,7 +652,9 @@
       mc.appendChild(el('div', '', i.campaign ? 'Campaign' : 'Single map'));
       if(!i.campaign){
         mc.appendChild(el('div', '', i.script === 'lua' ? 'Lua script' : i.script === 'jass' ? 'JASS script' : 'no script'));
-        if(i.w3i){ mc.appendChild(el('div', '', i.w3i >= 28 ? 'Warcraft III 1.31 or newer' : 'made before Warcraft III 1.31')); }
+        if(i.era_label){ mc.appendChild(el('div', '', 'Made for Warcraft III ' + i.era_label)); }
+        else if(i.w3i){ mc.appendChild(el('div', '', i.w3i >= 28 ? 'Warcraft III 1.31 or newer' : 'made before Warcraft III 1.31')); }
+        if(i.memhack && i.memhack.length){ mc.appendChild(el('div', 'warn', 'Memory hack in the script: ' + i.memhack.join(', '))); }
       }
       if(i.bytes){ mc.appendChild(el('div', '', (i.bytes / 1048576).toFixed(1) + ' MB')); }
       if(i.refused){ mc.appendChild(el('div', 'bad', 'This map cannot be protected: ' + i.refused)); }
@@ -628,6 +667,7 @@
     if(o.to_lua){ steps.push('Convert the script to Lua'); }
     if(o.dds){ steps.push('Convert DDS textures to BLP'); }
     if(o.error_logs){ steps.push('Remove the compiler error messages'); }
+    if(o.optimize && o.opt_unused){ steps.push('Remove the files the game never reads'); }
     if(o.optimize && (o.opt_models || o.opt_mp3 || o.opt_minify || o.opt_tga_png || o.opt_small_textures)){
       steps.push('Shrink the models, sounds, images and script');
     }
@@ -636,10 +676,12 @@
     if(o.block){ steps.push('Remove the editor-only files'); }
     if(o.decoy_wtg || o.decoy_listfile || o.decoy_imp || o.decoy_preview || o.decoy_fill){ steps.push('Write the decoy files'); }
     if(o.optimize){ steps.push('Optimize the size'); }
+    if(o.blp){ steps.push('Rewrite the BLP textures without loss'); }
     steps.push(o.pack ? (o.encrypt ? 'Repack with 512-byte sectors, files encrypted' : 'Repack with 512-byte sectors')
                       : 'Save a normal archive');
     if(o.bombs){ steps.push('Write the extract-all bombs'); }
     if(o.cut_hash){ steps.push('Cut the hash table'); }
+    if(o.barrier_bitmap || o.barrier_header_128mib){ steps.push('Add the MPQ barriers'); }
     var plan = $('plan');
     plan.innerHTML = '';
     steps.forEach(function(s){ plan.appendChild(el('li', '', s)); });
@@ -662,6 +704,10 @@
     $('offwrap').hidden = !n;
   }
   var KEEP_PACK = false;
+  function packAllowed(pack){
+    KEEP_PACK = pack === 'protect' && !!(MAPINFO && MAPINFO.unnamed_block);
+    return KEEP_PACK ? 'none' : pack;
+  }
 
   function bindControls(){
     document.querySelectorAll('input[data-opt]').forEach(function(e){
@@ -807,7 +853,7 @@
     if(keep){ OPTIONS['previous_key'] = keep; }
     ANTES = {};
     syncControls();
-    setPack(packOf(OPTIONS));
+    setPack(packAllowed(packOf(OPTIONS)));
     var mode = modeOf();
     setModeRadio(mode);
     openAll(mode === 'custom');
@@ -816,6 +862,7 @@
   $('savepreset').addEventListener('click', async function(){
     var o = Object.assign({}, OPTIONS);
     Object.keys(ANTES).forEach(function(k){ o[k] = ANTES[k]; });
+    if(KEEP_PACK){ o.pack = true; }
     var p = await api().save_preset(o);
     if(p){ $('presetname').textContent = 'Preset saved: ' + shown(p); }
   });
