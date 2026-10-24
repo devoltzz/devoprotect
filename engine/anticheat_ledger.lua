@@ -26,6 +26,8 @@
     local gold, lumber, handi, forgive = {}, {}, {}, {}
     local heroes, hled, tled = {}, {}, {}
     local active = false
+    local keep = {}
+    local scanG, world, heroFilter = nil, nil, nil
 
     local function pid(p) return GetPlayerId(p) end
 
@@ -103,22 +105,19 @@
     end
 
     local function scanHeroes()
-        local g = CreateGroup()
-        GroupEnumUnitsInRect(g, GetWorldBounds(), Filter(function() return IsUnitType(GetFilterUnit(), UNIT_TYPE_HERO) end))
+        GroupEnumUnitsInRect(scanG, world, heroFilter)
         while true do
-            local u = FirstOfGroup(g)
+            local u = FirstOfGroup(scanG)
             if not u then break end
-            GroupRemoveUnit(g, u)
+            GroupRemoveUnit(scanG, u)
             seenHero(u)
         end
-        DestroyGroup(g)
     end
 
     local function tickHeroes()
         for _, u in ipairs(heroes) do
             if u and GetUnitTypeId(u) ~= 0 then
-                local id = GetHandleId(u)
-                local e = hled[id]
+                local e = hled[GetHandleId(u)]
                 local owner = GetOwningPlayer(u)
                 if e then
                     if GetHeroLevel(u) > e.lvl then
@@ -156,7 +155,7 @@
     end
 
     local function tick()
-        if not active then return end
+        if not active or keep == nil then return end
         scanHeroes()
         local nowT, bookedT = 0, 0
         for i = 0, MAXP - 1 do
@@ -196,10 +195,17 @@
         end
         if ONLY_ONE and humans > 1 then return end
         active = true
+        scanG = CreateGroup()
+        world = GetWorldBounds()
+        heroFilter = Filter(function() return IsUnitType(GetFilterUnit(), UNIT_TYPE_HERO) end)
+        keep[#keep + 1] = scanG
+        keep[#keep + 1] = world
+        keep[#keep + 1] = heroFilter
         rebaseAll()
         for i = 0, MAXP - 1 do rebaseTech(Player(i)) end
         scanHeroes()
         local tg = CreateTrigger()
+        keep[#keep + 1] = tg
         for i = 0, MAXP - 1 do
             local p = Player(i)
             TriggerRegisterPlayerUnitEvent(tg, p, EVENT_PLAYER_UNIT_DEATH, nil)
@@ -211,6 +217,7 @@
         end
         TriggerAddAction(tg, onEvent)
         local tp = CreateTrigger()
+        keep[#keep + 1] = tp
         for i = 0, MAXP - 1 do
             local p = Player(i)
             TriggerRegisterPlayerUnitEvent(tp, p, EVENT_PLAYER_UNIT_RESEARCH_FINISH, nil)
@@ -218,6 +225,7 @@
         end
         TriggerAddAction(tp, onResearch)
         local th = CreateTrigger()
+        keep[#keep + 1] = th
         for i = 0, MAXP - 1 do
             local p = Player(i)
             TriggerRegisterPlayerUnitEvent(th, p, EVENT_PLAYER_HERO_LEVEL, nil)
@@ -225,6 +233,7 @@
         end
         TriggerAddAction(th, onHero)
         local t = CreateTimer()
+        keep[#keep + 1] = t
         TimerStart(t, 2.0, true, tick)
     end
 
@@ -236,5 +245,9 @@
 
     _G.DevoAC_Ledger_Init = init
     local t0 = CreateTimer()
-    TimerStart(t0, 0.0, false, init)
+    keep[#keep + 1] = t0       -- destroyed or not, a Lua object the collector takes frees its handle number late
+    TimerStart(t0, 0.0, false, function()
+        DestroyTimer(t0)
+        init()
+    end)
 end)()
