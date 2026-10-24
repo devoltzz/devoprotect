@@ -39,7 +39,7 @@ POOL_PACK = {'zopfli': 256 << 10}
 POOL_PACK_OTHER = 16 << 20
 POOL_BLP = 128 << 10
 BLP_WHY = {'not a BLP1 JPEG': 'not a BLP1 JPEG', 'no mipmap': 'no mipmap',
-           'layout not contiguous': 'mipmaps not in order', 'sobra no fim': 'extra bytes at the end',
+           'mipmaps overlap': 'mipmaps overlap', 'a mipmap goes past the end': 'a mipmap goes past the end',
            'decodificacao': 'does not decode', 'not baseline': 'not baseline JPEG (progressive or other)',
            'no DHT': 'no Huffman table', 'DHT parte no cabecalho': 'tables in the header and in the mipmaps',
            'the header is no longer a common one': 'the shared header would differ',
