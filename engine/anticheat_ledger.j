@@ -13,6 +13,7 @@ globals
     integer array   DEVOAC_tech                     // the watched researched ids
     hashtable       DEVOAC_ht       = null          // per-hero ledger (parent = GetHandleId) and per-tech
     group           DEVOAC_g        = null
+    boolexpr        DEVOAC_filter   = null          // made once in DEVOAC_Init, like the group and the rect
     timer           DEVOAC_t        = null
     rect            DEVOAC_world    = null
     integer         DEVOAC_CODE_GOLD  = 1
@@ -246,7 +247,7 @@ endfunction
 
 function DEVOAC_ScanHeroes takes nothing returns nothing
     local unit u
-    call GroupEnumUnitsInRect(DEVOAC_g, DEVOAC_world, Filter(function DEVOAC_FilterHero))
+    call GroupEnumUnitsInRect(DEVOAC_g, DEVOAC_world, DEVOAC_filter)
     loop
         set u = FirstOfGroup(DEVOAC_g)
         exitwhen u == null
@@ -402,6 +403,7 @@ function DEVOAC_Init takes nothing returns nothing
     set DEVOAC_ht = InitHashtable()
     set DEVOAC_g = CreateGroup()
     set DEVOAC_world = GetWorldBounds()
+    set DEVOAC_filter = Filter(function DEVOAC_FilterHero)
     call DEVOAC_Techs()
     loop
         exitwhen i >= GetBJMaxPlayerSlots()
