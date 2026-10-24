@@ -3,6 +3,55 @@
 What each version of DevoProtect brought, the newest first. The downloads are on the
 [Releases](https://github.com/devoltzz/devoprotect/releases) page.
 
+## 0.1.12 (2026-10-24)
+
+- Smaller maps by default, with nothing lost. On the 12 maps I measure size with (unprotected maps made by
+  mapmakers, straight from the editor), the protected maps come out 15.7% smaller in total than with 0.1.11
+  (1,153.7 MB to 972.8 MB), from 0.4% to 45.5% per map; with Convert to Lua, 13.0% smaller on the six that convert.
+  Three things do it, all on by default:
+  - The files the game never reads are removed. A file stays when the game reads it by its name (the map's own files
+    and anything in a folder of the game, which can replace a game file), when a file the game reads names it (the
+    script, the object data, a model naming its texture, an interface file), or when the script builds names that
+    start the way it does. What goes is usually a pack of models or effects imported whole, of which the map uses a
+    few: 140 MB of those 12 maps, up to 42% of one. The report lists every removed file, and "remove the files the
+    game never reads" (`--keep-unused` on the command line) keeps them.
+  - The BLP textures are rewritten without loss with either final pack, the same pixels checked one by one, now also
+    the ones whose mipmaps have gaps between them: 42 MB over the 12 maps. `--no-blp` keeps them as they are.
+  - The JASS script loses the code nothing runs (the minify, now on by default), and the obfuscated names are as
+    short as they can be, the most used first: the protected script is 13% to 26% smaller.
+  The options that lose quality (MP3, lossy models, smaller textures) stay off. I read every protected map back file
+  by file against the 0.1.11 one: besides the removed files, only the BLP textures (the same pixels) and the script
+  changed, and the job itself checks the same at each step and stops if anything else changes. It is faster where
+  a lot goes out (a 65 MB map: 139 s to 84 s) and slower on a very big map that loses little (a 495 MB map: 590 s
+  to 730 s).
+- Two new MPQ barriers, added at the very end and off by default (Final pack, "MPQ barriers"; `--mpq-barrier=` on the
+  command line). The block bitmap writes a few bytes at the end of the file, and MPQ Editor no longer opens the map
+  (its v1 mode still opens it read-only). The archive at 128 MiB moves the whole archive 128 MiB into the file, and
+  MPQ Editor does not open it even in v1 mode, but the map grows by about 128 MB. I loaded both in Reforged on a map
+  without the sector-512 pack. With that pack MPQ Editor already refuses the map, so these matter most with the None
+  pack; I have not tested them together with it in the game yet. Single maps only, not campaigns.
+- The page locks an option that has nothing to act on in the map you chose, with the reason next to it: rewriting
+  BLP textures in a map with no BLP texture, the model options with no MDX model, MP3 with no MP3 sound, DDS, TGA
+  and PNG. The command line warns about the same options. The minify is locked with Convert to Lua (the script is
+  Lua by then), and the MP3 rate and texture side lists follow their box.
+- Picking Full protection or Archive only, or loading a preset, on a map with an encrypted file that has no name
+  turned the sector-512 pack back on, which that map can't use; the pack now stays on None for that map.
+- Command line: `--no-optimize`, `--keep-unused`, `--no-minify` and `--no-blp` (`--optimize`, `--minify` and
+  `--no-blp-opt` still work).
+- The anti-cheat could desync a game. In Reforged's Lua, a game object that the script stops holding is freed by the
+  garbage collector at a different moment on each computer, and that can desync the game. The anti-cheat's Lua code
+  made some objects every two seconds and let them go, and left a few others (its start timer, its triggers) without a
+  reference. It now creates everything once and keeps it; the JASS version keeps its filter and timers in globals too.
+  I checked it in the simulated game engine with the collector running: nothing of the anti-cheat is created while the
+  game runs, and nothing is left to the collector.
+
+- The protector now knows which game a map was made for (1.23 and older, 1.24 to 1.28, 1.29, or Reforged) and checks
+  the script with that game's own scripts, and the page shows it in the map card. What does not fit that game is
+  locked, with the reason next to it: converting to Lua (it only runs from 1.31 on: save the map in the Reforged
+  editor first), the anti-cheat and the JASS obfuscation on a map of 1.23 or older (both need hashtables, which came
+  in 1.24), and the obfuscation and minify of a script that carries a memory hack (it reads the game's memory through
+  the exact bytes of its own script). The anti-cheat now writes its code for classic games too.
+
 ## 0.1.11 (2026-10-23)
 
 - A warning when a classic map ends up too big to play with other people. Warcraft III 1.24 to 1.27a only send a map of
