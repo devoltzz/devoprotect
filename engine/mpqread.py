@@ -20,6 +20,9 @@ BLOCK_MASK = 0x0FFFFFFF
 LONG_PROBE = 256
 VALID_FOR_GAME_ONLY = 'not compressed; the stored size is wrong and the game does not use it'
 VALID_SLACK = 'compressed; the sector table ends before the stored size and the game does not read the slack'
+VALID_FOR_GAME = (VALID_FOR_GAME_ONLY, VALID_SLACK)
+
+
 _CACHE = collections.OrderedDict()
 _CACHE_BYTES = [0]
 CACHE_MAX = 96 << 20
