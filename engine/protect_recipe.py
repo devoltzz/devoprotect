@@ -11,8 +11,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ARCHIVE_ROOT = os.path.normpath(os.path.join(HERE, '..', '..'))
 DEFAULT_REF = next((p for p in (os.path.join(ARCHIVE_ROOT, 'common', 'ref', '3.0'), os.path.join(HERE, 'ref', '3.0'))
                     if os.path.isfile(os.path.join(p, 'common.j'))), os.path.join(ARCHIVE_ROOT, 'common', 'ref', '3.0'))
-STEPS = ('anticheat', 'shuffle', 'imported', 'lua', 'dds', 'error_list', 'content', 'obfuscate', 'slk', 'lock_editor',
-         'decoy', 'protect', 'bulk', 'cut_step')
+STEPS = ('anticheat', 'shuffle', 'imported', 'lua', 'dds', 'error_list', 'content', 'no_use', 'obfuscate', 'slk',
+         'lock_editor', 'decoy', 'protect', 'bulk', 'cut_step', 'barrier')
+BARRIER_KINDS = ('bitmap', 'header128m')
 NO_CONTENTS = ('(listfile)', '(attributes)', '(signature)')
 
 
@@ -64,6 +65,15 @@ def difference(before, after_diag):
             chg = (sum(1 for p, q in zip(x, y) if p != q) if len(x) == len(y) else abs(len(y) - len(x)))
             out[n] = (len(x), len(y), chg)
     return out
+
+
+def _outside_blp(d, before=None, after_diag=None):
+    def blp(n):
+        x, y = (before or {}).get(n), (after_diag or {}).get(n)
+        return isinstance(x, (bytes, bytearray)) and isinstance(y, (bytes, bytearray)) and \
+            x[:8] == y[:8] == b'BLP1\0\0\0\0'
+    return sorted(n for n, (a, b, _m) in d.items()
+                  if not (a is not None and b is not None and (n.lower().endswith('.blp') or blp(n))))
 
 
 class _Stages(dict):
@@ -191,6 +201,59 @@ def unnamed_encrypted(entry):
     return (a.blocks[nameless[0]][0] if nameless else None), name_list
 
 
+def map_era(file_path):
+    import editor_lock
+    import mpqread
+    import wc3_versions
+    try:
+        a = mpqread.Archive(file_path)
+        w3i = editor_lock._read(a, 'war3map.w3i')
+        lua_bytes = editor_lock._read(a, 'war3map.lua')
+        script = lua_bytes if lua_bytes else editor_lock._script(a)[1]
+    except Exception:
+        return None
+    lang = 'lua' if lua_bytes else 'jass' if script else None
+    body_text = script.decode('utf-8', 'surrogateescape') if script else None
+    detail = wc3_versions.detect_parts(w3i, body_text, lang, None, None, os.path.getsize(file_path))
+    band = detail['range']
+    ruler = None
+    if band != '1.30+':
+        ruler = wc3_versions.scripts_dir(detail['version'] or '1.24a')
+    memhack = []
+    if lang == 'jass':
+        kk = os.path.normpath(os.path.join(HERE, '..', 'kk'))
+        import memhack_ui
+        memhack = sorted(memhack_ui.detect_libraries(body_text))
+    format = (detail.get('w3i') or {}).get('format')
+    return {
+        'band': band,
+        'label_text': detail['label'],
+        'reasons': list(detail['reasons'][:4]),
+        'n_players': detail['players'],
+        'has_return_bug': bool(detail['return_bug']),
+        'memhack': memhack,
+        'lua_ok': lang == 'lua' or (format is not None and format >= 28),
+        'ruler': ruler,
+    }
+
+
+ERA_LIMIT = {'pre-1.24': (1, 24, 1), '1.24-1.28': (1, 29, 0), '1.29': (1, 30, 0)}
+
+
+def beyond_era(before, after_diag, ep):
+    import wc3_versions
+    out_limit = ERA_LIMIT.get((ep or {}).get('band'))
+    if out_limit is None:
+        return []
+    table = wc3_versions.natives_patches()
+
+    def name_list(b):
+        in_use, defined, _d = wc3_versions.script_names(b.decode('utf-8', 'surrogateescape'))
+        return in_use - defined
+    new_ones = name_list(after_diag) - name_list(before)
+    return sorted((n, table[n]) for n in new_ones if n in table and wc3_versions._key(table[n]) >= out_limit)
+
+
 def inspect_archive(file_path):
     import editor_lock
     import mpqadd
@@ -244,6 +307,19 @@ def inspect_archive(file_path):
         out['w3i'] = int.from_bytes(d[:4], 'little')
     out['map_blizzard'] = any(a.find(n) is not None for n in ('scripts\\blizzard.j', 'scripts\\common.j',
                                                               'blizzard.j', 'common.j'))
+    out['map_era'] = map_era(file_path)
+    with_name = set(e[3] for n in list(sector_pack.SPECIAL_FILES) + name_list for e in a.hash_entries(n))
+    if set(a.pointed_blocks()) <= with_name:
+        pluralize = {'blp': 0, 'mdx': 0, 'mdl': 0, 'mp3': 0, 'dds': 0, 'tga_png': 0}
+        for n in set(x.lower() for x in name_list):
+            ext = os.path.splitext(n)[1]
+            k = {'.blp': 'blp', '.mdx': 'mdx', '.mdl': 'mdl', '.mp3': 'mp3', '.dds': 'dds', '.tga': 'tga_png',
+                 '.png': 'tga_png'}.get(ext)
+            if k and a.find(n) is not None:
+                pluralize[k] += 1
+        out['tally'] = pluralize
+    else:
+        out['tally'] = None
     return out
 
 
@@ -657,6 +733,8 @@ def _recipe(
     imported=True,
     error_list=True,
     cipher=True,
+    no_use=False,
+    barrier=(),
 ):
     import editor_lock
     import id_shuffle
@@ -668,6 +746,7 @@ def _recipe(
     unknown_steps = skip - set(STEPS)
     if unknown_steps:
         raise SystemExit('unknown step in --skip: %s (valid: %s)' % (sorted(unknown_steps), ', '.join(STEPS)))
+    _check_barrier(barrier)
     mechanisms = set(lock_editor)
     valid_ids = {'w3i', 'wtg', 'w3r', 'extra', 'units', 'doo'}
     if mechanisms - valid_ids:
@@ -691,7 +770,17 @@ def _recipe(
     entry, output = os.path.abspath(entry), os.path.abspath(output)
     if same_file(entry, output):
         raise SystemExit('the output must be another file (the input never changes)')
-    ref = ref or DEFAULT_REF
+    ep = map_era(entry) if os.path.isfile(entry) else None
+    ref = ref or (ep and ep['ruler']) or DEFAULT_REF
+    if convert_lua and 'lua' not in skip and ep and not ep['lua_ok']:
+        raise SystemExit(
+            'ABORTS in the lua step: the map is for %s, and Lua only runs on Warcraft III 1.31 and later (save it '
+            'in the Reforged World Editor first to convert it)' % ep['label_text']
+        )
+    if ep and ep['memhack'] and content and content.get('script'):
+        content = dict(content, script=False) if (content.get('models') or content.get('sounds') or
+                                                     content.get('textures')) else None
+        log('[content] the script minify is left out: the map carries a memory hack (%s)' % ', '.join(ep['memhack']))
     tmp = os.path.abspath(tmp or output + '.work')
     tsv = os.path.abspath(tsv or os.path.splitext(output)[0] + '_ids.tsv')
     _check_paths(entry, output, tmp, tsv, None if backup is None else os.path.abspath(backup or output + '.backup'))
@@ -717,7 +806,7 @@ def _recipe(
     tmp_key = os.path.join(tmp, '_key')
     os.makedirs(tmp_key)
     details = {'entry': entry, 'output': output, 'sha256_entry': sha(entry), 'skipped': sorted(skip), 'steps': [],
-               'ok': False}
+               'ok': False, 'map_era': ep}
     silent = (lambda *a: None) if not verbose else log
     if backup is not None:
         folder = os.path.abspath(backup or output + '.backup')
@@ -756,13 +845,27 @@ def _recipe(
         lua_bytes = editor_lock._read(a, 'war3map.lua')
         fname, script = ('war3map.lua', lua_bytes) if lua_bytes else editor_lock._script(a)
         lang = 'lua' if script is not None and fname.endswith('.lua') else 'jass'
-        if script is None or (lang == 'jass' and b'function main' not in script):
-            why = ('no script in the map' if script is None else
-                   'the war3map.j (%d B) has no `function main`: the real script is not in it' % len(script))
+        former_id = bool(ep and ep['band'] == 'pre-1.24')
+        if script is None or (lang == 'jass' and b'function main' not in script) or former_id:
+            why = (
+                'no script in the map'
+                if script is None
+                else 'the map is for %s, and the anti-cheat uses hashtables, which the game only has from 1.24 on'
+                % ep['label_text']
+                if former_id
+                else 'the war3map.j (%d B) has no `function main`: the real script is not in it' % len(script)
+            )
             details['steps'].append({'step': 'anticheat', 'status': 'skipped (%s)' % why})
             log('[anticheat] skipped: %s' % why)
             return origin, previous
         new_t, r = _ac.applies(script, lang, ref=ref, **anticheat)
+        added = beyond_era(script, new_t, ep) if r['applied'] and lang == 'jass' else []
+        if added:
+            why = 'the map is for %s, and the anti-cheat would use %s, which that game lacks' % (
+                ep['label_text'], ', '.join('%s (%s)' % x for x in added[:4]))
+            details['steps'].append({'step': 'anticheat', 'status': 'skipped (%s)' % why})
+            log('[anticheat] skipped: %s' % why)
+            return origin, previous
         if not r['applied']:
             why = 'no piece applied: %s' % '; '.join(r['line_list'])[:200]
             details['steps'].append({'step': 'anticheat', 'status': 'skipped (%s)' % why, 'pieces': {
@@ -1019,6 +1122,35 @@ def _recipe(
         details['steps'].append({'step': 'content', 'status': 'skipped'})
         log('[content] skipped')
 
+    if no_use and 'no_use' not in skip:
+        import no_use as _no_use
+        t0 = time.time()
+        log('[no_use] Removing the files the game never reads...')
+        new = next_steps('no_use')
+        r_u = _no_use.remove(current, new, extra_script=script_before_minify, log=silent)
+        removed = set(n.lower() for n, _b in r_u['removed'])
+        if removed:
+            stages['no_use'] = contents(new, ref_names)
+            d_u = difference(stages[last], stages['no_use'])
+            outside = sorted(n for n, v in d_u.items() if not (n in removed and v[1] is None) and n != 'war3map.imp')
+            outside += sorted(removed - set(d_u))
+            if outside:
+                raise SystemExit('ABORT at step no_use: something else changed (%s)' % ', '.join(outside[:5]))
+            shown = ', '.join(n for n, _b in r_u['removed'][:12])
+            summary = 'removed %d file(s) the game never reads (%d B): %s%s' % (
+                len(removed), r_u['bytes'], shown, ' and %d more' % (len(removed) - 12) if len(removed) > 12 else '')
+            on_close('no_use', 'ok', t0, last, 'no_use', {'removed': r_u['removed'], 'bytes': r_u['bytes'],
+                                                         'keep': r_u['keep'], 'summary': summary})
+            current, last = new, 'no_use'
+        else:
+            details['steps'].append({'step': 'no_use', 'status': 'ok', 'seconds': round(time.time() - t0, 1),
+                                     'removed': [], 'bytes': 0, 'keep': r_u['keep'],
+                                     'summary': 'nothing to remove: every file is read by the game'})
+            log('[no_use] ok: nothing to remove')
+    elif no_use:
+        details['steps'].append({'step': 'no_use', 'status': 'skipped'})
+        log('[no_use] skipped')
+
     script_before = None
     if 'obfuscate' in skip:
         details['steps'].append({'step': 'obfuscate', 'status': 'skipped'})
@@ -1049,9 +1181,15 @@ def _recipe(
                     ', '.join('%s %d' % kv for kv in sorted(r['globals_kept'].items())) or 'none',
                     r['strings_encrypted'], len(r['layers']), '; '.join(r['gates'].values()))})
             current, last = new, 'obfuscate'
-        elif script is None or b'function main' not in script:
-            why = ('no script in the map' if script is None else
-                   'the war3map.j (%d B) has no `function main`: the real script is not in it' % len(script))
+        elif script is None or b'function main' not in script or (ep and ep['memhack']):
+            why = (
+                'no script in the map'
+                if script is None
+                else 'the map carries a memory hack (%s): it reads and writes the game memory through the bytes of its own '
+                'script, which the obfuscation changes' % ', '.join(ep['memhack'])
+                if ep and ep['memhack']
+                else 'the war3map.j (%d B) has no `function main`: the real script is not in it' % len(script)
+            )
             details['steps'].append({'step': 'obfuscate', 'status': 'skipped (%s)' % why})
             log('[obfuscate] skipped: %s' % why)
         else:
@@ -1070,6 +1208,7 @@ def _recipe(
                     '--blizzard=' + os.path.join(ref, 'blizzard.j'),
                     '--map_path=' + os.path.join(tmp, 'obfuscate_map.json'),
                     '--verification=' + os.path.join(tmp, 'obfuscate_check.lua'),
+                    '--short-names',
                 ]
                 + (['--keep_names=' + ','.join(keep_for_obfuscator)] if keep_for_obfuscator else []),
                 verbose,
@@ -1088,29 +1227,25 @@ def _recipe(
                         % (after_pj, before_pj)
                     )
                 gate = 'pjass original=%s obfuscated=%s (errors, warnings)' % (before_pj, after_pj)
-            new = next_steps('obfuscate')
-            shutil.copyfile(current, new)
             with open(output_j, 'rb') as f:
                 obfuscated = f.read()
-            mpqadd.add_files(new, [(fname, obfuscated)], log=lambda *x: None)
-            if mpqread.Archive(new).read(fname) != obfuscated:
-                raise SystemExit('ABORT at step obfuscate: the script written in the map is not the obfuscated one')
-            stages['obfuscate'] = contents(new, ref_names)
-            on_close(
-                'obfuscate',
-                'ok',
-                t0,
-                last,
-                'obfuscate',
-                {
-                    'script': fname,
-                    'bytes_before': len(script),
-                    'bytes_after': len(obfuscated),
-                    'pjass_gate': gate,
-                    'summary': '%s %d -> %d B; %s' % (fname, len(script), len(obfuscated), gate),
-                },
-            )
-            current, last = new, 'obfuscate'
+            added = beyond_era(script, obfuscated, ep)
+            if added:
+                why = ('the map is for %s, and the obfuscation code uses %s, which that game lacks' % (
+                    ep['label_text'], ', '.join('%s (%s)' % x for x in added[:4])))
+                details['steps'].append({'step': 'obfuscate', 'status': 'skipped (%s)' % why})
+                log('[obfuscate] skipped: %s' % why)
+            else:
+                new = next_steps('obfuscate')
+                shutil.copyfile(current, new)
+                mpqadd.add_files(new, [(fname, obfuscated)], log=lambda *x: None)
+                if mpqread.Archive(new).read(fname) != obfuscated:
+                    raise SystemExit('ABORT at step obfuscate: the script written in the map is not the obfuscated one')
+                stages['obfuscate'] = contents(new, ref_names)
+                on_close('obfuscate', 'ok', t0, last, 'obfuscate', {
+                    'script': fname, 'bytes_before': len(script), 'bytes_after': len(obfuscated), 'pjass_gate': gate,
+                    'summary': '%s %d -> %d B; %s' % (fname, len(script), len(obfuscated), gate)})
+                current, last = new, 'obfuscate'
 
     if convert_slk and 'slk' not in skip:
         t0 = time.time()
@@ -1274,7 +1409,7 @@ def _recipe(
             import shrink
             new = os.path.join(tmp, '6_optimize.w3x')
             log('[optimize] Optimizing the size...')
-            res = shrink.shrink(current, new, options=optimization)
+            res = shrink.shrink(current, new, options=dict(optimization, blp=True) if blp else optimization)
             if res.get('state') == 'nothing_to_do':
                 shutil.copyfile(current, new)
                 summary = 'nothing to gain (already compact)'
@@ -1299,10 +1434,10 @@ def _recipe(
     if 'protect' in skip:
         details['steps'].append({'step': 'protect', 'status': 'skipped'})
         log('[protect] skipped')
-        if clean and optimization is None and last != 'entry':
+        if clean and optimization is None and (last != 'entry' or blp):
             log('[limpa] Dropping the old copies the steps replaced...')
             limpo = os.path.join(tmp, '7_clean.w3x')
-            p = _clean_map(current, limpo, False)
+            p = _clean_map(current, limpo, False, blp=blp)
             details['steps'].append(p)
             log('[clean] ok: %s' % p['summary'])
             shutil.copyfile(limpo, output)
@@ -1332,12 +1467,14 @@ def _recipe(
                                    'detail': dict((k, list(v)) for k, v in sorted(d_optimize.items()))})
                 current = smaller['map_path']
         stages['protect'] = contents(output, ref_names)
-        d = difference(stages[last], stages['protect'])
+        base_p = 'optimize' if (smaller and smaller['map_path']) else last
+        d = difference(stages[base_p], stages['protect'])
+        outside = _outside_blp(d, stages[base_p], stages['protect']) if blp_512 else sorted(d)
         on_close(
             'protect',
-            'ok' if (not d or blp_512) else 'CHANGED CONTENT',
+            'ok' if not outside else 'CHANGED CONTENT',
             t0,
-            last,
+            base_p,
             'protect',
             {
                 'encrypted_count': pack_rel.get('encrypted_count', 0),
@@ -1353,8 +1490,8 @@ def _recipe(
                 ),
             },
         )
-        if d and not blp_512:
-            raise SystemExit('ABORT: the mpq_recompress changed the content of %s' % sorted(d)[:5])
+        if outside:
+            raise SystemExit('ABORT: the mpq_recompress changed the content of %s' % outside[:5])
     if bulk and 'bulk' not in skip:
         t0 = time.time()
         import decoy_files
@@ -1427,6 +1564,8 @@ def _recipe(
             },
         )
         last = 'cut_step'
+    if barrier and 'barrier' not in skip:
+        details['steps'].append(_barriers(output, barrier, ref_names, tmp, log=log))
     details['sha256_output'] = sha(output)
     matrix = {}
     for p in details['steps']:
@@ -1445,7 +1584,44 @@ def _recipe(
     return details
 
 
-def _clean_map(entry, output, no_listfile, optimization=None):
+def _check_barrier(barrier):
+    bad_ones = sorted(set(barrier) - set(BARRIER_KINDS))
+    if bad_ones:
+        raise SystemExit('unknown barrier in --barrier: %s (valid: %s)' % (bad_ones, ', '.join(BARRIER_KINDS)))
+
+
+def _barriers(output, barrier, name_list, tmp, log=print):
+    import mpq_variants
+    t0 = time.time()
+    log('[barrier] Adding the MPQ barriers...')
+    before = contents(output, name_list)
+    with open(output, 'rb') as f:
+        b = f.read()
+    n0 = len(b)
+    done = []
+    if 'header128m' in barrier:
+        b = mpq_variants.v7_header128m(b)
+        done.append('MPQ header moved to 128 MiB (+%d B)' % (len(b) - n0))
+    if 'bitmap' in barrier:
+        n1 = len(b)
+        b = mpq_variants.v6_bitmap(b, all_present=True)
+        done.append('block bitmap appended (+%d B)' % (len(b) - n1))
+    new = os.path.join(tmp, '%d_barrier.w3x' % (STEPS.index('barrier') + 1))
+    with open(new, 'wb') as f:
+        f.write(b)
+    del b
+    after_diag = contents(new, name_list)
+    d = difference(before, after_diag)
+    if d:
+        raise SystemExit('ABORT: the barrier changed the content of %s' % sorted(d)[:5])
+    os.replace(new, output)
+    summary = '; '.join(done) + '; %d -> %d B' % (n0, os.path.getsize(output))
+    log('[barrier] ok: %s' % summary)
+    return {'step': 'barrier', 'status': 'ok', 'seconds': round(time.time() - t0, 1), 'files_changed': 0,
+            'barriers': [x for x in BARRIER_KINDS if x in barrier], 'summary': summary}
+
+
+def _clean_map(entry, output, no_listfile, optimization=None, blp=False):
     import editor_lock
     import mpqadd
     import mpqread
@@ -1459,8 +1635,12 @@ def _clean_map(entry, output, no_listfile, optimization=None):
         source = output + '.no_list.w3x'
         shutil.copyfile(entry, source)
         mpqadd.add_files(source, [], to_delete=['(listfile)'], log=lambda *x: None, hero_attributes=False)
-    res = shrink.shrink(source, output, options=dict(optimization) if optimization is not None else
-                        {'recompress': False, 'blp': False, 'dedup': False})
+    shrink_options = (
+        dict(optimization) if optimization is not None else {'recompress': False, 'blp': False, 'dedup': False}
+    )
+    if blp:
+        shrink_options['blp'] = True
+    res = shrink.shrink(source, output, options=shrink_options)
     if res.get('state') == 'nothing_to_do':
         if source == entry:
             shutil.copyfile(entry, output)
@@ -1470,13 +1650,19 @@ def _clean_map(entry, output, no_listfile, optimization=None):
         raise SystemExit('ABORT in the MPQ cleanup: %s' % (res.get('error') or res.get('state')))
     elif source != entry:
         os.remove(source)
-    d = difference(contents(entry, name_list), contents(output, name_list))
+    c_input, c_output = contents(entry, name_list), contents(output, name_list)
+    d = difference(c_input, c_output)
     if optimization is not None:
         _check_art(d, 'optimize of the embedded map')
-    elif d:
-        raise SystemExit('ABORT: the MPQ cleanup changed the content of %s' % sorted(d)[:5])
+    else:
+        outside = _outside_blp(d, c_input, c_output) if blp else sorted(d)
+        if outside:
+            raise SystemExit('ABORT: the MPQ cleanup changed the content of %s' % outside[:5])
     dropped_info = res.get('dropped') or {}
     nameless = ' without (listfile)' if removed_count else ''
+    b = res.get('blp') or {}
+    with_blp = (', %d BLP texture(s) rewritten without loss (-%d B)' % (b['rewritten'], b.get('bytes', 0))
+                if blp and optimization is None and b.get('rewritten') else '')
     return {
         'step': 'clean',
         'status': 'ok',
@@ -1489,8 +1675,8 @@ def _clean_map(entry, output, no_listfile, optimization=None):
         'summary': (
             'map optimized%s: %s' % (nameless, _shrink_summary(res))
             if optimization is not None and res.get('state') == 'done'
-            else 'MPQ rewritten with only its live blocks%s, %d -> %d B'
-            % (' and' + nameless if removed_count else '', os.path.getsize(entry), os.path.getsize(output))
+            else 'MPQ rewritten with only its live blocks%s, %d -> %d B%s'
+            % (' and' + nameless if removed_count else '', os.path.getsize(entry), os.path.getsize(output), with_blp)
         ),
     }
 
@@ -1532,11 +1718,17 @@ def _campaign(
     imported=True,
     error_list=True,
     cipher=True,
+    no_use=False,
+    barrier=(),
 ):
     if bulk is not None or cut_step:
         raise SystemExit('campaign: --bulk and --cut-hash only work on a SINGLE MAP (the .w3x): in a campaign the '
                          'embedded maps go through _clean_map (only the live blocks) and the .w3n through protect; the '
                          'bulk in a campaign is left for the queue (the window parity, when the page covers it)')
+    if barrier:
+        raise SystemExit(
+            'campaign: the MPQ barriers only work on a SINGLE MAP (the .w3x): on a .w3n they were not measured'
+        )
     if convert_slk:
         raise SystemExit(
             'campaign: --to-slk works only on a SINGLE MAP (the .w3x): each map of the campaign would have to '
@@ -1647,7 +1839,7 @@ def _campaign(
             keep_names=keep_names,
             seed=seed,
             tsv=hash_key,
-            blp=False,
+            blp=blp,
             lua_layers=lua_layers,
             decoys=decoys,
             non_ascii_ids=non_ascii_ids,
@@ -1668,13 +1860,14 @@ def _campaign(
             log=log,
             clean=False,
             content=content,
+            no_use=no_use,
         )
         clean = None
         if 'protect' not in skip or optimization is None:
             limpo = os.path.join(tmp, '%d_clean.w3x' % i)
             clean = _clean_map(map_out, limpo, 'protect' not in skip and 'extra' in set(lock_editor) and
                                'lock_editor' not in skip and not _decoy_of_list(rm['steps']),
-                               optimization if 'protect' not in skip else None)
+                               optimization if 'protect' not in skip else None, blp=blp)
             log('[campaign] %s: %s' % (fname, clean['summary']))
             map_out = limpo
             if 'fill' in decoys and 'decoy' not in skip:
@@ -1715,7 +1908,7 @@ def _campaign(
         import shrink
         t1 = time.time()
         log('[optimize] Optimizing the size...')
-        res = shrink.shrink(current, output, options=dict(optimization))
+        res = shrink.shrink(current, output, options=dict(optimization, blp=True) if blp else dict(optimization))
         if res.get('state') == 'nothing_to_do':
             shutil.copyfile(current, output)
             summary = 'nothing to gain (already compact)'
@@ -1734,7 +1927,7 @@ def _campaign(
     elif 'protect' in skip:
         log('[limpa] Dropping the old copies the steps replaced...')
         limpo = os.path.join(tmp, 'campaign_clean.w3n')
-        lc = _clean_map(current, limpo, False)
+        lc = _clean_map(current, limpo, False, blp=blp)
         shutil.copyfile(limpo, output)
         details['clean'] = lc
         details['protect'] = {
@@ -1765,10 +1958,12 @@ def _campaign(
             with_art = contents(smaller['map_path'], ref_names)
             _check_art(difference(before, with_art), 'optimize of the campaign')
             current, before = smaller['map_path'], with_art
-        d = difference(before, contents(output, ref_names))
+        c_output = contents(output, ref_names)
+        d = difference(before, c_output)
+        outside = _outside_blp(d, before, c_output) if blp_512 else sorted(d)
         details['protect'] = {
             'step': 'protect',
-            'status': 'ok' if (not d or blp_512) else 'CHANGED CONTENT',
+            'status': 'ok' if not outside else 'CHANGED CONTENT',
             'seconds': round(time.time() - t1, 1),
             'files_changed': len(d),
             'encrypted_count': pack_rel.get('encrypted_count', 0),
@@ -1782,8 +1977,8 @@ def _campaign(
             ),
         }
         log('[protect] %s' % details['protect']['summary'])
-        if d and not blp_512:
-            raise SystemExit('ABORT: the mpq_recompress changed the content of %s' % sorted(d)[:5])
+        if outside:
+            raise SystemExit('ABORT: the mpq_recompress changed the content of %s' % outside[:5])
     if 'fill' in decoys and 'decoy' not in skip:
         import decoy_files
         _r = decoy_files.fill(output, seed=seed, log=log)
