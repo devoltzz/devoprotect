@@ -120,6 +120,40 @@ class Generator(object):
             return s
 
 
+class ShortGenerator(Generator):
+    ALPHABET = 'Il1'
+    FIRST_GLOBAL, FIRST_LOCAL = ALPHABET[0], ALPHABET[1]
+
+    def _all_names(self, first, n, avoid):
+        out, tail = [], 0
+        while len(out) < n:
+            cluster = [first + ''.join(t) for t in itertools.product(self.ALPHABET, repeat=tail)]
+            cluster = [x for x in cluster if x not in avoid]
+            self.rng.shuffle(cluster)
+            out.extend(cluster[:n - len(out)])
+            tail += 1
+        return out
+
+    def ranking(self, count):
+        order = sorted(count, key=lambda k: (-count[k], k))
+        new_ones = self._all_names(self.FIRST_GLOBAL, len(order), self.in_use)
+        self.in_use.update(new_ones)
+        return dict(zip(order, new_ones))
+
+    def local_vars(self, count):
+        order = sorted(count, key=lambda k: (-count[k], k))
+        return dict(zip(order, self._all_names(self.FIRST_LOCAL, len(order), self.in_use)))
+
+    def new(self, lmin, lmax, local_vars=None):
+        if local_vars is not None:
+            x = self._all_names(self.FIRST_LOCAL, 1, self.in_use | local_vars)[0]
+            local_vars.add(x)
+            return x
+        x = self._all_names(self.FIRST_GLOBAL, 1, self.in_use)[0]
+        self.in_use.add(x)
+        return x
+
+
 def lines_of(kinds, texts):
     line_list = []
     current = []
@@ -461,10 +495,34 @@ def main():
         | set(g['fname'] for g in globals_block)
         | set(v[3] for v in var_lit)
     )
-    ger = Generator(rng, forbidden)
+    short_names = flag('short-names')
+    ger = (ShortGenerator if short_names else Generator)(rng, forbidden)
     keep_f = set(['main', 'config']) | keep_names | engine | natives
     fmap, gmap = {}, {}
-    if do_names:
+    fallback_fdf = {}
+    if do_names and short_names:
+        uses = collections.Counter(texts[ti] for ti, k in enumerate(kinds) if k == 'id')
+        f_names = [n for n in order if n not in keep_f]
+        trigger_names = [g['fname'] for g in globals_block
+                         if g['fname'] not in keep_names and g['fname'] not in engine and g['fname'] not in keep_var]
+        tally = dict((n, uses.get(n, 0)) for n in f_names + trigger_names)
+        n_str = sum(1 for k in kinds if k == 'str')
+        tally.update({'\0V_S0': n_str, '\0V_S1': 1, '\0V_S2': 1, '\0V_S3': 1,
+                      '\0V_I': sum(1 for k in kinds if k == 'raw'), '\0V_T': 1,
+                      '\0F_D': len(set(texts[ti] for ti, k in enumerate(kinds) if k == 'str')), '\0F_R': 1,
+                      '\0F_INI': 1, '\0F_NAME': 1, '\0H_ALF': 1, '\0H_NAME': 1})
+        short_record = ger.ranking(tally)
+        for n in f_names:
+            fmap[n] = short_record[n]
+        for n in trigger_names:
+            gmap[n] = short_record[n]
+        fallback_fdf = dict((k[1:], v) for k, v in short_record.items() if k.startswith('\0'))
+        for f in func_list.values():
+            missing_items = [n for n in f.local_vars if n not in f.new_ones]
+            uses_f = collections.Counter(texts[ti] for li in range(f.li0, (f.li1 or f.li0) + 1)
+                                         for ti in line_list[li] if kinds[ti] == 'id')
+            f.new_ones.update(ger.local_vars(dict((n, uses_f.get(n, 0)) for n in missing_items)))
+    elif do_names:
         f_names = [n for n in order if n not in keep_f]
         for n in f_names:
             fmap[n] = ger.new(10, 16)
@@ -587,11 +645,18 @@ def main():
     if len(raw_list) > VECTOR_CAP:
         raise SystemExit('ERROR: %d distinct rawcodes exceed the cap of one vector' % len(raw_list))
 
-    new = lambda: ger.new(10, 16)
     n_str_vectors = max(1, (len(str_list) + VECTOR_CAP - 1) // VECTOR_CAP)
-    V_S = [new() for _ in range(n_str_vectors)]
-    V_I, V_T, F_D, F_R, F_INI, F_NAME = new(), new(), new(), new(), new(), new()
-    H_ALF, H_NAME = new(), new()
+    if fallback_fdf:
+        def new_piece(hash_key):
+            return fallback_fdf.pop(hash_key, None) or ger.new(10, 16)
+        V_S = [new_piece('V_S%d' % i) for i in range(n_str_vectors)]
+        V_I, V_T, F_D, F_R, F_INI, F_NAME = [new_piece(k) for k in ('V_I', 'V_T', 'F_D', 'F_R', 'F_INI', 'F_NAME')]
+        H_ALF, H_NAME = new_piece('H_ALF'), new_piece('H_NAME')
+    else:
+        new = lambda: ger.new(10, 16)
+        V_S = [new() for _ in range(n_str_vectors)]
+        V_I, V_T, F_D, F_R, F_INI, F_NAME = new(), new(), new(), new(), new(), new()
+        H_ALF, H_NAME = new(), new()
 
     def ref_s(c):
         k = str_index[c]
