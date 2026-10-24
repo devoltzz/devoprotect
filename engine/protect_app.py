@@ -20,9 +20,11 @@ STEPS = {
     'optimize': 'Optimizing the size...',
     'dds': 'Converting DDS textures to BLP...',
     'content': 'Shrinking the models, sounds and script...',
+    'no_use': 'Removing the files the game never reads...',
     'slk': 'Converting object data to SLK tables...',
     'bulk': 'Writing the extract-all bombs...',
     'cut_step': 'Cutting the hash table...',
+    'barrier': 'Adding the MPQ barriers...',
     'clean': 'Dropping the old copies the steps replaced...',
 }
 DONE = {
@@ -38,9 +40,11 @@ DONE = {
     'optimize': 'Size optimized.',
     'dds': 'DDS textures converted to BLP.',
     'content': 'Models, sounds and script shrunk.',
+    'no_use': 'Unused files removed.',
     'slk': 'Object data converted to SLK tables.',
     'bulk': 'Extract-all bombs written.',
     'cut_step': 'Hash table cut.',
+    'barrier': 'MPQ barriers added.',
     'clean': 'Old copies dropped.',
 }
 
@@ -55,6 +59,7 @@ STEP_KEYS = {
 BLOCKS = ('w3i', 'wtg', 'extra', 'units', 'doo', 'w3r')
 DECOYS = {'wtg': 'wtg', 'listfile': 'listfile', 'imp': 'imp', 'preview': 'preview', 'fill': 'fill'}
 VARIANTS = {'header': 'header_text', 'high_sector': 'high-sector', 'bit31': 'bit31'}
+BARRIERS = {'bitmap': 'bitmap', 'header_128mib': 'header128m'}
 AC_PARTS = {'ledger': 'ledger', 'codes': 'codes', 'names': 'decoys', 'bj': 'bj', 'globals': 'globals'}
 AC_OFF = ('globals',)
 AC_ACTIONS = ('warn', 'nosave', 'defeat', 'end')
@@ -97,7 +102,7 @@ def recipe_kwargs(options):
                          'turn one of them off')
     optimize = None
     if o.get('optimize'):
-        optimize = {'recompress': o.get('opt_recompress', True), 'blp': o.get('opt_blp', True),
+        optimize = {'recompress': o.get('opt_recompress', True), 'blp': bool(o.get('blp', True)),
                     'dedup': o.get('opt_dedup', True), 'lossy': bool(o.get('opt_lossy'))}
     content = None
     if o.get('optimize'):
@@ -128,7 +133,7 @@ def recipe_kwargs(options):
         'variant': tuple(variants),
         'non_ascii_ids': bool(o.get('non_ascii_ids')),
         'lua_layers': int(o.get('lua_layers', 2)),
-        'blp': bool(o.get('blp')),
+        'blp': bool(o.get('blp', True)),
         'imported': bool(o.get('imports')),
         'error_list': bool(o.get('error_logs')),
         'cipher': bool(o.get('encrypt')),
@@ -140,9 +145,11 @@ def recipe_kwargs(options):
                        if o.get('to_slk') else None,
         'convert_lua': bool(o.get('to_lua')),
         'optimization': optimize,
+        'no_use': bool(o.get('optimize') and o.get('opt_unused', True)),
         'content': content,
         'bulk': _bulk_default() if o.get('bombs') else None,
         'cut_step': bool(o.get('cut_hash')),
+        'barrier': tuple(internal for public, internal in BARRIERS.items() if o.get('barrier_' + public)),
         'seed': None if o.get('seed') is None or str(o['seed']).strip() == '' else int(o['seed']),
         'previous': (str(o['previous_key']).strip() or None) if o.get('previous_key') else None,
     }
@@ -153,10 +160,12 @@ def default_options():
             'imports': False, 'error_logs': False, 'encrypt': False,
             'block_w3i': True, 'block_wtg': True, 'block_extra': True, 'block_units': True, 'block_doo': True,
             'block_w3r': False, 'lua_layers': 2,
-            'optimize': False, 'opt_recompress': True, 'opt_blp': True, 'opt_dedup': True, 'opt_lossy': False,
-            'opt_models': False, 'opt_models_lossy': False, 'opt_mp3': False, 'opt_mp3_kbps': 64, 'opt_minify': False,
+            'blp': True,
+            'optimize': True, 'opt_recompress': True, 'opt_dedup': True, 'opt_lossy': False, 'opt_unused': True,
+            'opt_models': False, 'opt_models_lossy': False, 'opt_mp3': False, 'opt_mp3_kbps': 64, 'opt_minify': True,
             'opt_tga_png': False, 'opt_small_textures': False, 'opt_texture_min_side': TEXTURE_MIN_SIDES[1],
             'dds': False, 'bombs': False, 'cut_hash': False, 'to_slk': False,
+            'barrier_bitmap': False, 'barrier_header_128mib': False,
             'anti_cheat': False, 'ac_ledger': True, 'ac_codes': True, 'ac_names': True, 'ac_bj': True,
             'ac_globals': False,
             'ac_warn': True, 'ac_nosave': False, 'ac_defeat': False, 'ac_end': False, 'ac_gold_jump': 400,
@@ -169,9 +178,42 @@ def inspect_map(path):
         r = protect_recipe.inspect_archive(path)
     except Exception as e:
         return {'refused': 'the map does not read: %s' % e}
-    return {'campaign': r['campaign'], 'bytes': r['bytes'], 'refused': r['refusal'], 'script': r['lang'],
-            'w3i': r['w3i'], 'unnamed_block': r['unnamed'], 'own_blizzard': r['map_blizzard'],
-            'last_file': r['last_unit']}
+    ep = r.get('map_era') or {}
+    return {
+        'campaign': r['campaign'],
+        'bytes': r['bytes'],
+        'refused': r['refusal'],
+        'script': r['lang'],
+        'w3i': r['w3i'],
+        'unnamed_block': r['unnamed'],
+        'own_blizzard': r['map_blizzard'],
+        'last_file': r['last_unit'],
+        'era': ep.get('band'),
+        'era_label': ep.get('label_text'),
+        'lua_ok': ep.get('lua_ok'),
+        'memhack': ep.get('memhack') or [],
+        'return_bug': bool(ep.get('has_return_bug')),
+        'players': ep.get('n_players'),
+        'counts': r.get('tally'),
+    }
+
+
+def option_warnings(options, info):
+    o, c = dict(options or {}), (info or {}).get('counts') or None
+    if not c:
+        return []
+    opt = bool(o.get('optimize'))
+    out = []
+    for on, flag, missing in (
+            (opt and o.get('opt_models'), '--models', not c.get('mdx') and 'MDX model'),
+            (opt and o.get('opt_mp3'), '--mp3', not c.get('mp3') and 'MP3 sound'),
+            (o.get('dds'), '--dds', not c.get('dds') and 'DDS texture'),
+            (opt and o.get('opt_tga_png'), '--tga-png', not c.get('tga_png') and 'TGA or PNG image'),
+            (opt and o.get('opt_small_textures'), '--smaller-textures',
+             (not c.get('blp') and 'BLP texture') or (not (c.get('mdx') or c.get('mdl')) and 'model'))):
+        if on and missing:
+            out.append('%s does nothing on this map: it has no %s' % (flag, missing))
+    return out
 
 
 def tables_info():
@@ -286,7 +328,10 @@ def read_preset(text):
         raise ValueError('not a DevoProtect preset: it needs "%s": 1 and "options"' % PRESET_FORMAT)
     keys = preset_keys()
     o, warnings = default_options(), []
-    for k, v in data['options'].items():
+    given = dict(data['options'])
+    if 'opt_blp' in given:
+        given.setdefault('blp', given.pop('opt_blp'))
+    for k, v in given.items():
         if k in PRESET_PATHS:
             warnings.append('%s ignored: a preset carries no file paths' % k)
             continue
