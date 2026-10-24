@@ -95,8 +95,10 @@ local function finish()
     queue = {}
     for i = 1, #f do pc(report, f[i][1], f[i][2]) end
     if {intervalo} > 0 then
+      -- the callback reads the timer: the engine keeps the callback, so the timer is never left to the collector
+      -- (a handle the collector takes goes at a different moment on each machine: a desync, reforged-300.md 8)
       local t = CreateTimer()
-      TimerStart(t, {intervalo}, true, function() pc(scan) end)
+      TimerStart(t, {intervalo}, true, function() if t ~= nil then pc(scan) end end)
     end
     return m(...)
   end
