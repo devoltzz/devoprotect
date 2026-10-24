@@ -16,7 +16,7 @@ INTERVAL = 2.0
 MODES = ('auto', 'humans', 'reload', 'humans+reload')
 NATIVES = (('IsNoVictoryCheat', 'itvexesme'), ('IsNoDefeatCheat', 'strengthandhonor'))
 SIGNATURE = ['player', 'integer', 'string']
-OWN_NAMES = ('arm', 'armed', 'human', 'reported', 'report', 'natives')
+OWN_NAMES = ('arm', 'armed', 'human', 'reported', 'report', 'natives', 'clock')
 STUB = '''function {hook} takes player p, integer kind, string detail returns nothing
     local integer i=0
     loop
@@ -66,7 +66,8 @@ function {arm} takes nothing returns nothing
     if {condition} then
         set {armed}=true
         call {chat_armer}()
-        call TimerStart(CreateTimer(), {interval}, true, function {natives})
+        set {clock}=CreateTimer()
+        call TimerStart({clock}, {interval}, true, function {natives})
     endif
 endfunction
 '''
@@ -170,7 +171,7 @@ def jass_block(hook=HOOK, stub=False, method='humans+reload', type_name=TYPE_COD
     globals_block = [_swap(lx, ren) for g, lx in piece_list['globals_block'].items()
                      if ren[g] in in_use or g in (piece_list['listing'], piece_list['n'], piece_list['trigger'])]
     globals_block += ['boolean array %s' % own['reported'], 'player %s=null' % own['human'],
-                      'boolean %s=false' % own['armed']]
+                      'boolean %s=false' % own['armed'], 'timer %s=null' % own['clock']]
     native_calls = ''.join('    if %s() then\n        call %s(%s, %d)\n    endif\n' % (
         nat, own['report'], own['human'], piece_list['codes'].index(code_part)) for nat, code_part in NATIVES)
     func_list = (
