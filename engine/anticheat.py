@@ -1,4 +1,7 @@
 # The in-game anti-cheat as one step: the hook, the ledger, the cheat codes, decoy names, in order.
+import os
+import re
+
 
 PARTS = ('ledger', 'codes', 'decoys', 'bj', 'globals')
 STANDARD = ('ledger', 'codes', 'decoys', 'bj')
@@ -117,6 +120,8 @@ def applies(body_text, language, pieces=STANDARD, action_codes=('warn',), gold_j
         body_text = original
         details['policy'] = None
         details['action_codes'] = []
+    if language == 'jass' and ref and body_text != original:
+        body_text = fit_ruler(body_text, ref, (BOX_PREFIX, anticheat_policy.PREFIX))
     details['applied'] = body_text != original
     details['bytes'] = len(body_text.encode('utf-8', 'surrogateescape')) - len(
         original.encode('utf-8', 'surrogateescape')
@@ -124,3 +129,34 @@ def applies(body_text, language, pieces=STANDARD, action_codes=('warn',), gold_j
     if as_bytes:
         body_text = body_text.encode('utf-8', 'surrogateescape')
     return body_text, details
+
+
+BOX_PREFIX = 'DEVOAC_'
+_RULER_NAMES = {}
+
+
+def ruler_names(ref):
+    if ref not in _RULER_NAMES:
+        import wc3_versions
+        name_list = set()
+        for f in ('common.j', 'blizzard.j'):
+            p = os.path.join(ref, f)
+            if os.path.isfile(p):
+                with open(p, encoding='utf-8', errors='replace') as h:
+                    _u, defined, natives = wc3_versions.script_names(h.read())
+                name_list |= defined | natives
+        _RULER_NAMES[ref] = name_list
+    return _RULER_NAMES[ref]
+
+
+def fit_ruler(body_text, ref, prefixes):
+    name_list = ruler_names(ref)
+    if not name_list:
+        return body_text
+    rx_function = re.compile(r'(?ms)^function (?:%s)\w+ takes .*?^endfunction' % '|'.join(map(re.escape, prefixes)))
+    if 'GetBJMaxPlayerSlots' not in name_list:
+        body_text = rx_function.sub(
+            lambda m: m.group(0).replace('GetBJMaxPlayerSlots()', 'bj_MAX_PLAYER_SLOTS'), body_text
+        )
+    rx_wrapper = re.compile(r'(?ms)^function %sW_(\w+) takes .*?^endfunction[ \t]*\r?\n?' % re.escape(BOX_PREFIX))
+    return rx_wrapper.sub(lambda m: m.group(0) if m.group(1) in name_list else '', body_text)
