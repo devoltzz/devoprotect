@@ -296,5 +296,11 @@
  "Modes": "Tryby",
  "the script and the object IDs": "skrypt i ID obiektów",
  "the archive; the script stays readable": "archiwum; skrypt pozostaje czytelny",
- "every option, your own set": "każda opcja, własny zestaw"
+ "every option, your own set": "każda opcja, własny zestaw",
+ "Map marked as not allowed to edit.": "Mapa oznaczona jako niedozwolona do edycji.",
+ "Mark the map as not allowed to edit": "Oznacz mapę jako niedozwoloną do edycji",
+ "Mark the map as not allowed to edit: tools that respect the mark refuse to unprotect or change it": "Oznacz mapę jako niedozwoloną do edycji: narzędzia, które szanują to oznaczenie, odmawiają zdjęcia ochrony lub zmiany mapy",
+ "Marking the map as not allowed to edit...": "Oznaczanie mapy jako niedozwolonej do edycji...",
+ "Optional, in every mode. The map plays the same; the mark is a request written into the file, the script and the archive header.": "Opcjonalne, w każdym trybie. Mapa działa tak samo; oznaczenie to prośba zapisana w pliku, w skrypcie i w nagłówku archiwum.",
+ "not with Not allowed to edit (the mark rewrites the tables)": "nie z Niedozwolona do edycji (oznaczenie zapisuje tabele na nowo)"
 }
