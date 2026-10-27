@@ -296,5 +296,11 @@
  "Modes": "Modlar",
  "the script and the object IDs": "script ve nesne kimlikleri",
  "the archive; the script stays readable": "arşiv; script okunabilir kalır",
- "every option, your own set": "her seçenek, kendi ayarlarınız"
+ "every option, your own set": "her seçenek, kendi ayarlarınız",
+ "Map marked as not allowed to edit.": "Harita düzenlenmesine izin verilmez olarak işaretlendi.",
+ "Mark the map as not allowed to edit": "Haritayı düzenlenmesine izin verilmez olarak işaretle",
+ "Mark the map as not allowed to edit: tools that respect the mark refuse to unprotect or change it": "Haritayı düzenlenmesine izin verilmez olarak işaretle: işarete uyan araçlar haritanın korumasını kaldırmayı veya değiştirmeyi reddeder",
+ "Marking the map as not allowed to edit...": "Harita düzenlenmesine izin verilmez olarak işaretleniyor...",
+ "Optional, in every mode. The map plays the same; the mark is a request written into the file, the script and the archive header.": "İsteğe bağlı, her modda. Harita aynı oynanır; işaret dosyaya, betiğe ve arşiv başlığına yazılan bir istektir.",
+ "not with Not allowed to edit (the mark rewrites the tables)": "Düzenlemeye izin yok ile olmaz (işaret tabloları yeniden yazar)"
 }
