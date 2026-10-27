@@ -3,6 +3,14 @@
 What each version of DevoProtect brought, the newest first. The downloads are on the
 [Releases](https://github.com/devoltzz/devoprotect/releases) page.
 
+## 0.1.13 (2026-10-27)
+
+- A new look for the window and the site. The four modes (Full protection, Script only, Archive only, Custom) are now
+  the numbered list on the left, with a short line under each, and the page shares its colors, its frame and its
+  buttons with the other devoltz.party sites. The top of the left column has a small line to switch between them; in
+  the program they open in your browser. The site has its own icon in the browser tab. Every option, its locks and what the protection does are the same as in 0.1.12; the new texts are in all 16
+  languages of the page.
+
 ## 0.1.12 (2026-10-24)
 
 - Smaller maps by default, with nothing lost. On the 12 maps I measure size with (unprotected maps made by
