@@ -50,7 +50,7 @@ aside.side { width: 260px; flex: none; display: flex; flex-direction: column; ba
 .brand select.lang:hover { border-color: #3f4d5e; color: var(--text); }
 .brand .sites { display: flex; gap: 0; margin: -6px 0 10px; font: 700 10px/1.6 var(--mono); letter-spacing: 1px;
   text-transform: uppercase; }
-.brand .sites > * { color: var(--faint); text-decoration: none; padding: 0 7px; border-left: 1px solid var(--line); }
+.brand .sites > * { color: var(--faint); text-decoration: none; padding: 0 5px; border-left: 1px solid var(--line); }
 .brand .sites > :first-child { padding-left: 0; border-left: 0; }
 .brand .sites a:hover { color: var(--text); }
 .brand .sites [aria-current] { color: var(--accent); }
