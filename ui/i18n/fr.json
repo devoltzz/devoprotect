@@ -292,5 +292,9 @@
  "no model in this map": "aucun modèle dans cette carte",
  "not with Convert to Lua (the script is Lua by then)": "pas avec Convertir en Lua (le script est alors en Lua)",
  "remove the files the game never reads: imported files nothing in the map uses (each one is listed in the report)": "supprimer les fichiers que le jeu ne lit jamais : fichiers importés que rien dans la carte n'utilise (chacun est listé dans le rapport)",
- "rewrite the BLP textures without loss: the same pixels, a smaller map": "réécrire les textures BLP sans perte : les mêmes pixels, une carte plus légère"
+ "rewrite the BLP textures without loss: the same pixels, a smaller map": "réécrire les textures BLP sans perte : les mêmes pixels, une carte plus légère",
+ "Modes": "Modes",
+ "the script and the object IDs": "le script et les ID d'objets",
+ "the archive; the script stays readable": "l'archive ; le script reste lisible",
+ "every option, your own set": "toutes les options, à votre façon"
 }
