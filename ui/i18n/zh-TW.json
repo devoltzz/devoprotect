@@ -292,5 +292,9 @@
  "MPQ barriers": "MPQ 阻礙",
  "MPQ barriers added.": "已新增 MPQ 阻礙。",
  "archive moved 128 MiB into the file: MPQ Editor does not open it, not even in v1 mode (the map grows by about 128 MB)": "封存檔已往檔案內移動 128 MiB：MPQ Editor 無法開啟，連 v1 模式也不行（地圖會增加約 128 MB）",
- "block bitmap at the end of the file: MPQ Editor does not open the map (its v1 mode opens it read-only)": "區塊點陣圖位於檔案末端：MPQ Editor 無法開啟該地圖（其 v1 模式可以唯讀方式開啟）"
+ "block bitmap at the end of the file: MPQ Editor does not open the map (its v1 mode opens it read-only)": "區塊點陣圖位於檔案末端：MPQ Editor 無法開啟該地圖（其 v1 模式可以唯讀方式開啟）",
+ "Modes": "模式",
+ "the script and the object IDs": "指令碼與物件 ID",
+ "the archive; the script stays readable": "處理封存檔；指令碼維持可讀",
+ "every option, your own set": "所有選項，由您自行組合"
 }
