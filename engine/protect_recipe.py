@@ -12,7 +12,7 @@ ARCHIVE_ROOT = os.path.normpath(os.path.join(HERE, '..', '..'))
 DEFAULT_REF = next((p for p in (os.path.join(ARCHIVE_ROOT, 'common', 'ref', '3.0'), os.path.join(HERE, 'ref', '3.0'))
                     if os.path.isfile(os.path.join(p, 'common.j'))), os.path.join(ARCHIVE_ROOT, 'common', 'ref', '3.0'))
 STEPS = ('anticheat', 'shuffle', 'imported', 'lua', 'dds', 'error_list', 'content', 'no_use', 'obfuscate', 'slk',
-         'lock_editor', 'decoy', 'protect', 'bulk', 'cut_step', 'barrier')
+         'lock_editor', 'decoy', 'protect', 'bulk', 'cut_step', 'mark', 'barrier')
 BARRIER_KINDS = ('bitmap', 'header128m')
 NO_CONTENTS = ('(listfile)', '(attributes)', '(signature)')
 
@@ -735,6 +735,7 @@ def _recipe(
     cipher=True,
     no_use=False,
     barrier=(),
+    mark_no_edit=False,
 ):
     import editor_lock
     import id_shuffle
@@ -1564,6 +1565,8 @@ def _recipe(
             },
         )
         last = 'cut_step'
+    if mark_no_edit and 'mark' not in skip:
+        details['steps'].append(_mark_no_edit(output, tmp, log=log))
     if barrier and 'barrier' not in skip:
         details['steps'].append(_barriers(output, barrier, ref_names, tmp, log=log))
     details['sha256_output'] = sha(output)
@@ -1582,6 +1585,24 @@ def _recipe(
     log('RECIPE %s: %s (%d B, sha256 %s...)' % ('OK' if details['ok'] else 'FAILED', output, os.path.getsize(output),
                                                   details['sha256_output'][:16]))
     return details
+
+
+def _mark_no_edit(output, tmp, log=print):
+    import no_edit_mark
+    t0 = time.time()
+    log('[mark] Marking the map as not allowed to edit...')
+    new = os.path.join(tmp, '%d_mark%s' % (STEPS.index('mark') + 1, os.path.splitext(output)[1]))
+    r = no_edit_mark.mark_copy(output, new)
+    os.replace(new, output)
+    summary = 'the marks %s; %d -> %d B%s' % (
+        ', '.join(r.get('marks') or []),
+        r.get('size_in', 0),
+        r.get('size_out', 0),
+        ('; without %s' % ', '.join(r['lost'])) if r.get('lost') else '',
+    )
+    log('[mark] ok: %s' % summary)
+    return {'step': 'mark', 'status': 'ok', 'seconds': round(time.time() - t0, 1), 'files_changed': 0,
+            'summary': summary}
 
 
 def _check_barrier(barrier):
@@ -1720,6 +1741,7 @@ def _campaign(
     cipher=True,
     no_use=False,
     barrier=(),
+    mark_no_edit=False,
 ):
     if bulk is not None or cut_step:
         raise SystemExit('campaign: --bulk and --cut-hash only work on a SINGLE MAP (the .w3x): in a campaign the '
@@ -1989,6 +2011,8 @@ def _campaign(
         )
         details['protect']['summary'] = (details['protect'].get('summary') or '') + '; fill: %s' % _r['summary']
         log('[fill] %s' % _r['summary'])
+    if mark_no_edit and 'mark' not in skip:
+        details['mark'] = _mark_no_edit(output, tmp, log=log)
     details['sha256_output'] = sha(output)
     details['ok'] = all(m.get('ok') for m in details['map_list']) and details['protect'].get('status', 'ok') in (
         'ok',
