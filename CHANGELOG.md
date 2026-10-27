@@ -3,6 +3,16 @@
 What each version of DevoProtect brought, the newest first. The downloads are on the
 [Releases](https://github.com/devoltzz/devoprotect/releases) page.
 
+## 0.1.14 (2026-10-27)
+
+- A new option, off by default, in every mode (Full protection, Script only, Archive only and Custom): "Mark the map as
+  not allowed to edit". The protected map gets three marks: a small file inside the archive, a comment line at the top
+  of the script and a signature in the archive header. Map tools that respect the mark refuse to unprotect or change
+  the map. The game never reads them, so the map plays the same. It is a request, not a lock: a tool that ignores it
+  can still change the map, and the rest of the protection is what makes that harder. On the command line it is
+  `--no-edit`. It does not combine with the block table bit31 variant, which the mark would lose; the page turns that
+  one off when the mark is on.
+
 ## 0.1.13 (2026-10-27)
 
 - A new look for the window and the site. The four modes (Full protection, Script only, Archive only, Custom) are now
