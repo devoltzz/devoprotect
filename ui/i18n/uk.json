@@ -296,5 +296,11 @@
  "Modes": "Режими",
  "the script and the object IDs": "скрипт та ID об'єктів",
  "the archive; the script stays readable": "архів; скрипт лишається читабельним",
- "every option, your own set": "усі параметри, ваш власний набір"
+ "every option, your own set": "усі параметри, ваш власний набір",
+ "Map marked as not allowed to edit.": "Мапу позначено як заборонену до редагування.",
+ "Mark the map as not allowed to edit": "Позначити мапу як заборонену до редагування",
+ "Mark the map as not allowed to edit: tools that respect the mark refuse to unprotect or change it": "Позначити мапу як заборонену до редагування: інструменти, що поважають позначку, відмовляються знімати захист або змінювати мапу",
+ "Marking the map as not allowed to edit...": "Мапа позначається як заборонена до редагування...",
+ "Optional, in every mode. The map plays the same; the mark is a request written into the file, the script and the archive header.": "Необов'язково, у будь-якому режимі. Мапа грається так само; позначка — це прохання, записане у файл, у скрипт і в заголовок архіву.",
+ "not with Not allowed to edit (the mark rewrites the tables)": "не разом із «Заборонено редагувати» (позначка переписує таблиці)"
 }
