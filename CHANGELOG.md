@@ -3,6 +3,12 @@
 What each version of DevoProtect brought, the newest first. The downloads are on the
 [Releases](https://github.com/devoltzz/devoprotect/releases) page.
 
+## 0.1.15 (2026-10-27)
+
+- The program no longer shows the small line at the top of the left column that switched between the devoltz.party
+  sites; only the site has it now. On the site it gained Home (devoltz.party), it opens the other sites in the same
+  tab, and its items are a little narrower. The protection is the same as in 0.1.14.
+
 ## 0.1.14 (2026-10-27)
 
 - A new option, off by default, in every mode (Full protection, Script only, Archive only and Custom): "Mark the map as
