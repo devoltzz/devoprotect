@@ -296,5 +296,11 @@
  "Modes": "Modes",
  "the script and the object IDs": "le script et les ID d'objets",
  "the archive; the script stays readable": "l'archive ; le script reste lisible",
- "every option, your own set": "toutes les options, à votre façon"
+ "every option, your own set": "toutes les options, à votre façon",
+ "Map marked as not allowed to edit.": "Carte marquée comme non modifiable.",
+ "Mark the map as not allowed to edit": "Marquer la carte comme non modifiable",
+ "Mark the map as not allowed to edit: tools that respect the mark refuse to unprotect or change it": "Marquer la carte comme non modifiable : les outils qui respectent la marque refusent de la déprotéger ou de la modifier",
+ "Marking the map as not allowed to edit...": "Marquage de la carte comme non modifiable...",
+ "Optional, in every mode. The map plays the same; the mark is a request written into the file, the script and the archive header.": "Facultatif, dans tous les modes. La carte se joue pareil ; la marque est une demande écrite dans le fichier, le script et l'en-tête de l'archive.",
+ "not with Not allowed to edit (the mark rewrites the tables)": "pas avec Non modifiable (la marque réécrit les tables)"
 }
