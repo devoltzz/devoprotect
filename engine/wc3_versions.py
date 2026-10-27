@@ -14,7 +14,7 @@ INDEX_NAME = 'versions.json'
 NATIVES_NAME = 'natives_patch.json'
 SCRIPTS = ('common.j', 'blizzard.j', 'common.ai')
 REFORGED = '3.0'
-
+REFORGED_OLD = ('2.0.4',)
 SOURCES = (('1.24a', 'patch'), ('1.24b', 'patch'), ('1.24c', 'patch'), ('1.24d', 'patch'), ('1.24e', 'patch'),
            ('1.25b', 'patch'), ('1.26a', 'patch'), ('1.27a', 'patch'), ('1.27b', 'patch'),
            ('1.28.5', 'folder'), ('1.29.2', 'folder'))
@@ -31,7 +31,9 @@ def normalize(text):
     t = str(text or '').strip().lower().lstrip('v')
     if t in CLASSIC:
         return t
-    if t in ('reforged', 'r', '3', '3.0', '3.0.0', '3.0.1', '2', '2.0') or t.startswith(('3.', '2.')):
+    if t in ('2', '2.0') or t.startswith('2.'):
+        return REFORGED_OLD[-1]
+    if t in ('reforged', 'r', '3', '3.0', '3.0.0', '3.0.1') or t.startswith('3.'):
         return REFORGED
     m = re.match(r'^1\.?(\d{2})([a-z]?)(?:\.\d+)*$', t)
     if not m:
