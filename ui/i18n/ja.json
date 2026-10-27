@@ -296,5 +296,11 @@
  "Modes": "モード",
  "the script and the object IDs": "スクリプトとオブジェクト ID",
  "the archive; the script stays readable": "アーカイブ。スクリプトは読めるまま",
- "every option, your own set": "すべてのオプション、自分好みの組み合わせ"
+ "every option, your own set": "すべてのオプション、自分好みの組み合わせ",
+ "Map marked as not allowed to edit.": "マップを編集禁止としてマークしました。",
+ "Mark the map as not allowed to edit": "マップを編集禁止としてマークする",
+ "Mark the map as not allowed to edit: tools that respect the mark refuse to unprotect or change it": "マップを編集禁止としてマークする：このマークを尊重するツールは、保護の解除や変更を拒否します",
+ "Marking the map as not allowed to edit...": "マップを編集禁止としてマークしています...",
+ "Optional, in every mode. The map plays the same; the mark is a request written into the file, the script and the archive header.": "任意で、どのモードでも使えます。マップの遊び方は変わりません。マークはファイル、スクリプト、アーカイブのヘッダーに書き込まれる要望です。",
+ "not with Not allowed to edit (the mark rewrites the tables)": "「編集禁止」とは併用不可（マークがテーブルを書き直すため）"
 }
