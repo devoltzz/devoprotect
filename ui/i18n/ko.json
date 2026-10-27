@@ -292,5 +292,9 @@
  "MPQ barriers": "MPQ 방어",
  "MPQ barriers added.": "MPQ 방어를 추가했습니다.",
  "archive moved 128 MiB into the file: MPQ Editor does not open it, not even in v1 mode (the map grows by about 128 MB)": "아카이브를 파일 안쪽으로 128 MiB 옮김: MPQ Editor가 열지 못함, v1 모드에서도 마찬가지 (맵이 약 128 MB 커짐)",
- "block bitmap at the end of the file: MPQ Editor does not open the map (its v1 mode opens it read-only)": "블록 비트맵을 파일 끝에 둠: MPQ Editor가 맵을 열지 못함 (v1 모드에서는 읽기 전용으로 열림)"
+ "block bitmap at the end of the file: MPQ Editor does not open the map (its v1 mode opens it read-only)": "블록 비트맵을 파일 끝에 둠: MPQ Editor가 맵을 열지 못함 (v1 모드에서는 읽기 전용으로 열림)",
+ "Modes": "모드",
+ "the script and the object IDs": "스크립트와 오브젝트 ID",
+ "the archive; the script stays readable": "아카이브만, 스크립트는 읽을 수 있음",
+ "every option, your own set": "모든 옵션, 직접 구성"
 }
