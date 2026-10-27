@@ -292,5 +292,9 @@
  "MPQ barriers": "Барьеры MPQ",
  "MPQ barriers added.": "Барьеры MPQ добавлены.",
  "archive moved 128 MiB into the file: MPQ Editor does not open it, not even in v1 mode (the map grows by about 128 MB)": "архив сдвинут на 128 MiB вглубь файла: MPQ Editor его не открывает, даже в режиме v1 (карта вырастает примерно на 128 MB)",
- "block bitmap at the end of the file: MPQ Editor does not open the map (its v1 mode opens it read-only)": "битовая карта блоков в конце файла: MPQ Editor не открывает карту (его режим v1 открывает её только для чтения)"
+ "block bitmap at the end of the file: MPQ Editor does not open the map (its v1 mode opens it read-only)": "битовая карта блоков в конце файла: MPQ Editor не открывает карту (его режим v1 открывает её только для чтения)",
+ "Modes": "Режимы",
+ "the script and the object IDs": "скрипт и ID объектов",
+ "the archive; the script stays readable": "архив; скрипт остаётся читаемым",
+ "every option, your own set": "все опции, ваш набор"
 }
