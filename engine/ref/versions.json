@@ -9,6 +9,11 @@
    "common.j": "99a1bb12048d3cceecf6f00b67e4f007fe0fa628",
    "blizzard.j": "81b7dac16a32db0844a7fba259f717db63cd2b40",
    "common.ai": "51673027c6fdc8a9b4ae3c76ed537601168b6f97"
+  },
+  "2.0": {
+   "common.j": "2f87092225ecd1d96c78e0f3740bca1cac5dcccf",
+   "blizzard.j": "1338adadd3ebb6fedff334ea900cffa9ab2b50fc",
+   "common.ai": "dce5a5d4e05e5573c1fc3de2d679bf7b15d091f6"
   }
  },
  "versions": {
@@ -55,6 +60,10 @@
   "1.29.2": {
    "scripts": "1.29",
    "range": "1.29"
+  },
+  "2.0.4": {
+   "scripts": "2.0",
+   "range": "2.0"
   }
  }
 }
