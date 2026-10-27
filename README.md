@@ -190,6 +190,7 @@ is the keys folder of the previous release (its out folder).
 | `--decoys=wtg,listfile,imp,preview,fill` | Decoy files (`listfile` removes the file list; `preview` only when you name it: the game may show that image). |
 | `--bombs` | Extract-all bombs. |
 | `--cut-hash` | Cut the hash table: MPQ Editor and StormLib open the map read-only. |
+| `--no-edit` | Mark the protected map as not allowed to edit (off by default, any mode): a file in the archive, a comment in the script and a signature in the header. Tools that respect the mark refuse to unprotect or change the map; the game ignores it. |
 | `--variant=header,high-sector,bit31` | Malformed-header markers (only with the 512-sector pack; `bit31` doesn't combine with `--bombs` or `--cut-hash`). |
 | `--mpq-barrier=bitmap,header-128mib` | MPQ barriers added at the very end (single maps). `bitmap`: a few bytes at the end of the file, and MPQ Editor does not open the map (its v1 mode opens it read-only). `header-128mib`: the archive moved 128 MiB into the file; MPQ Editor does not open it even in v1 mode, and the map grows by about 128 MB. Both load in Reforged; with the 512-sector pack MPQ Editor already refuses the map. |
 | `--ids-non-ascii` | Non-printable object IDs (control characters). |
