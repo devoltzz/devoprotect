@@ -296,5 +296,11 @@
  "Modes": "模式",
  "the script and the object IDs": "指令碼與物件 ID",
  "the archive; the script stays readable": "處理封存檔；指令碼維持可讀",
- "every option, your own set": "所有選項，由您自行組合"
+ "every option, your own set": "所有選項，由您自行組合",
+ "Map marked as not allowed to edit.": "地圖已標記為不允許編輯。",
+ "Mark the map as not allowed to edit": "將地圖標記為不允許編輯",
+ "Mark the map as not allowed to edit: tools that respect the mark refuse to unprotect or change it": "將地圖標記為不允許編輯：遵守此標記的工具會拒絕解除保護或修改地圖",
+ "Marking the map as not allowed to edit...": "正在將地圖標記為不允許編輯...",
+ "Optional, in every mode. The map plays the same; the mark is a request written into the file, the script and the archive header.": "可選，所有模式皆可用。地圖玩法不變；此標記是寫入檔案、腳本和封包標頭的請求。",
+ "not with Not allowed to edit (the mark rewrites the tables)": "不能與「不允許編輯」同時使用（此標記會重寫表格）"
 }
