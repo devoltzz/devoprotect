@@ -292,5 +292,9 @@
  "MPQ barriers": "MPQ バリア",
  "MPQ barriers added.": "MPQ バリアを追加しました。",
  "archive moved 128 MiB into the file: MPQ Editor does not open it, not even in v1 mode (the map grows by about 128 MB)": "アーカイブをファイル内の 128 MiB 位置へ移動: MPQ Editor では v1 モードでも開けません(マップが約 128 MB 大きくなります)",
- "block bitmap at the end of the file: MPQ Editor does not open the map (its v1 mode opens it read-only)": "ブロックビットマップをファイルの末尾に置く: MPQ Editor ではマップを開けません(v1 モードでは読み取り専用で開きます)"
+ "block bitmap at the end of the file: MPQ Editor does not open the map (its v1 mode opens it read-only)": "ブロックビットマップをファイルの末尾に置く: MPQ Editor ではマップを開けません(v1 モードでは読み取り専用で開きます)",
+ "Modes": "モード",
+ "the script and the object IDs": "スクリプトとオブジェクト ID",
+ "the archive; the script stays readable": "アーカイブ。スクリプトは読めるまま",
+ "every option, your own set": "すべてのオプション、自分好みの組み合わせ"
 }
