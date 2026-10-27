@@ -292,5 +292,9 @@
  "MPQ barriers": "MPQ engelleri",
  "MPQ barriers added.": "MPQ engelleri eklendi.",
  "archive moved 128 MiB into the file: MPQ Editor does not open it, not even in v1 mode (the map grows by about 128 MB)": "arşiv dosyanın içinde 128 MiB ileri taşınır: MPQ Editor onu açmaz, v1 modunda bile (harita yaklaşık 128 MB büyür)",
- "block bitmap at the end of the file: MPQ Editor does not open the map (its v1 mode opens it read-only)": "blok bit eşlemi dosyanın sonunda: MPQ Editor haritayı açmaz (v1 modu salt okunur açar)"
+ "block bitmap at the end of the file: MPQ Editor does not open the map (its v1 mode opens it read-only)": "blok bit eşlemi dosyanın sonunda: MPQ Editor haritayı açmaz (v1 modu salt okunur açar)",
+ "Modes": "Modlar",
+ "the script and the object IDs": "script ve nesne kimlikleri",
+ "the archive; the script stays readable": "arşiv; script okunabilir kalır",
+ "every option, your own set": "her seçenek, kendi ayarlarınız"
 }
