@@ -23,6 +23,7 @@
   "short_name": "DevoProtect",
   "description": "Protect Warcraft III maps from casual editing, in the browser."
  },
+ "favicon": "protect.svg",
  "cache_prefix": "devoprotect",
  "size_limit_mb": 250,
  "mpqcrypt_c": "engine/mpqcrypt.c",
