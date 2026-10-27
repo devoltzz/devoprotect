@@ -296,5 +296,11 @@
  "Modes": "Modalità",
  "the script and the object IDs": "lo script e gli ID degli oggetti",
  "the archive; the script stays readable": "l'archivio; lo script resta leggibile",
- "every option, your own set": "ogni opzione, la tua selezione"
+ "every option, your own set": "ogni opzione, la tua selezione",
+ "Map marked as not allowed to edit.": "Mappa contrassegnata come non modificabile.",
+ "Mark the map as not allowed to edit": "Contrassegna la mappa come non modificabile",
+ "Mark the map as not allowed to edit: tools that respect the mark refuse to unprotect or change it": "Contrassegna la mappa come non modificabile: gli strumenti che rispettano il contrassegno si rifiutano di sproteggerla o modificarla",
+ "Marking the map as not allowed to edit...": "Contrassegno della mappa come non modificabile...",
+ "Optional, in every mode. The map plays the same; the mark is a request written into the file, the script and the archive header.": "Facoltativo, in ogni modalità. La mappa si gioca uguale; il contrassegno è una richiesta scritta nel file, nello script e nell'intestazione dell'archivio.",
+ "not with Not allowed to edit (the mark rewrites the tables)": "non con Non modificabile (il contrassegno riscrive le tabelle)"
 }
