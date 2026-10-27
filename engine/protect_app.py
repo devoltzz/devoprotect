@@ -24,6 +24,7 @@ STEPS = {
     'slk': 'Converting object data to SLK tables...',
     'bulk': 'Writing the extract-all bombs...',
     'cut_step': 'Cutting the hash table...',
+    'mark': 'Marking the map as not allowed to edit...',
     'barrier': 'Adding the MPQ barriers...',
     'clean': 'Dropping the old copies the steps replaced...',
 }
@@ -44,6 +45,7 @@ DONE = {
     'slk': 'Object data converted to SLK tables.',
     'bulk': 'Extract-all bombs written.',
     'cut_step': 'Hash table cut.',
+    'mark': 'Map marked as not allowed to edit.',
     'barrier': 'MPQ barriers added.',
     'clean': 'Old copies dropped.',
 }
@@ -150,6 +152,7 @@ def recipe_kwargs(options):
         'bulk': _bulk_default() if o.get('bombs') else None,
         'cut_step': bool(o.get('cut_hash')),
         'barrier': tuple(internal for public, internal in BARRIERS.items() if o.get('barrier_' + public)),
+        'mark_no_edit': bool(o.get('no_edit')),
         'seed': None if o.get('seed') is None or str(o['seed']).strip() == '' else int(o['seed']),
         'previous': (str(o['previous_key']).strip() or None) if o.get('previous_key') else None,
     }
@@ -165,7 +168,7 @@ def default_options():
             'opt_models': False, 'opt_models_lossy': False, 'opt_mp3': False, 'opt_mp3_kbps': 64, 'opt_minify': True,
             'opt_tga_png': False, 'opt_small_textures': False, 'opt_texture_min_side': TEXTURE_MIN_SIDES[1],
             'dds': False, 'bombs': False, 'cut_hash': False, 'to_slk': False,
-            'barrier_bitmap': False, 'barrier_header_128mib': False,
+            'barrier_bitmap': False, 'barrier_header_128mib': False, 'no_edit': False,
             'anti_cheat': False, 'ac_ledger': True, 'ac_codes': True, 'ac_names': True, 'ac_bj': True,
             'ac_globals': False,
             'ac_warn': True, 'ac_nosave': False, 'ac_defeat': False, 'ac_end': False, 'ac_gold_jump': 400,
