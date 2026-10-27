@@ -53,6 +53,9 @@ Options (each toggle of each step; default: full protection, ASCII IDs, no decoy
                                                grows by about 128 MB. Both load in Reforged. With the sector-512
                                                pack MPQ Editor already refuses the map: they matter most with
                                                --skip=pack
+    --no-edit                                  mark the protected map as not allowed to edit: tools that respect
+                                               the mark refuse to unprotect or change it (off by default; the
+                                               block table bit31 variant does not survive it)
     --ids-non-ascii                            non-printable object IDs (control characters)
     --to-lua                                   convert a JASS script to Lua first (the map then needs 1.31+)
     --to-slk                                   convert the object data to the game's SLK tables (fewer objects are
@@ -161,13 +164,14 @@ BARE_FLAGS = (
     'rename-imports',
     'remove-error-logs',
     'encrypt-files',
+    'no-edit',
     'cli',
     'help',
     'version',
 )
 ON_FLAGS = (('ids-non-ascii', 'non_ascii_ids'), ('to-lua', 'to_lua'), ('blp', 'blp'), ('dds', 'dds'),
             ('bombs', 'bombs'), ('cut-hash', 'cut_hash'), ('to-slk', 'to_slk'), ('rename-imports', 'imports'),
-            ('remove-error-logs', 'error_logs'), ('encrypt-files', 'encrypt'))
+            ('remove-error-logs', 'error_logs'), ('encrypt-files', 'encrypt'), ('no-edit', 'no_edit'))
 
 
 def positional(argv):
