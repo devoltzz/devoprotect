@@ -296,5 +296,11 @@
  "Modes": "Modi",
  "the script and the object IDs": "das Skript und die Objekt-IDs",
  "the archive; the script stays readable": "das Archiv; das Skript bleibt lesbar",
- "every option, your own set": "jede Option, dein eigenes Set"
+ "every option, your own set": "jede Option, dein eigenes Set",
+ "Map marked as not allowed to edit.": "Karte als nicht bearbeitbar markiert.",
+ "Mark the map as not allowed to edit": "Die Karte als nicht bearbeitbar markieren",
+ "Mark the map as not allowed to edit: tools that respect the mark refuse to unprotect or change it": "Die Karte als nicht bearbeitbar markieren: Werkzeuge, die die Markierung beachten, weigern sich, sie zu entschützen oder zu ändern",
+ "Marking the map as not allowed to edit...": "Karte wird als nicht bearbeitbar markiert...",
+ "Optional, in every mode. The map plays the same; the mark is a request written into the file, the script and the archive header.": "Optional, in jedem Modus. Die Karte spielt sich gleich; die Markierung ist eine Bitte, die in die Datei, das Skript und den Archiv-Header geschrieben wird.",
+ "not with Not allowed to edit (the mark rewrites the tables)": "nicht mit Nicht bearbeitbar (die Markierung schreibt die Tabellen neu)"
 }
