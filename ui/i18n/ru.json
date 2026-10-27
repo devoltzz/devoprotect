@@ -296,5 +296,11 @@
  "Modes": "Режимы",
  "the script and the object IDs": "скрипт и ID объектов",
  "the archive; the script stays readable": "архив; скрипт остаётся читаемым",
- "every option, your own set": "все опции, ваш набор"
+ "every option, your own set": "все опции, ваш набор",
+ "Map marked as not allowed to edit.": "Карта помечена как запрещённая к редактированию.",
+ "Mark the map as not allowed to edit": "Пометить карту как запрещённую к редактированию",
+ "Mark the map as not allowed to edit: tools that respect the mark refuse to unprotect or change it": "Пометить карту как запрещённую к редактированию: инструменты, которые соблюдают метку, отказываются снимать защиту или изменять карту",
+ "Marking the map as not allowed to edit...": "Карта помечается как запрещённая к редактированию...",
+ "Optional, in every mode. The map plays the same; the mark is a request written into the file, the script and the archive header.": "Необязательно, в любом режиме. Карта играется так же; метка — это просьба, записанная в файл, в скрипт и в заголовок архива.",
+ "not with Not allowed to edit (the mark rewrites the tables)": "не вместе с «Запрещено редактировать» (метка перезаписывает таблицы)"
 }
