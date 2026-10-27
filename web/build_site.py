@@ -18,6 +18,7 @@ SIZE_LIMIT = 450 * 1024 * 1024
 THEME = '#121418'
 SHARED_CSS = 'devoltz.css'
 SHARED_CSS_LINK = re.compile(r'<link rel="stylesheet" href="[^"]*?devoltz\.css">')
+SITES_HIDDEN = '<nav class="sites hidden"'
 OPTIONAL = ('data/game_data.zip',)
 NOT_CACHED = ('sw.js', 'names.npz')
 DEFAULT = {
@@ -143,6 +144,7 @@ def page(ui, out, config, prod=None):
     with open(os.path.join(ui, 'index.html'), encoding='utf-8') as f:
         html = f.read()
     html = shared_css(html, out)
+    html = sites_switcher(html)
     if prod.get('inline_script'):
         m = re.search(r'(?s)\n<script>\n(.*?)</script>\n', html)
         if not m:
@@ -184,6 +186,10 @@ def favicon(out, prod):
             shutil.copyfile(src, os.path.join(out, 'favicon.svg'))
             return True
     return False
+
+
+def sites_switcher(html):
+    return html.replace(SITES_HIDDEN, '<nav class="sites"', 1)
 
 
 def shared_css(html, out):
