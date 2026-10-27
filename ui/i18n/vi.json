@@ -292,5 +292,9 @@
  "MPQ barriers": "Rào cản MPQ",
  "MPQ barriers added.": "Đã thêm các rào cản MPQ.",
  "archive moved 128 MiB into the file: MPQ Editor does not open it, not even in v1 mode (the map grows by about 128 MB)": "kho lưu trữ dời vào trong tệp 128 MiB: MPQ Editor không mở được, kể cả ở chế độ v1 (bản đồ lớn thêm khoảng 128 MB)",
- "block bitmap at the end of the file: MPQ Editor does not open the map (its v1 mode opens it read-only)": "bitmap khối ở cuối tệp: MPQ Editor không mở được bản đồ (chế độ v1 của nó mở được ở chế độ chỉ đọc)"
+ "block bitmap at the end of the file: MPQ Editor does not open the map (its v1 mode opens it read-only)": "bitmap khối ở cuối tệp: MPQ Editor không mở được bản đồ (chế độ v1 của nó mở được ở chế độ chỉ đọc)",
+ "Modes": "Chế độ",
+ "the script and the object IDs": "script và ID đối tượng",
+ "the archive; the script stays readable": "kho lưu trữ; script vẫn đọc được",
+ "every option, your own set": "mọi tùy chọn, bộ riêng của bạn"
 }
