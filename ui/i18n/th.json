@@ -296,5 +296,11 @@
  "Modes": "โหมด",
  "the script and the object IDs": "สคริปต์และ ID ของออบเจกต์",
  "the archive; the script stays readable": "อาร์ไคฟ์ ส่วนสคริปต์ยังอ่านได้",
- "every option, your own set": "ทุกตัวเลือก ตามชุดของคุณเอง"
+ "every option, your own set": "ทุกตัวเลือก ตามชุดของคุณเอง",
+ "Map marked as not allowed to edit.": "ทำเครื่องหมายแผนที่ว่าไม่อนุญาตให้แก้ไขแล้ว",
+ "Mark the map as not allowed to edit": "ทำเครื่องหมายแผนที่ว่าไม่อนุญาตให้แก้ไข",
+ "Mark the map as not allowed to edit: tools that respect the mark refuse to unprotect or change it": "ทำเครื่องหมายแผนที่ว่าไม่อนุญาตให้แก้ไข: เครื่องมือที่เคารพเครื่องหมายนี้จะปฏิเสธการปลดล็อกหรือแก้ไขแผนที่",
+ "Marking the map as not allowed to edit...": "กำลังทำเครื่องหมายแผนที่ว่าไม่อนุญาตให้แก้ไข...",
+ "Optional, in every mode. The map plays the same; the mark is a request written into the file, the script and the archive header.": "ไม่บังคับ ใช้ได้ทุกโหมด แผนที่เล่นได้เหมือนเดิม เครื่องหมายเป็นคำขอที่เขียนไว้ในไฟล์ ในสคริปต์ และในส่วนหัวของ archive",
+ "not with Not allowed to edit (the mark rewrites the tables)": "ใช้ร่วมกับ ไม่อนุญาตให้แก้ไข ไม่ได้ (เครื่องหมายเขียนตารางใหม่)"
 }
