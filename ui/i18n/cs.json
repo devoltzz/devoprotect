@@ -296,5 +296,11 @@
  "Modes": "Režimy",
  "the script and the object IDs": "skript a ID objektů",
  "the archive; the script stays readable": "archiv; skript zůstane čitelný",
- "every option, your own set": "všechny volby, vlastní sada"
+ "every option, your own set": "všechny volby, vlastní sada",
+ "Map marked as not allowed to edit.": "Mapa označena jako zakázaná k úpravám.",
+ "Mark the map as not allowed to edit": "Označit mapu jako zakázanou k úpravám",
+ "Mark the map as not allowed to edit: tools that respect the mark refuse to unprotect or change it": "Označit mapu jako zakázanou k úpravám: nástroje, které značku respektují, odmítnou mapu odemknout nebo změnit",
+ "Marking the map as not allowed to edit...": "Označování mapy jako zakázané k úpravám...",
+ "Optional, in every mode. The map plays the same; the mark is a request written into the file, the script and the archive header.": "Volitelné, v každém režimu. Mapa se hraje stejně; značka je žádost zapsaná do souboru, do skriptu a do hlavičky archivu.",
+ "not with Not allowed to edit (the mark rewrites the tables)": "ne se Zakázáno upravovat (značka přepisuje tabulky)"
 }
