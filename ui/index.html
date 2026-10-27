@@ -66,6 +66,11 @@
       </div>
     </section>
 
+    <section class="card">
+      <label class="tog" style="margin:0"><input type="checkbox" data-opt="no_edit"> Mark the map as not allowed to edit: tools that respect the mark refuse to unprotect or change it<span class="why" id="w-no_edit"></span></label>
+      <div class="hint" style="margin-top:2px">Optional, in every mode. The map plays the same; the mark is a request written into the file, the script and the archive header.</div>
+    </section>
+
     <div class="layout">
       <div id="groups">
         <section class="card grp">
@@ -374,7 +379,7 @@
               hint: 'Only the archive: editor-only and unused files removed, the BLP textures rewritten without loss and the sector-512 pack; the script stays readable.'},
     custom: {code: '04', title: 'Custom', hint: 'Your own set: every option on the left. Picking another mode resets them all to its set.'}
   };
-  var NOT_SET = {previous_key: 1, seed: 1};
+  var NOT_SET = {previous_key: 1, seed: 1, no_edit: 1};
   function modeSet(mode){ return Object.assign({}, DEFAULTS, MODES[mode].set); }
   function intent(k){ return (k === 'pack' && KEEP_PACK) ? true : (k in ANTES) ? ANTES[k] : OPTIONS[k]; }
   function modeOf(){
@@ -407,9 +412,10 @@
   }
   function applyMode(mode){
     if(MODES[mode].set){
-      var keep = OPTIONS['previous_key'];
+      var keep = OPTIONS['previous_key'], noEdit = !!OPTIONS['no_edit'];
       OPTIONS = modeSet(mode);
       if(keep){ OPTIONS['previous_key'] = keep; }
+      OPTIONS['no_edit'] = noEdit;
       ANTES = {};
       syncControls();
       setPack(packAllowed(OPTIONS['pack'] ? 'protect' : 'none'));
@@ -446,7 +452,8 @@
     nomodel: 'no model in this map',
     nomp3: 'no MP3 sound in this map',
     nodds: 'no DDS texture in this map',
-    notga: 'no TGA or PNG image in this map'
+    notga: 'no TGA or PNG image in this map',
+    noedit: 'not with Not allowed to edit (the mark rewrites the tables)'
   };
   var PARENT = [R.shuffle, R.obf, R.block, R.opt, R.ac, R.always];
   var NAMES = {
@@ -507,7 +514,8 @@
     ['same_bytes', function(o){ return !o.pack && R.pack; }],
     ['variant_header', function(o){ return !o.pack && R.pack; }],
     ['variant_high_sector', function(o){ return !o.pack && R.pack; }],
-    ['variant_bit31', function(o){ return !o.pack ? R.pack : o.bombs ? R.bombs : o.cut_hash ? R.cut : null; }],
+    ['variant_bit31', function(o){ return !o.pack ? R.pack : o.bombs ? R.bombs : o.cut_hash ? R.cut : o.no_edit ? R.noedit :
+                                          null; }],
     ['bombs', function(){ return campaign() && R.single; }],
     ['barrier_bitmap', function(){ return campaign() && R.single; }],
     ['barrier_header_128mib', function(){ return campaign() && R.single; }],
@@ -632,6 +640,7 @@
                       : 'Save a normal archive');
     if(o.bombs){ steps.push('Write the extract-all bombs'); }
     if(o.cut_hash){ steps.push('Cut the hash table'); }
+    if(o.no_edit){ steps.push('Mark the map as not allowed to edit'); }
     if(o.barrier_bitmap || o.barrier_header_128mib){ steps.push('Add the MPQ barriers'); }
     var plan = $('plan');
     plan.innerHTML = '';
