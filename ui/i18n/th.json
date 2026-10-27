@@ -292,5 +292,9 @@
  "MPQ barriers": "กำแพง MPQ",
  "MPQ barriers added.": "เพิ่มกำแพง MPQ แล้ว",
  "archive moved 128 MiB into the file: MPQ Editor does not open it, not even in v1 mode (the map grows by about 128 MB)": "ย้ายอาร์ไคฟ์เข้าไปในไฟล์ 128 MiB: MPQ Editor เปิดไม่ได้ แม้ในโหมด v1 (แมปจะใหญ่ขึ้นประมาณ 128 MB)",
- "block bitmap at the end of the file: MPQ Editor does not open the map (its v1 mode opens it read-only)": "บิตแมปของบล็อกอยู่ท้ายไฟล์: MPQ Editor เปิดแมปไม่ได้ (โหมด v1 เปิดได้แบบอ่านอย่างเดียว)"
+ "block bitmap at the end of the file: MPQ Editor does not open the map (its v1 mode opens it read-only)": "บิตแมปของบล็อกอยู่ท้ายไฟล์: MPQ Editor เปิดแมปไม่ได้ (โหมด v1 เปิดได้แบบอ่านอย่างเดียว)",
+ "Modes": "โหมด",
+ "the script and the object IDs": "สคริปต์และ ID ของออบเจกต์",
+ "the archive; the script stays readable": "อาร์ไคฟ์ ส่วนสคริปต์ยังอ่านได้",
+ "every option, your own set": "ทุกตัวเลือก ตามชุดของคุณเอง"
 }
