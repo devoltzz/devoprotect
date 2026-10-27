@@ -296,5 +296,11 @@
  "Modes": "모드",
  "the script and the object IDs": "스크립트와 오브젝트 ID",
  "the archive; the script stays readable": "아카이브만, 스크립트는 읽을 수 있음",
- "every option, your own set": "모든 옵션, 직접 구성"
+ "every option, your own set": "모든 옵션, 직접 구성",
+ "Map marked as not allowed to edit.": "맵이 편집 금지로 표시되었습니다.",
+ "Mark the map as not allowed to edit": "맵을 편집 금지로 표시",
+ "Mark the map as not allowed to edit: tools that respect the mark refuse to unprotect or change it": "맵을 편집 금지로 표시: 이 표시를 따르는 도구는 맵의 보호 해제나 변경을 거부합니다",
+ "Marking the map as not allowed to edit...": "맵을 편집 금지로 표시하는 중...",
+ "Optional, in every mode. The map plays the same; the mark is a request written into the file, the script and the archive header.": "선택 사항이며 모든 모드에서 쓸 수 있습니다. 맵은 똑같이 플레이됩니다. 이 표시는 파일, 스크립트, 아카이브 헤더에 기록되는 요청입니다.",
+ "not with Not allowed to edit (the mark rewrites the tables)": "편집 금지와 함께 쓸 수 없음 (표시가 테이블을 다시 씀)"
 }
