@@ -292,5 +292,9 @@
  "MPQ barriers": "MPQ 屏障",
  "MPQ barriers added.": "MPQ 屏障已添加。",
  "archive moved 128 MiB into the file: MPQ Editor does not open it, not even in v1 mode (the map grows by about 128 MB)": "归档移到文件内 128 MiB 处:MPQ Editor 无法打开,即使在 v1 模式下也不行(地图约增大 128 MB)",
- "block bitmap at the end of the file: MPQ Editor does not open the map (its v1 mode opens it read-only)": "块位图置于文件末尾:MPQ Editor 无法打开该地图(其 v1 模式仅以只读方式打开)"
+ "block bitmap at the end of the file: MPQ Editor does not open the map (its v1 mode opens it read-only)": "块位图置于文件末尾:MPQ Editor 无法打开该地图(其 v1 模式仅以只读方式打开)",
+ "Modes": "模式",
+ "the script and the object IDs": "脚本和物体 ID",
+ "the archive; the script stays readable": "归档;脚本保持可读",
+ "every option, your own set": "所有选项,由你自选"
 }
