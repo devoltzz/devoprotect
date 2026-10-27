@@ -292,5 +292,9 @@
  "MPQ barriers": "Barreiras de MPQ",
  "MPQ barriers added.": "Barreiras de MPQ adicionadas.",
  "archive moved 128 MiB into the file: MPQ Editor does not open it, not even in v1 mode (the map grows by about 128 MB)": "arquivo movido 128 MiB para dentro do mapa: o MPQ Editor não o abre, nem no modo v1 (o mapa cresce cerca de 128 MB)",
- "block bitmap at the end of the file: MPQ Editor does not open the map (its v1 mode opens it read-only)": "bitmap de blocos no fim do arquivo: o MPQ Editor não abre o mapa (o modo v1 dele abre só para leitura)"
+ "block bitmap at the end of the file: MPQ Editor does not open the map (its v1 mode opens it read-only)": "bitmap de blocos no fim do arquivo: o MPQ Editor não abre o mapa (o modo v1 dele abre só para leitura)",
+ "Modes": "Modos",
+ "the script and the object IDs": "o script e os IDs de objetos",
+ "the archive; the script stays readable": "o arquivo; o script continua legível",
+ "every option, your own set": "todas as opções, o seu conjunto"
 }
