@@ -23,8 +23,11 @@ USAGE = r"""DevoProtect: protect a Warcraft III map from casual editing.
                                                --save-preset); the options on the command line win over it
     --save-preset=<file.json>                  write a preset with the options given (and the preset's, if any)
 
-Options (each toggle of each step; default: full protection, ASCII IDs, no decoys, no MPQ variants):
+Options (each toggle of each step; default: full protection without the sector-512 pack, with the block bitmap
+barrier, ASCII IDs, no decoys, no MPQ variants):
     --skip=shuffle,obfuscate,block,decoys,pack,dds   steps to skip
+    --pack                                     repack the archive with 512-byte sectors (off by default: the map
+                                               gets bigger; MPQ Editor refuses it)
     --rename-imports                           rename the imported files to meaningless names of the same length,
                                                in the archive and in every reference (object data, models and
                                                script). Off by default
@@ -45,8 +48,8 @@ Options (each toggle of each step; default: full protection, ASCII IDs, no decoy
     --cut-hash                                 cut the hash table: MPQ Editor and StormLib open the map read-only
                                                (they list and extract, but cannot edit it); the game plays it
                                                unchanged. Not with --variant=bit31
-    --mpq-barrier=bitmap,header-128mib         MPQ barriers added at the very end (off by default; single maps,
-                                               not campaigns). bitmap: a block bitmap at the end of the file;
+    --mpq-barrier=bitmap,header-128mib         MPQ barriers added at the very end (default: bitmap; single maps,
+                                               not campaigns; --mpq-barrier= with nothing turns them off). bitmap: a block bitmap at the end of the file;
                                                MPQ Editor does not open the map (its v1 mode opens it read-only),
                                                a few bytes. header-128mib: the archive moved to 128 MiB into the
                                                file; MPQ Editor does not open it even in v1 mode, and the map
@@ -107,6 +110,15 @@ Options (each toggle of each step; default: full protection, ASCII IDs, no decoy
                                                stay as they are. Far away models look the same; up close they are
                                                blurrier
     --dds                                      convert .dds textures to BLP (smaller, native) and repoint references
+    --to-dds[=high|normal|small]               lossy: convert the .blp, .tga and .png textures to DDS (DXT1 or DXT5
+                                               with every mipmap) and repoint every reference, each one only when it
+                                               is smaller in the map and stays close to the original. high: 36 dB or
+                                               more; normal (the default): 33 dB, with blocks chosen to pack smaller;
+                                               small: 30 dB, packing smaller still.
+                                               Reforged maps only (saved by 1.32 or later). Kept as they are: what
+                                               no file of the map cites, names the script builds while the game
+                                               runs, the map's fixed names, sides that are not a power of two, and an
+                                               icon whose disabled art is not in the map. Not with --dds or --tga-png
 
   In-game anti-cheat (off by default):
     --anti-cheat[=ledger,codes,names,bj,globals]
@@ -141,7 +153,7 @@ def _opt(argv, name, default=None):
 
 VALUE_FLAGS = ('skip', 'block', 'decoys', 'variant', 'mpq-barrier', 'lua-layers', 'seed', 'previous-key', 'game',
                'anti-cheat-actions', 'anti-cheat-gold-jump', 'anti-cheat-codes-mode', 'ffmpeg', 'preset', 'save-preset')
-OPTIONAL_VALUE_FLAGS = ('anti-cheat', 'models', 'mp3', 'smaller-textures')
+OPTIONAL_VALUE_FLAGS = ('anti-cheat', 'models', 'mp3', 'smaller-textures', 'to-dds')
 BARE_FLAGS = (
     'ids-non-ascii',
     'to-lua',
@@ -157,6 +169,7 @@ BARE_FLAGS = (
     'no-blp-opt',
     'lossy',
     'dds',
+    'pack',
     'bombs',
     'cut-hash',
     'minify',
@@ -170,6 +183,7 @@ BARE_FLAGS = (
     'version',
 )
 ON_FLAGS = (('ids-non-ascii', 'non_ascii_ids'), ('to-lua', 'to_lua'), ('blp', 'blp'), ('dds', 'dds'),
+            ('pack', 'pack'),
             ('bombs', 'bombs'), ('cut-hash', 'cut_hash'), ('to-slk', 'to_slk'), ('rename-imports', 'imports'),
             ('remove-error-logs', 'error_logs'), ('encrypt-files', 'encrypt'), ('no-edit', 'no_edit'))
 
@@ -303,8 +317,8 @@ def parse_options(argv, extra_value=(), extra_bare=()):
         raise ValueError('--blp and %s contradict each other: give one of them' % no_blp_flags[0])
     if no_blp_flags:
         o['blp'] = False
-    if '--encrypt-files' in argv and 'pack' in skip:
-        warnings.append('--encrypt-files only works with the sector-512 pack: ignored with --skip=pack')
+    if '--encrypt-files' in argv and ('pack' in skip or not o.get('pack')):
+        warnings.append('--encrypt-files only works with the sector-512 pack (--pack): ignored')
     if _opt(argv, 'game') is not None:
         o['game'] = _opt(argv, 'game')
     if not optimize:
@@ -339,10 +353,18 @@ def parse_options(argv, extra_value=(), extra_bare=()):
     for p in skip:
         o[p] = False
     no_512 = [f for f in ('--variant',) if any(a == f or a.startswith(f + '=') for a in argv)]
-    if no_512 and 'pack' in skip:
-        warnings.append('%s ignored: it only applies to the sector-512 repack, which is skipped' % ' '.join(no_512))
+    if no_512 and not o.get('pack'):
+        warnings.append('%s ignored: it only applies to the sector-512 repack (--pack)' % ' '.join(no_512))
+    q = _opt(argv, 'to-dds', 'normal' if '--to-dds' in argv else None)
+    if q is not None:
+        if q not in protect_app.TO_DDS_QUALITY:
+            raise ValueError('--to-dds: %s is not one of %s' % (q, ', '.join(protect_app.TO_DDS_QUALITY)))
+        o['to_dds'] = True
+        o['to_dds_quality'] = q
+    if o.get('to_dds') and (o.get('dds') or o.get('opt_tga_png')):
+        raise ValueError('--to-dds does not combine with --dds or --tga-png: give one of them')
     only_64k = [f for f in ('--no-recompress', '--no-dedup') if f in argv]
-    if only_64k and o.get('optimize') and 'pack' not in skip:
+    if only_64k and o.get('optimize') and o.get('pack'):
         warnings.append('%s ignored: the sector-512 pack always recompresses every sector and stores identical files '
                       'once (they only apply with --skip=pack)' % ' '.join(only_64k))
     return o, warnings
@@ -392,7 +414,7 @@ def main(argv=None, version='0.1.10'):
         print('map not found: %s' % map_path)
         return 2
     out_path = args[1] if len(args) > 1 else None
-    if any(o.get(k) for k in ('opt_models', 'opt_mp3', 'dds', 'opt_tga_png', 'opt_small_textures')):
+    if any(o.get(k) for k in ('opt_models', 'opt_mp3', 'dds', 'to_dds', 'opt_tga_png', 'opt_small_textures')):
         for w in protect_app.option_warnings(o, protect_app.inspect_map(map_path)):
             print('WARNING: %s' % w)
     job = {'task': 'protect', 'map': map_path, 'out': out_path, 'options': o}
