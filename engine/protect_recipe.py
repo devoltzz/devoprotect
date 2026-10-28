@@ -500,9 +500,15 @@ def _content_step(origin, new, content, name_list, ref, tmp, keep_names, short_n
         lossy_keys = content['models'] == 'lossy_keys'
         mdx = [n for n in unique_names if n.lower().endswith('.mdx') and a.find(n)]
         before = after_diag = done_list = keys_in = keys_out = rounded = 0
+        _dnc_lua = editor_lock._read(a, 'war3map.lua')
+        dnc_names = mdx_optimize.day_night_names(_dnc_lua if _dnc_lua else editor_lock._script(a)[1])
+        dnc = 0
         for n in mdx:
             d = editor_lock._read(a, n)
             if not d:
+                continue
+            if mdx_optimize.is_day_night(n, d, dnc_names):
+                dnc += 1
                 continue
             try:
                 nd, r = mdx_optimize.optimize(d, lossy_keys, floats=lossy_keys)
@@ -525,6 +531,8 @@ def _content_step(origin, new, content, name_list, ref, tmp, keep_names, short_n
         else:
             piece_list['models'] = '%d of %d with fewer animation keys%s (%d -> %d keys, %d -> %d B)' % (
                 done_list, len(mdx), '', keys_in, keys_out, before, after_diag)
+        if dnc:
+            piece_list['models'] += '; %d day/night cycle model(s) kept as they are' % dnc
     if content.get('textures'):
         import blp_squish
         t = content['textures']
@@ -736,6 +744,8 @@ def _recipe(
     no_use=False,
     barrier=(),
     mark_no_edit=False,
+    convert_to_dds=False,
+    dds_quality=None,
 ):
     import editor_lock
     import id_shuffle
@@ -1039,6 +1049,30 @@ def _recipe(
         current, last = anticheat_step(current, last)
 
     image_kinds = (('dds',) if convert_dds else ()) + (('tga', 'png') if convert_tga_png else ())
+    if convert_to_dds and image_kinds:
+        raise SystemExit('ABORTS: converting textures to DDS and to BLP at once (pick one)')
+    if convert_to_dds and 'dds' not in skip:
+        t0 = time.time()
+        new = next_steps('dds')
+        import to_dds
+        psnr_q, rdo_q = to_dds.QUALITIES[dds_quality or to_dds.DEFAULT_QUALITY]
+        r = to_dds.convert(current, new, sector_bytes=None if 'protect' in skip else 512, blp_best=blp, log=silent,
+                           psnr_min=psnr_q, rdo=rdo_q)
+        for _n, _x in r['matrix'].items():
+            if _x.get('action_code') == 'converted_file' and _x.get('new'):
+                old, new_name = _n.lower(), _x['new'].lower()
+                ref_names = [new_name if x.lower() == old else x for x in ref_names]
+                if new_name not in [x.lower() for x in ref_names]:
+                    ref_names.append(new_name)
+                input_names = [new_name if x.lower() == old else x for x in input_names]
+                if new_name not in [x.lower() for x in input_names]:
+                    input_names.append(new_name)
+        stages['dds'] = contents(new, ref_names)
+        g = r.get('stored_value') or {}
+        on_close('dds', 'ok', t0, last, 'dds', {'summary': r.get('why') or '%d texture(s) -> .dds (%s)' % (
+            r['replaced'], ', '.join('.%s %d, stored %d -> %d B' % (t, x['converted'], x['before'], x['after_diag'])
+                                     for t, x in sorted(g.items())) or 'none gets smaller')})
+        current, last = new, 'dds'
     if image_kinds and 'dds' not in skip:
         t0 = time.time()
         new = next_steps('dds')
@@ -1742,6 +1776,8 @@ def _campaign(
     no_use=False,
     barrier=(),
     mark_no_edit=False,
+    convert_to_dds=False,
+    dds_quality=None,
 ):
     if bulk is not None or cut_step:
         raise SystemExit('campaign: --bulk and --cut-hash only work on a SINGLE MAP (the .w3x): in a campaign the '
@@ -1870,6 +1906,8 @@ def _campaign(
             convert_tga_png=convert_tga_png,
             convert_lua=convert_lua,
             ref=ref,
+            convert_to_dds=convert_to_dds,
+            dds_quality=dds_quality,
             backup=None,
             anticheat=anticheat,
             imported=imported,
