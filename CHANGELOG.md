@@ -3,6 +3,27 @@
 What each version of DevoProtect brought, the newest first. The downloads are on the
 [Releases](https://github.com/devoltzz/devoprotect/releases) page.
 
+## 0.1.16 (2026-10-27)
+
+- Smaller maps by default. Full protection and Archive only now save a normal archive instead of the 512-byte sector
+  pack, which made maps bigger (one of my test maps went from 11.0 MB to 13.4 MB with it). To keep MPQ Editor out, they
+  turn on the block bitmap barrier: a few bytes at the end of the file, and MPQ Editor does not open the map (its v1 mode
+  opens it read-only). The 512-byte pack is still there: pick Protect in the final pack, or `--pack` on the command line.
+  A campaign gets no barrier, since barriers are for single maps.
+- A new option, off by default: convert BLP, TGA and PNG textures to DDS (`--to-dds`). Mapmakers told me DDS takes less
+  room inside the map than BLP, and they were right: a BLP is already a JPEG, so the map's compression can't shrink it,
+  while a DDS still compresses. DevoProtect has its own DDS encoder (DXT1 or DXT5 with every mipmap), so you don't need
+  another program. Each texture only changes when it gets smaller in the map and stays close to the original, so a map
+  never gets worse from it. It is lossy, so it starts off. Three levels: high (36 dB or more, no extra packing), normal
+  (33 dB, blocks chosen so the map compresses them better; the default) and small (30 dB, packing tighter still). On one
+  test map the whole protected map went from 11.04 MB to 10.78, 10.52 and 10.26 MB. It works on Reforged maps only (saved by
+  1.32 or later, since older games read no DDS). What stays as it is: textures nothing in the map names, names the script
+  builds while the game runs, the map's own fixed files like the minimap, sides that are not a power of two, and an icon
+  whose disabled version is not in the map. It doesn't combine with the two conversions to BLP; checking one on the
+  page unchecks the others.
+- The model optimizer leaves the day/night cycle models alone. The game plays their lights as the clock of the day, and
+  optimized ones can break the lighting; they have no geometry, so there was nothing to gain anyway.
+
 ## 0.1.15 (2026-10-27)
 
 - The program no longer shows the small line at the top of the left column that switched between the devoltz.party
