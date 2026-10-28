@@ -157,6 +157,12 @@
                 <option value="256">256 px</option>
               </select><span class="why" id="w-opt_small_textures"></span></label>
             <label class="tog"><input type="checkbox" data-opt="dds"> Convert DDS textures to BLP (smaller, native)<span class="why" id="w-dds"></span></label>
+            <label class="tog"><input type="checkbox" data-opt="to_dds"> <span class="gated">convert BLP, TGA and PNG textures to DDS, lossy: each one only when it gets smaller in the map and stays close to the original (Reforged maps only; not with the two conversions to BLP)</span>
+              <select data-optv="to_dds_quality">
+                <option value="high">high quality</option>
+                <option value="normal">normal</option>
+                <option value="small">smaller</option>
+              </select><span class="why" id="w-to_dds"></span></label>
             <label class="tog"><input type="checkbox" data-opt="opt_lossy"> <span class="gated">lossy, only above the game's 512 MiB limit: half-size textures, mono 22 kHz sound</span><span class="why" id="w-opt_lossy"></span></label>
           </div>
         </section>
@@ -342,7 +348,7 @@
     script: {main: 'obfuscate', items: ['to_lua', 'error_logs']},
     editor: {main: 'block', items: ['block_w3i', 'block_wtg', 'block_extra', 'block_units', 'block_doo', 'block_w3r', 'to_slk']},
     size: {main: 'optimize', items: ['opt_unused', 'opt_models', 'opt_models_lossy', 'opt_mp3', 'opt_minify', 'opt_tga_png',
-                                     'opt_small_textures', 'dds', 'opt_lossy']},
+                                     'opt_small_textures', 'dds', 'to_dds', 'opt_lossy']},
     pack: {items: ['blp', 'encrypt', 'same_bytes', 'variant_header', 'variant_high_sector', 'variant_bit31',
                    'barrier_bitmap', 'barrier_header_128mib']},
     decoys: {items: ['decoy_wtg', 'decoy_listfile', 'decoy_imp', 'decoy_preview', 'decoy_fill', 'bombs', 'cut_hash']},
@@ -369,12 +375,12 @@
   });
 
   var MODES = {
-    full: {code: '01', title: 'Full protection', set: {shuffle: true, obfuscate: true, block: true, optimize: true, pack: true},
-           hint: 'The recommended set: shuffled IDs, obfuscated script, editor-only and unused files removed, the size optimized without loss, sector-512 pack.'},
-    script: {code: '02', title: 'Script only', set: {shuffle: true, obfuscate: true, block: false, optimize: false, pack: false, blp: false},
+    full: {code: '01', title: 'Full protection', set: {shuffle: true, obfuscate: true, block: true, optimize: true, pack: false, barrier_bitmap: true},
+           hint: 'The recommended set: shuffled IDs, obfuscated script, editor-only and unused files removed, the size optimized without loss, a normal archive with the block bitmap barrier (MPQ Editor does not open it).'},
+    script: {code: '02', title: 'Script only', set: {shuffle: true, obfuscate: true, block: false, optimize: false, pack: false, blp: false, barrier_bitmap: false},
              hint: 'Only the script and the object IDs: no editor-only file is removed and the archive stays a normal one.'},
-    archive: {code: '03', title: 'Archive only', set: {shuffle: false, obfuscate: false, block: true, optimize: true, opt_minify: false, pack: true},
-              hint: 'Only the archive: editor-only and unused files removed, the BLP textures rewritten without loss and the sector-512 pack; the script stays readable.'},
+    archive: {code: '03', title: 'Archive only', set: {shuffle: false, obfuscate: false, block: true, optimize: true, opt_minify: false, pack: false, barrier_bitmap: true},
+              hint: 'Only the archive: editor-only and unused files removed, the BLP textures rewritten without loss and the block bitmap barrier; the script stays readable.'},
     custom: {code: '04', title: 'Custom', hint: 'Your own set: every option on the left. Picking another mode resets them all to its set.'}
   };
   var NOT_SET = {previous_key: 1, seed: 1, no_edit: 1};
@@ -450,6 +456,8 @@
     nomodel: 'no model in this map',
     nomp3: 'no MP3 sound in this map',
     nodds: 'no DDS texture in this map',
+    notex: 'no BLP, TGA or PNG texture in this map',
+    nodds32: 'the map is for a game before 1.32, which reads no DDS (save it in the Reforged editor first)',
     notga: 'no TGA or PNG image in this map',
     noedit: 'not with Not allowed to edit (the mark rewrites the tables)'
   };
@@ -459,7 +467,7 @@
     lua_layers: 'Lua loader layers', opt_models_lossy: 'Models, lossy', opt_mp3: 'Re-encode MP3 sounds',
     opt_minify: 'Minify the JASS script', encrypt: 'Encrypt the files', same_bytes: 'Same bytes as the program',
     opt_unused: 'Remove the unused files', blp: 'Rewrite the BLP textures', opt_models: 'Shrink MDX models',
-    opt_tga_png: 'TGA and PNG to BLP', opt_small_textures: 'Smaller textures', dds: 'Convert DDS textures',
+    opt_tga_png: 'TGA and PNG to BLP', opt_small_textures: 'Smaller textures', dds: 'Convert DDS textures', to_dds: 'Textures to DDS',
     variant_header: 'Marker: header size', variant_high_sector: 'Marker: sector high byte',
     variant_bit31: 'Marker: block table bit31', bombs: 'Extract-all bombs', cut_hash: 'Cut the hash table',
     barrier_bitmap: 'MPQ barrier: block bitmap', barrier_header_128mib: 'MPQ barrier: archive at 128 MiB',
@@ -507,6 +515,8 @@
     ['opt_small_textures', function(o){ return !o.optimize ? R.opt : noFiles('blp') ? R.noblp :
                                                (noFiles('mdx') && noFiles('mdl')) ? R.nomodel : null; }],
     ['dds', function(){ return noFiles('dds') ? R.nodds : null; }],
+    ['to_dds', function(){ return (MAPINFO && !MAPINFO.campaign && MAPINFO.w3i != null && MAPINFO.w3i < 31) ? R.nodds32 :
+                                  (noFiles('blp') && noFiles('tga_png')) ? R.notex : null; }],
     ['blp', function(){ return noFiles('blp') ? R.noblp : null; }],
     ['encrypt', function(o){ return !o.pack && R.pack; }],
     ['same_bytes', function(o){ return !o.pack && R.pack; }],
@@ -529,6 +539,7 @@
     ['ac_end', function(o){ return !o.anti_cheat && R.ac; }]
   ];
   var LOCKED = {};
+  var EXCLUSIVE = {to_dds: ['dds', 'opt_tga_png'], dds: ['to_dds'], opt_tga_png: ['to_dds']};
   var ANTES = {};
   function lock(k, locked, value){
     var e = opt(k);
@@ -553,7 +564,7 @@
       });
       if(!changed){ break; }
     }
-    [['opt_mp3', 'opt_mp3_kbps'], ['opt_small_textures', 'opt_texture_min_side']].forEach(function(p){
+    [['opt_mp3', 'opt_mp3_kbps'], ['opt_small_textures', 'opt_texture_min_side'], ['to_dds', 'to_dds_quality']].forEach(function(p){
       var sel = document.querySelector('[data-optv="' + p[1] + '"]');
       if(sel){ sel.disabled = !OPTIONS[p[0]] || !!LOCKED[p[0]]; }
     });
@@ -623,6 +634,7 @@
     if(o.imports){ steps.push('Rename the imported files'); }
     if(o.to_lua){ steps.push('Convert the script to Lua'); }
     if(o.dds){ steps.push('Convert DDS textures to BLP'); }
+    if(o.to_dds){ steps.push('Convert textures to DDS'); }
     if(o.error_logs){ steps.push('Remove the compiler error messages'); }
     if(o.optimize && o.opt_unused){ steps.push('Remove the files the game never reads'); }
     if(o.optimize && (o.opt_models || o.opt_mp3 || o.opt_minify || o.opt_tga_png || o.opt_small_textures)){
@@ -674,6 +686,9 @@
       e.addEventListener('change', function(){
         OPTIONS[k] = e.checked;
         delete ANTES[k];
+        if(e.checked && EXCLUSIVE[k]){
+          EXCLUSIVE[k].forEach(function(x){ var o2 = opt(x); OPTIONS[x] = false; delete ANTES[x]; if(o2){ o2.checked = false; } });
+        }
         applyRules();
         setModeRadio(modeOf());
         setRunnable();
