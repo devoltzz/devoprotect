@@ -49,6 +49,8 @@ DONE = {
     'barrier': 'MPQ barriers added.',
     'clean': 'Old copies dropped.',
 }
+STEPS_TO_DDS = {'dds': 'Converting textures to DDS...'}
+DONE_TO_DDS = {'dds': 'Textures converted to DDS.'}
 
 
 STEP_KEYS = {
@@ -69,6 +71,7 @@ AC_CODES_MODES = {'auto': 'auto', 'humans': 'humans', 'reload': 'reload', 'human
 MODELS = {'lossless': 'lossless_keys', 'lossy': 'lossy_keys'}
 MP3_KBPS = (32, 48, 64, 96, 128)
 TEXTURE_MIN_SIDES = (64, 128, 256)
+TO_DDS_QUALITY = ('high', 'normal', 'small')
 TABLES = {'version': '3.0.1.24371', 'bytes': 1200765,
           'sha256': '0fd822bcb873d78fca04c492e632c126e779e1d9f261492b67e72327067b0396',
           'url': 'https://protect.devoltz.party/data/slk_tables.zip'}
@@ -101,6 +104,9 @@ def recipe_kwargs(options):
     variants = [internal for public, internal in VARIANTS.items() if o.get('variant_' + public)]
     if o.get('variant_bit31') and 'protect' not in skip and (o.get('bombs') or o.get('cut_hash')):
         raise ValueError('the bit31 variant does not combine with the extract-all bombs or the hash table cut: '
+                         'turn one of them off')
+    if o.get('to_dds') and (o.get('dds') or (o.get('optimize') and o.get('opt_tga_png'))):
+        raise ValueError('converting textures to DDS does not combine with converting DDS or TGA/PNG to BLP: '
                          'turn one of them off')
     optimize = None
     if o.get('optimize'):
@@ -140,6 +146,8 @@ def recipe_kwargs(options):
         'error_list': bool(o.get('error_logs')),
         'cipher': bool(o.get('encrypt')),
         'convert_dds': bool(o.get('dds')),
+        'convert_to_dds': bool(o.get('to_dds')),
+        'dds_quality': o.get('to_dds_quality') if o.get('to_dds_quality') in TO_DDS_QUALITY else None,
         'convert_tga_png': bool(o.get('optimize') and o.get('opt_tga_png')),
         'convert_slk': bool(o.get('to_slk')),
         'slk_game': (str(o['game']).strip() or None) if o.get('game') else None,
@@ -159,20 +167,57 @@ def recipe_kwargs(options):
 
 
 def default_options():
-    return {'shuffle': True, 'obfuscate': True, 'block': True, 'pack': True,
-            'imports': False, 'error_logs': False, 'encrypt': False,
-            'block_w3i': True, 'block_wtg': True, 'block_extra': True, 'block_units': True, 'block_doo': True,
-            'block_w3r': False, 'lua_layers': 2,
-            'blp': True,
-            'optimize': True, 'opt_recompress': True, 'opt_dedup': True, 'opt_lossy': False, 'opt_unused': True,
-            'opt_models': False, 'opt_models_lossy': False, 'opt_mp3': False, 'opt_mp3_kbps': 64, 'opt_minify': True,
-            'opt_tga_png': False, 'opt_small_textures': False, 'opt_texture_min_side': TEXTURE_MIN_SIDES[1],
-            'dds': False, 'bombs': False, 'cut_hash': False, 'to_slk': False,
-            'barrier_bitmap': False, 'barrier_header_128mib': False, 'no_edit': False,
-            'anti_cheat': False, 'ac_ledger': True, 'ac_codes': True, 'ac_names': True, 'ac_bj': True,
-            'ac_globals': False,
-            'ac_warn': True, 'ac_nosave': False, 'ac_defeat': False, 'ac_end': False, 'ac_gold_jump': 400,
-            'ac_codes_mode': 'auto'}
+    return {
+        'shuffle': True,
+        'obfuscate': True,
+        'block': True,
+        'pack': False,
+        'imports': False,
+        'error_logs': False,
+        'encrypt': False,
+        'block_w3i': True,
+        'block_wtg': True,
+        'block_extra': True,
+        'block_units': True,
+        'block_doo': True,
+        'block_w3r': False,
+        'lua_layers': 2,
+        'blp': True,
+        'optimize': True,
+        'opt_recompress': True,
+        'opt_dedup': True,
+        'opt_lossy': False,
+        'opt_unused': True,
+        'opt_models': False,
+        'opt_models_lossy': False,
+        'opt_mp3': False,
+        'opt_mp3_kbps': 64,
+        'opt_minify': True,
+        'opt_tga_png': False,
+        'opt_small_textures': False,
+        'opt_texture_min_side': TEXTURE_MIN_SIDES[1],
+        'dds': False,
+        'to_dds': False,
+        'to_dds_quality': 'normal',
+        'bombs': False,
+        'cut_hash': False,
+        'to_slk': False,
+        'barrier_bitmap': True,
+        'barrier_header_128mib': False,
+        'no_edit': False,
+        'anti_cheat': False,
+        'ac_ledger': True,
+        'ac_codes': True,
+        'ac_names': True,
+        'ac_bj': True,
+        'ac_globals': False,
+        'ac_warn': True,
+        'ac_nosave': False,
+        'ac_defeat': False,
+        'ac_end': False,
+        'ac_gold_jump': 400,
+        'ac_codes_mode': 'auto',
+    }
 
 
 def inspect_map(path):
@@ -211,6 +256,7 @@ def option_warnings(options, info):
             (opt and o.get('opt_models'), '--models', not c.get('mdx') and 'MDX model'),
             (opt and o.get('opt_mp3'), '--mp3', not c.get('mp3') and 'MP3 sound'),
             (o.get('dds'), '--dds', not c.get('dds') and 'DDS texture'),
+            (o.get('to_dds'), '--to-dds', not (c.get('blp') or c.get('tga_png')) and 'BLP, TGA or PNG texture'),
             (opt and o.get('opt_tga_png'), '--tga-png', not c.get('tga_png') and 'TGA or PNG image'),
             (opt and o.get('opt_small_textures'), '--smaller-textures',
              (not c.get('blp') and 'BLP texture') or (not (c.get('mdx') or c.get('mdl')) and 'model'))):
@@ -249,6 +295,10 @@ def run_job(job, emit):
         emit({'type': 'error', 'message': 'invalid option: %s' % e})
         return {'ok': False}
     is_campaign = map_path.lower().endswith('.w3n')
+    if is_campaign:
+        kwargs['barrier'] = ()
+    steps = dict(STEPS, **STEPS_TO_DDS) if options.get('to_dds') else STEPS
+    done = dict(DONE, **DONE_TO_DDS) if options.get('to_dds') else DONE
     emit({'type': 'progress', 'step': 'open', 'text': 'Reading %s...' % os.path.basename(map_path)})
 
     def log(*a):
@@ -258,10 +308,10 @@ def run_job(job, emit):
             rest = msg[msg.index(']') + 1:].strip() if ']' in msg else ''
             if rest.startswith('skipped'):
                 text = '%s: skipped' % code
-            elif rest.startswith('ok') and code in DONE:
-                text = DONE[code]
-            elif rest.endswith('...') and code in STEPS:
-                text = STEPS[code]
+            elif rest.startswith('ok') and code in done:
+                text = done[code]
+            elif rest.endswith('...') and code in steps:
+                text = steps[code]
             else:
                 text = msg
             emit({'type': 'progress', 'step': code, 'text': text})
