@@ -302,5 +302,15 @@
  "Mark the map as not allowed to edit: tools that respect the mark refuse to unprotect or change it": "マップを編集禁止としてマークする：このマークを尊重するツールは、保護の解除や変更を拒否します",
  "Marking the map as not allowed to edit...": "マップを編集禁止としてマークしています...",
  "Optional, in every mode. The map plays the same; the mark is a request written into the file, the script and the archive header.": "任意で、どのモードでも使えます。マップの遊び方は変わりません。マークはファイル、スクリプト、アーカイブのヘッダーに書き込まれる要望です。",
- "not with Not allowed to edit (the mark rewrites the tables)": "「編集禁止」とは併用不可（マークがテーブルを書き直すため）"
+ "not with Not allowed to edit (the mark rewrites the tables)": "「編集禁止」とは併用不可（マークがテーブルを書き直すため）",
+ "Convert textures to DDS": "テクスチャを DDS に変換",
+ "Only the archive: editor-only and unused files removed, the BLP textures rewritten without loss and the block bitmap barrier; the script stays readable.": "アーカイブのみ: エディター専用ファイルと未使用ファイルの削除、BLP テクスチャの劣化なしの書き換え、ブロックビットマップバリアを行います。スクリプトは読める状態のままです。",
+ "Textures to DDS": "テクスチャを DDS に",
+ "The recommended set: shuffled IDs, obfuscated script, editor-only and unused files removed, the size optimized without loss, a normal archive with the block bitmap barrier (MPQ Editor does not open it).": "推奨セット: ID のシャッフル、スクリプトの難読化、エディター専用ファイルと未使用ファイルの削除、劣化なしのサイズ最適化、ブロックビットマップバリアを施した通常のアーカイブ(MPQ Editor では開けません)。",
+ "convert BLP, TGA and PNG textures to DDS, lossy: each one only when it gets smaller in the map and stays close to the original (Reforged maps only; not with the two conversions to BLP)": "BLP、TGA、PNG テクスチャを DDS に変換(非可逆): マップ内で小さくなり、かつ元に近い見た目を保つものだけが対象(Reforged マップのみ。BLP への 2 つの変換とは併用不可)",
+ "no BLP, TGA or PNG texture in this map": "このマップには BLP、TGA、PNG テクスチャがありません",
+ "the map is for a game before 1.32, which reads no DDS (save it in the Reforged editor first)": "このマップは 1.32 より前のゲーム向けで、DDS を読み込めません(先に Reforged エディターで保存してください)",
+ "high quality": "高品質",
+ "normal": "標準",
+ "smaller": "小さいサイズ"
 }
