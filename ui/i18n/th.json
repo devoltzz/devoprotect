@@ -302,5 +302,15 @@
  "Mark the map as not allowed to edit: tools that respect the mark refuse to unprotect or change it": "ทำเครื่องหมายแผนที่ว่าไม่อนุญาตให้แก้ไข: เครื่องมือที่เคารพเครื่องหมายนี้จะปฏิเสธการปลดล็อกหรือแก้ไขแผนที่",
  "Marking the map as not allowed to edit...": "กำลังทำเครื่องหมายแผนที่ว่าไม่อนุญาตให้แก้ไข...",
  "Optional, in every mode. The map plays the same; the mark is a request written into the file, the script and the archive header.": "ไม่บังคับ ใช้ได้ทุกโหมด แผนที่เล่นได้เหมือนเดิม เครื่องหมายเป็นคำขอที่เขียนไว้ในไฟล์ ในสคริปต์ และในส่วนหัวของ archive",
- "not with Not allowed to edit (the mark rewrites the tables)": "ใช้ร่วมกับ ไม่อนุญาตให้แก้ไข ไม่ได้ (เครื่องหมายเขียนตารางใหม่)"
+ "not with Not allowed to edit (the mark rewrites the tables)": "ใช้ร่วมกับ ไม่อนุญาตให้แก้ไข ไม่ได้ (เครื่องหมายเขียนตารางใหม่)",
+ "Convert textures to DDS": "แปลงเท็กซ์เจอร์เป็น DDS",
+ "Only the archive: editor-only and unused files removed, the BLP textures rewritten without loss and the block bitmap barrier; the script stays readable.": "เฉพาะอาร์ไคฟ์: ลบไฟล์เฉพาะตัวแก้ไขและไฟล์ที่ไม่ได้ใช้ เขียนเท็กซ์เจอร์ BLP ใหม่โดยไม่สูญเสียคุณภาพ และใส่กำแพงบิตแมปของบล็อก ส่วนสคริปต์ยังอ่านได้",
+ "Textures to DDS": "เท็กซ์เจอร์เป็น DDS",
+ "The recommended set: shuffled IDs, obfuscated script, editor-only and unused files removed, the size optimized without loss, a normal archive with the block bitmap barrier (MPQ Editor does not open it).": "ชุดที่แนะนำ: สลับ ID, ทำให้สคริปต์อ่านยาก, ลบไฟล์เฉพาะตัวแก้ไขและไฟล์ที่ไม่ได้ใช้, ปรับขนาดให้เล็กลงโดยไม่สูญเสียคุณภาพ, อาร์ไคฟ์ปกติที่มีกำแพงบิตแมปของบล็อก (MPQ Editor เปิดไม่ได้)",
+ "convert BLP, TGA and PNG textures to DDS, lossy: each one only when it gets smaller in the map and stays close to the original (Reforged maps only; not with the two conversions to BLP)": "แปลงเท็กซ์เจอร์ BLP, TGA และ PNG เป็น DDS แบบสูญเสียคุณภาพ: แปลงเฉพาะไฟล์ที่เล็กลงในแมปและยังใกล้เคียงต้นฉบับ (เฉพาะแมป Reforged; ใช้ร่วมกับการแปลงเป็น BLP ทั้งสองแบบไม่ได้)",
+ "no BLP, TGA or PNG texture in this map": "ไม่มีเท็กซ์เจอร์ BLP, TGA หรือ PNG ในแมปนี้",
+ "the map is for a game before 1.32, which reads no DDS (save it in the Reforged editor first)": "แมปนี้สำหรับเกมก่อน 1.32 ซึ่งอ่าน DDS ไม่ได้ (บันทึกในตัวแก้ไข Reforged ก่อน)",
+ "high quality": "คุณภาพสูง",
+ "normal": "ปกติ",
+ "smaller": "เล็กลง"
 }
