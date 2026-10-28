@@ -302,5 +302,15 @@
  "Mark the map as not allowed to edit: tools that respect the mark refuse to unprotect or change it": "Позначити мапу як заборонену до редагування: інструменти, що поважають позначку, відмовляються знімати захист або змінювати мапу",
  "Marking the map as not allowed to edit...": "Мапа позначається як заборонена до редагування...",
  "Optional, in every mode. The map plays the same; the mark is a request written into the file, the script and the archive header.": "Необов'язково, у будь-якому режимі. Мапа грається так само; позначка — це прохання, записане у файл, у скрипт і в заголовок архіву.",
- "not with Not allowed to edit (the mark rewrites the tables)": "не разом із «Заборонено редагувати» (позначка переписує таблиці)"
+ "not with Not allowed to edit (the mark rewrites the tables)": "не разом із «Заборонено редагувати» (позначка переписує таблиці)",
+ "Convert textures to DDS": "Перетворити текстури на DDS",
+ "Only the archive: editor-only and unused files removed, the BLP textures rewritten without loss and the block bitmap barrier; the script stays readable.": "Лише архів: видаляються файли, потрібні тільки редактору, та невикористані файли, текстури BLP перезаписуються без втрат, а також перешкода з бітовою картою блоків; скрипт лишається читабельним.",
+ "Textures to DDS": "Текстури в DDS",
+ "The recommended set: shuffled IDs, obfuscated script, editor-only and unused files removed, the size optimized without loss, a normal archive with the block bitmap barrier (MPQ Editor does not open it).": "Рекомендований набір: перемішані ID, обфускований скрипт, видалені файли лише для редактора та невикористані файли, розмір оптимізовано без втрат, звичайний архів із перешкодою з бітовою картою блоків (MPQ Editor його не відкриває).",
+ "convert BLP, TGA and PNG textures to DDS, lossy: each one only when it gets smaller in the map and stays close to the original (Reforged maps only; not with the two conversions to BLP)": "перетворити текстури BLP, TGA і PNG на DDS, зі втратами: кожну лише тоді, коли вона стає меншою в карті й лишається близькою до оригіналу (лише для карт Reforged; не разом із двома перетвореннями на BLP)",
+ "no BLP, TGA or PNG texture in this map": "у цій карті немає текстур BLP, TGA чи PNG",
+ "the map is for a game before 1.32, which reads no DDS (save it in the Reforged editor first)": "карта призначена для гри до 1.32, яка не читає DDS (спершу збережіть її в редакторі Reforged)",
+ "high quality": "висока якість",
+ "normal": "звичайна",
+ "smaller": "менший файл"
 }
