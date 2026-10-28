@@ -302,5 +302,15 @@
  "Mark the map as not allowed to edit: tools that respect the mark refuse to unprotect or change it": "將地圖標記為不允許編輯：遵守此標記的工具會拒絕解除保護或修改地圖",
  "Marking the map as not allowed to edit...": "正在將地圖標記為不允許編輯...",
  "Optional, in every mode. The map plays the same; the mark is a request written into the file, the script and the archive header.": "可選，所有模式皆可用。地圖玩法不變；此標記是寫入檔案、腳本和封包標頭的請求。",
- "not with Not allowed to edit (the mark rewrites the tables)": "不能與「不允許編輯」同時使用（此標記會重寫表格）"
+ "not with Not allowed to edit (the mark rewrites the tables)": "不能與「不允許編輯」同時使用（此標記會重寫表格）",
+ "Convert textures to DDS": "將貼圖轉換為 DDS",
+ "Only the archive: editor-only and unused files removed, the BLP textures rewritten without loss and the block bitmap barrier; the script stays readable.": "僅處理封存檔：移除編輯器專用檔案與未使用的檔案，BLP 貼圖無損重寫並加上區塊點陣圖阻礙；指令碼仍可閱讀。",
+ "Textures to DDS": "貼圖轉 DDS",
+ "The recommended set: shuffled IDs, obfuscated script, editor-only and unused files removed, the size optimized without loss, a normal archive with the block bitmap barrier (MPQ Editor does not open it).": "建議的組合：打亂 ID、混淆指令碼、移除編輯器專用檔案與未使用的檔案、無損最佳化大小、加上區塊點陣圖阻礙的一般封存檔（MPQ Editor 無法開啟）。",
+ "convert BLP, TGA and PNG textures to DDS, lossy: each one only when it gets smaller in the map and stays close to the original (Reforged maps only; not with the two conversions to BLP)": "將 BLP、TGA 和 PNG 貼圖轉換為 DDS，有損：僅在地圖中變小且與原圖相近時才轉換（僅限 Reforged 地圖；不可與兩項轉換為 BLP 的選項同時使用）",
+ "no BLP, TGA or PNG texture in this map": "此地圖中沒有 BLP、TGA 或 PNG 貼圖",
+ "the map is for a game before 1.32, which reads no DDS (save it in the Reforged editor first)": "此地圖適用於 1.32 之前的遊戲版本，該版本無法讀取 DDS（請先在 Reforged 編輯器中儲存）",
+ "high quality": "高品質",
+ "normal": "一般",
+ "smaller": "更小"
 }
