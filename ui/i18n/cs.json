@@ -302,5 +302,15 @@
  "Mark the map as not allowed to edit: tools that respect the mark refuse to unprotect or change it": "Označit mapu jako zakázanou k úpravám: nástroje, které značku respektují, odmítnou mapu odemknout nebo změnit",
  "Marking the map as not allowed to edit...": "Označování mapy jako zakázané k úpravám...",
  "Optional, in every mode. The map plays the same; the mark is a request written into the file, the script and the archive header.": "Volitelné, v každém režimu. Mapa se hraje stejně; značka je žádost zapsaná do souboru, do skriptu a do hlavičky archivu.",
- "not with Not allowed to edit (the mark rewrites the tables)": "ne se Zakázáno upravovat (značka přepisuje tabulky)"
+ "not with Not allowed to edit (the mark rewrites the tables)": "ne se Zakázáno upravovat (značka přepisuje tabulky)",
+ "Convert textures to DDS": "Převést textury na DDS",
+ "Only the archive: editor-only and unused files removed, the BLP textures rewritten without loss and the block bitmap barrier; the script stays readable.": "Jen archiv: odstraní se soubory určené jen pro editor a nepoužité soubory, textury BLP se přepíší bez ztráty a použije se překážka s bitmapou bloků; skript zůstane čitelný.",
+ "Textures to DDS": "Textury na DDS",
+ "The recommended set: shuffled IDs, obfuscated script, editor-only and unused files removed, the size optimized without loss, a normal archive with the block bitmap barrier (MPQ Editor does not open it).": "Doporučená sada: zamíchaná ID, zamlžený skript, odstraněné soubory jen pro editor a nepoužité soubory, velikost optimalizovaná bez ztráty, běžný archiv s překážkou s bitmapou bloků (MPQ Editor ho neotevře).",
+ "convert BLP, TGA and PNG textures to DDS, lossy: each one only when it gets smaller in the map and stays close to the original (Reforged maps only; not with the two conversions to BLP)": "převést textury BLP, TGA a PNG na DDS, se ztrátou: každou jen tehdy, když se v mapě zmenší a zůstane blízká originálu (jen mapy pro Reforged; ne spolu s oběma převody na BLP)",
+ "no BLP, TGA or PNG texture in this map": "v této mapě není žádná textura BLP, TGA ani PNG",
+ "the map is for a game before 1.32, which reads no DDS (save it in the Reforged editor first)": "mapa je pro hru starší než 1.32, která DDS nečte (nejdřív ji uložte v editoru Reforged)",
+ "high quality": "vysoká kvalita",
+ "normal": "normální",
+ "smaller": "menší"
 }
