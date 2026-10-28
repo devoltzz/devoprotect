@@ -302,5 +302,15 @@
  "Mark the map as not allowed to edit: tools that respect the mark refuse to unprotect or change it": "Haritayı düzenlenmesine izin verilmez olarak işaretle: işarete uyan araçlar haritanın korumasını kaldırmayı veya değiştirmeyi reddeder",
  "Marking the map as not allowed to edit...": "Harita düzenlenmesine izin verilmez olarak işaretleniyor...",
  "Optional, in every mode. The map plays the same; the mark is a request written into the file, the script and the archive header.": "İsteğe bağlı, her modda. Harita aynı oynanır; işaret dosyaya, betiğe ve arşiv başlığına yazılan bir istektir.",
- "not with Not allowed to edit (the mark rewrites the tables)": "Düzenlemeye izin yok ile olmaz (işaret tabloları yeniden yazar)"
+ "not with Not allowed to edit (the mark rewrites the tables)": "Düzenlemeye izin yok ile olmaz (işaret tabloları yeniden yazar)",
+ "Convert textures to DDS": "Dokuları DDS'ye dönüştür",
+ "Only the archive: editor-only and unused files removed, the BLP textures rewritten without loss and the block bitmap barrier; the script stays readable.": "Yalnızca arşiv: düzenleyiciye ait ve kullanılmayan dosyalar kaldırılır, BLP dokuları kayıpsız yeniden yazılır ve blok bit eşlemi engeli uygulanır; script okunabilir kalır.",
+ "Textures to DDS": "Dokuları DDS'ye",
+ "The recommended set: shuffled IDs, obfuscated script, editor-only and unused files removed, the size optimized without loss, a normal archive with the block bitmap barrier (MPQ Editor does not open it).": "Önerilen set: karıştırılmış kimlikler, gizlenmiş script, düzenleyiciye ait ve kullanılmayan dosyalar kaldırılmış, boyut kayıpsız optimize edilmiş, blok bit eşlemi engeli olan normal bir arşiv (MPQ Editor onu açmaz).",
+ "convert BLP, TGA and PNG textures to DDS, lossy: each one only when it gets smaller in the map and stays close to the original (Reforged maps only; not with the two conversions to BLP)": "BLP, TGA ve PNG dokularını DDS'ye dönüştür, kayıplı: her biri yalnızca haritada küçülüyorsa ve orijinale yakın kalıyorsa (yalnızca Reforged haritaları; BLP'ye yapılan iki dönüştürmeyle birlikte değil)",
+ "no BLP, TGA or PNG texture in this map": "bu haritada BLP, TGA veya PNG dokusu yok",
+ "the map is for a game before 1.32, which reads no DDS (save it in the Reforged editor first)": "harita 1.32 öncesi bir oyun içindir ve o sürüm DDS okumaz (önce Reforged düzenleyicisinde kaydedin)",
+ "high quality": "yüksek kalite",
+ "normal": "normal",
+ "smaller": "daha küçük"
 }
