@@ -302,5 +302,15 @@
  "Mark the map as not allowed to edit: tools that respect the mark refuse to unprotect or change it": "맵을 편집 금지로 표시: 이 표시를 따르는 도구는 맵의 보호 해제나 변경을 거부합니다",
  "Marking the map as not allowed to edit...": "맵을 편집 금지로 표시하는 중...",
  "Optional, in every mode. The map plays the same; the mark is a request written into the file, the script and the archive header.": "선택 사항이며 모든 모드에서 쓸 수 있습니다. 맵은 똑같이 플레이됩니다. 이 표시는 파일, 스크립트, 아카이브 헤더에 기록되는 요청입니다.",
- "not with Not allowed to edit (the mark rewrites the tables)": "편집 금지와 함께 쓸 수 없음 (표시가 테이블을 다시 씀)"
+ "not with Not allowed to edit (the mark rewrites the tables)": "편집 금지와 함께 쓸 수 없음 (표시가 테이블을 다시 씀)",
+ "Convert textures to DDS": "텍스처를 DDS로 변환",
+ "Only the archive: editor-only and unused files removed, the BLP textures rewritten without loss and the block bitmap barrier; the script stays readable.": "아카이브만 처리합니다. 에디터 전용 파일과 사용하지 않는 파일을 제거하고, BLP 텍스처를 손실 없이 다시 쓰며, 블록 비트맵 방어를 적용합니다. 스크립트는 읽을 수 있는 상태로 남습니다.",
+ "Textures to DDS": "텍스처를 DDS로",
+ "The recommended set: shuffled IDs, obfuscated script, editor-only and unused files removed, the size optimized without loss, a normal archive with the block bitmap barrier (MPQ Editor does not open it).": "권장 구성입니다. ID 섞기, 스크립트 난독화, 에디터 전용 파일과 사용하지 않는 파일 제거, 손실 없는 크기 최적화, 블록 비트맵 방어가 적용된 일반 아카이브 (MPQ Editor가 열지 못함).",
+ "convert BLP, TGA and PNG textures to DDS, lossy: each one only when it gets smaller in the map and stays close to the original (Reforged maps only; not with the two conversions to BLP)": "BLP, TGA, PNG 텍스처를 DDS로 변환, 손실 있음: 맵에서 더 작아지고 원본과 비슷하게 유지될 때만 각각 적용 (Reforged 맵 전용, BLP로의 두 변환과는 함께 쓸 수 없음)",
+ "no BLP, TGA or PNG texture in this map": "이 맵에 BLP, TGA, PNG 텍스처 없음",
+ "the map is for a game before 1.32, which reads no DDS (save it in the Reforged editor first)": "이 맵은 DDS를 읽지 못하는 1.32 이전 게임용입니다 (먼저 Reforged 에디터에서 저장하세요)",
+ "high quality": "고품질",
+ "normal": "보통",
+ "smaller": "더 작게"
 }
