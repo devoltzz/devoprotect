@@ -302,5 +302,15 @@
  "Mark the map as not allowed to edit: tools that respect the mark refuse to unprotect or change it": "Marcar o mapa como não permitido editar: as ferramentas que respeitam a marca se recusam a desproteger ou alterar o mapa",
  "Marking the map as not allowed to edit...": "Marcando o mapa como não permitido editar...",
  "Optional, in every mode. The map plays the same; the mark is a request written into the file, the script and the archive header.": "Opcional, em todos os modos. O mapa joga igual; a marca é um pedido gravado no arquivo, no script e no cabeçalho do pacote.",
- "not with Not allowed to edit (the mark rewrites the tables)": "não com Não permitido editar (a marca regrava as tabelas)"
+ "not with Not allowed to edit (the mark rewrites the tables)": "não com Não permitido editar (a marca regrava as tabelas)",
+ "Convert textures to DDS": "Converter texturas em DDS",
+ "Only the archive: editor-only and unused files removed, the BLP textures rewritten without loss and the block bitmap barrier; the script stays readable.": "Só o arquivo: remove os arquivos exclusivos do editor e os não usados, reescreve as texturas BLP sem perda e usa a barreira de bitmap de blocos; o script continua legível.",
+ "Textures to DDS": "Texturas para DDS",
+ "The recommended set: shuffled IDs, obfuscated script, editor-only and unused files removed, the size optimized without loss, a normal archive with the block bitmap barrier (MPQ Editor does not open it).": "O conjunto recomendado: IDs embaralhados, script ofuscado, arquivos exclusivos do editor e não usados removidos, tamanho otimizado sem perda, um arquivo comum com a barreira de bitmap de blocos (o MPQ Editor não o abre).",
+ "convert BLP, TGA and PNG textures to DDS, lossy: each one only when it gets smaller in the map and stays close to the original (Reforged maps only; not with the two conversions to BLP)": "converter texturas BLP, TGA e PNG em DDS, com perda: cada uma só quando ficar menor no mapa e continuar próxima da original (só mapas Reforged; não junto com as duas conversões para BLP)",
+ "no BLP, TGA or PNG texture in this map": "nenhuma textura BLP, TGA ou PNG neste mapa",
+ "the map is for a game before 1.32, which reads no DDS (save it in the Reforged editor first)": "o mapa é de um jogo anterior à 1.32, que não lê DDS (salve-o antes no editor Reforged)",
+ "high quality": "alta qualidade",
+ "normal": "normal",
+ "smaller": "menor"
 }
