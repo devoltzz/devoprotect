@@ -302,5 +302,15 @@
  "Mark the map as not allowed to edit: tools that respect the mark refuse to unprotect or change it": "Đánh dấu bản đồ là không cho phép chỉnh sửa: các công cụ tôn trọng dấu này sẽ từ chối gỡ bảo vệ hoặc thay đổi bản đồ",
  "Marking the map as not allowed to edit...": "Đang đánh dấu bản đồ là không cho phép chỉnh sửa...",
  "Optional, in every mode. The map plays the same; the mark is a request written into the file, the script and the archive header.": "Tùy chọn, ở mọi chế độ. Bản đồ chơi như cũ; dấu này là một yêu cầu được ghi vào tệp, vào script và vào header của archive.",
- "not with Not allowed to edit (the mark rewrites the tables)": "không dùng cùng Không cho phép chỉnh sửa (dấu này ghi lại các bảng)"
+ "not with Not allowed to edit (the mark rewrites the tables)": "không dùng cùng Không cho phép chỉnh sửa (dấu này ghi lại các bảng)",
+ "Convert textures to DDS": "Chuyển texture sang DDS",
+ "Only the archive: editor-only and unused files removed, the BLP textures rewritten without loss and the block bitmap barrier; the script stays readable.": "Chỉ kho lưu trữ: xóa các tệp chỉ dành cho trình chỉnh sửa và các tệp không dùng, ghi lại texture BLP không mất dữ liệu và rào cản bitmap khối; script vẫn đọc được.",
+ "Textures to DDS": "Texture sang DDS",
+ "The recommended set: shuffled IDs, obfuscated script, editor-only and unused files removed, the size optimized without loss, a normal archive with the block bitmap barrier (MPQ Editor does not open it).": "Bộ khuyến nghị: ID đã xáo trộn, script đã làm rối, xóa tệp chỉ dành cho trình chỉnh sửa và tệp không dùng, tối ưu dung lượng không mất dữ liệu, kho lưu trữ bình thường với rào cản bitmap khối (MPQ Editor không mở được).",
+ "convert BLP, TGA and PNG textures to DDS, lossy: each one only when it gets smaller in the map and stays close to the original (Reforged maps only; not with the two conversions to BLP)": "chuyển texture BLP, TGA và PNG sang DDS, có mất dữ liệu: mỗi texture chỉ khi nhỏ hơn trong bản đồ và vẫn gần với bản gốc (chỉ bản đồ Reforged; không dùng cùng hai kiểu chuyển sang BLP)",
+ "no BLP, TGA or PNG texture in this map": "bản đồ này không có texture BLP, TGA hay PNG",
+ "the map is for a game before 1.32, which reads no DDS (save it in the Reforged editor first)": "bản đồ dành cho game trước 1.32, không đọc được DDS (hãy lưu nó trong trình chỉnh sửa Reforged trước)",
+ "high quality": "chất lượng cao",
+ "normal": "bình thường",
+ "smaller": "nhỏ hơn"
 }
