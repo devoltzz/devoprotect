@@ -1,5 +1,6 @@
 # Makes MDX models smaller: repeated animation keys out, lossy only when asked; each one proved.
 import math
+import re
 import struct
 
 import mdx_struct
@@ -13,6 +14,42 @@ OTHER = ('KGAO', 'KGAC', 'KMTA', 'KMTE', 'KFC3', 'KFCA', 'KFTC', 'KLAS', 'KLAE',
          'KRCO', 'KRHA', 'KRHB', 'KCRL', 'KTAS')
 DEFAULT_TOLERANCE = {'translation': 0.05, 'rotation': 0.002, 'scale': 0.002, 'other': 0.002}
 MIN_GAIN = 64
+
+_RX_DNC_CALL = re.compile(rb'SetDayNightModels\s*\(\s*"((?:\\.|[^"\\\r\n])*)"\s*,\s*"((?:\\.|[^"\\\r\n])*)"')
+
+
+def day_night_names(script):
+    out = set()
+    for m in _RX_DNC_CALL.finditer(script or b''):
+        for g in m.groups():
+            n = g.decode('utf-8', 'surrogateescape').replace('\\\\', '\\').replace('/', '\\').lower()
+            if n[-4:] in ('.mdl', '.mdx'):
+                n = n[:-4] + '.mdx'
+            out.add(n)
+    return out
+
+
+def _top_chunks(data):
+    if data[:4] != b'MDLX':
+        return None
+    tags, pos = set(), 4
+    while pos + 8 <= len(data):
+        tag, size = data[pos:pos + 4], struct.unpack_from('<I', data, pos + 4)[0]
+        if pos + 8 + size > len(data):
+            return None
+        tags.add(tag)
+        pos += 8 + size
+    return tags if pos == len(data) else None
+
+
+def is_day_night(name, data=None, dnc_names=()):
+    low = name.replace('/', '\\').lower()
+    base = low.rsplit('\\', 1)[-1]
+    if '\\dnc\\' in '\\' + low or base.startswith('dnc') or low in dnc_names or \
+            any(low.endswith('\\' + x) or x.endswith('\\' + low) for x in dnc_names):
+        return True
+    tags = _top_chunks(data) if data else None
+    return bool(tags) and b'LITE' in tags and not tags & {b'GEOS', b'PREM', b'PRE2', b'RIBB', b'CORN'}
 
 
 def _class(tag):
