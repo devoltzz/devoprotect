@@ -1,4 +1,4 @@
-# The sector codec of the 512-byte pack in native code (zopfli and zlib-ng), the same bytes as on Windows.
+# The sector codec in native code (zopfli and zlib-ng): the same bytes the program writes on Windows.
 import ctypes
 import os
 import sys
