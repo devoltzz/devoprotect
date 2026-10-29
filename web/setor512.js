@@ -1,4 +1,4 @@
-// The sector codec of the 512-byte pack in WebAssembly (setor512.wasm), for the browser.
+// The sector codec in WebAssembly (setor512.wasm), for the browser.
 export function s512Native(wasmBytes) {
   const mod = new WebAssembly.Module(wasmBytes);
   const imports = {};
