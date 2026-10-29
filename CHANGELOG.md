@@ -3,6 +3,27 @@
 What each version of DevoProtect brought, the newest first. The downloads are on the
 [Releases](https://github.com/devoltzz/devoprotect/releases) page.
 
+## 0.1.17 (2026-10-29)
+
+- The 512-byte sector pack is gone. On 3 October 2026 StormLib got issue 455 fixed (commit 744ec1d): MPQ Editor opens
+  a map with 512-byte sectors now, so that pack no longer kept anybody out, and it made maps much bigger (one of my test
+  maps went from 11.0 MB to 13.4 MB with it). DevoProtect does not write that archive anymore. The window lost the final
+  pack card with its Protect radio, and the command line lost `--pack`, `--encrypt-files` and `--variant` (the last two
+  only worked on top of that pack: the encrypted files and the malformed-header markers). `--pack` now fails with a line
+  that says why. What keeps MPQ Editor from opening a protected map is the block bitmap barrier, on by default in Full
+  protection and Archive only: a few bytes at the end of the file, and MPQ Editor does not open the map (its v1 mode
+  opens it read-only).
+- "Convert object data to SLK tables" (`--to-slk`) uses the tables of the game the map is for, and skips the step when
+  those tables are not here. A classic map used to get the Reforged tables, with Reforged's numbers where they differ
+  from the classic game and 28 units only Reforged has. Now it gets the tables of its own version, with the balance
+  layer the map asks for (measured in 1.28.5: a custom map uses the custom tables, a melee map the melee ones), or the
+  step is skipped with the reason in the report and the map is protected the same. Reforged maps are unchanged: the
+  installed game, or the tables pack downloaded once.
+- A warning when a Lua map creates handles while its script loads, outside any function (a known source of
+  multiplayer desyncs). It is only a warning: the map is not changed.
+- The window: the BLP rewrite without loss moved to the Optimize size card, and the MPQ barriers have a card of their
+  own. The page texts arrived in all 16 languages.
+
 ## 0.1.16 (2026-10-27)
 
 - Smaller maps by default. Full protection and Archive only now save a normal archive instead of the 512-byte sector
