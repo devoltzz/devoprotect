@@ -59,8 +59,8 @@ folder). The command line reads the same file with `--preset=<file>`.
 | **Archive only** | Removes the editor files and the files the game never reads, rewrites the BLP textures without loss and adds the block bitmap barrier; the script stays as it is. |
 | **Custom** | Each step on its own, plus the extra options. |
 
-Every option sits on the left, in groups that follow the steps: object IDs, script, editor files, size, the final
-pack, decoys, the anti-cheat and an advanced group with the shuffle seed. A ready mode keeps the groups closed and
+Every option sits on the left, in groups that follow the steps: object IDs, script, editor files, size, the MPQ
+barriers, decoys, the anti-cheat and an advanced group with the shuffle seed. A ready mode keeps the groups closed and
 fills them with its set; Custom opens them, and changing any option turns the mode into Custom. On the right, the
 program checks the map as soon as you choose it (JASS or Lua, a campaign or a single map, the game version, the size)
 and lists the steps that will run, in order. An option that can't work with the rest, or with that map, is locked
@@ -74,16 +74,15 @@ What the steps do:
 | **Shuffle IDs** | Renames your custom object IDs (`h000`, `A00B`...) to meaningless ones, in the object data and in the script. Optionally non-printable: the last three characters become control characters, which object editors show as garbage. |
 | **Obfuscate** | Scrambles the names, strings and raw codes of a JASS or Lua script. Your function and variable names (`Trig_`, `udg_`, `gg_` and the rest) are gone for good in both; in JASS the new names are as short as they can be, the most used first, so the script gets smaller too. JASS output goes through pjass before it's saved. A JASS map can be converted to Lua first; a Lua script also gets its strings encrypted where they are used and the whole file wrapped in loader layers. |
 | **Remove editor files** | Strips what only the World Editor uses (triggers, unit placement, editor counters), so the map won't open there as a normal map. Anything the game still reads stays. Optionally the object data becomes the game's own SLK tables. |
-| **Decoys and markers** | Fake trigger files that are different in every map, the file list removed so there are no file names to mine, fake imports, a hash table filled with fake files spread across the map's folders so no file can be added later, extract-all bombs, a cut hash table, and malformed-header markers. |
-| **Optimize size** | On by default, with the parts that lose nothing: the files the game never reads are removed (imported files that nothing the game reads names; the report lists each one), and the JASS script loses the code nothing runs. With the None pack it also repacks the archive with 64 KB sectors and stores identical files once. Optionally, all off by default: BLP, TGA and PNG textures to DDS (lossy, Reforged maps only, each texture only when it gets smaller; three quality levels), DDS textures to BLP, smaller MDX models (the animation keys that change nothing), MP3 sounds re-encoded in mono (lossy, desktop only, needs ffmpeg), a minified JASS script, imported TGA and PNG images converted to BLP (a palette without loss when the image has 256 colors or fewer, else JPEG at high quality, and only when it gets smaller), and smaller textures (lossy: the textures only models use, at half size). |
+| **Decoys and markers** | Fake trigger files that are different in every map, the file list removed so there are no file names to mine, fake imports, a hash table filled with fake files spread across the map's folders so no file can be added later, extract-all bombs and a cut hash table. |
+| **Optimize size** | On by default, with the parts that lose nothing: the files the game never reads are removed (imported files that nothing the game reads names; the report lists each one), the JASS script loses the code nothing runs, and the map is repacked with 64 KB sectors (identical files stored once). The BLP textures are rewritten without loss at the same time: the same pixels, a smaller map (`--no-blp` keeps them). Optionally, all off by default: BLP, TGA and PNG textures to DDS (lossy, Reforged maps only, each texture only when it gets smaller; three quality levels), DDS textures to BLP, smaller MDX models (the animation keys that change nothing), MP3 sounds re-encoded in mono (lossy, desktop only, needs ffmpeg), a minified JASS script, imported TGA and PNG images converted to BLP (a palette without loss when the image has 256 colors or fewer, else JPEG at high quality, and only when it gets smaller), and smaller textures (lossy: the textures only models use, at half size). |
 | **Anti-cheat** | Off by default; tested in game in single player, multiplayer still to prove. Adds checks that run while the map plays: a ledger that undoes gold, lumber and hero changes no part of the map explains, a detector for the game's own cheat codes in single player, decoy function names so a cheat pack pasted by hand does not compile, and for Lua maps a guard that restores the engine functions a cheat pack replaces and, off by default and not proven in the game yet, a watch on the map's global table (a global created by code pasted after the map, one the map never defines, or a known cheat pack's name). When it finds something it can warn everyone, block the cheater's saves, defeat the cheater or end the game. |
-| **Pack** | By default a normal archive with the block bitmap barrier at the very end: MPQ Editor does not open the map (its v1 mode opens it read-only). Optionally the archive is repacked with 512-byte sectors: the game loads it fine and MPQ Editor and other StormLib tools refuse to open it, but the map gets bigger. With either pack, the BLP textures are rewritten without loss: the same pixels, a smaller map. A second barrier, off by default, moves the archive 128 MiB into the file (see `--mpq-barrier`). |
+| **MPQ barriers** | Added at the very end of the file. By default the block bitmap: a few bytes, and MPQ Editor does not open the map (its v1 mode opens it read-only). It is on in Full protection and Archive only, and a campaign gets none (barriers are for single maps). Optionally, off by default, the archive is moved 128 MiB into the file: MPQ Editor does not open it even in v1 mode, and the map grows by about 128 MB (see `--mpq-barrier`). |
 
-Three more options are off by default, tested in game. You turn them on in Custom or on the command
+Two more options are off by default, tested in game. You turn them on in Custom or on the command
 line. **Rename imported files** (`--rename-imports`): the name of every imported file the map uses is replaced by a
 random name of the same length, in the archive and in every reference, so the original name no longer comes back.
-**Encrypt files** (`--encrypt-files`, with the 512-byte sector pack): the files whose names are known are stored
-encrypted in the archive, with the key taken from the name. **Remove error messages** (`--remove-error-logs`): the
+**Remove error messages** (`--remove-error-logs`): the
 compiler error messages that vJass (JassHelper) and Wurst leave in the script are removed.
 
 After each step the map is read back and every file is compared with what that step was supposed to write. If
@@ -96,16 +95,17 @@ so save codes from the old version still load. For a campaign, give it the folde
 ## Questions
 
 **Can someone still get into my map?** Someone who really wants to, yes. The map runs on the player's computer, so it
-can always be dumped from memory and rebuilt by hand. DevoProtect closes the easy routes. Keep your unprotected map,
-because there is no undo.
+can always be dumped from memory and rebuilt by hand. MPQ Editor goes one step further with its Game Extractor: it
+reads the files of a game that is running (the classic game only), so nothing in the archive matters while the game is
+open. That is the limit of any protection that works on the file, and every layer here is about the file. DevoProtect
+closes the easy routes. Keep your unprotected map, because there is no undo.
 
 **What are the extract-all bombs?** A few decoy files with a huge declared size. A tool that extracts everything in the
 map has to write that size out in zeros, so a full extract fills gigabytes of disk. The game never reads them, and the
 real files are untouched.
 
 **MPQ Editor opens my protected map read-only.** That's the cut hash table: MPQ Editor and StormLib can list and
-extract, but they can't edit, add or delete a file. The game plays the map unchanged. With the 512-byte sector pack
-they don't open the map at all.
+extract, but they can't edit, add or delete a file. The game plays the map unchanged.
 
 **Should I convert my JASS map to Lua?** You don't need to for the names: a JASS script and a Lua script both lose your
 function and variable names for good. A Lua script also comes wrapped in loader layers, which slows down someone who
@@ -120,7 +120,10 @@ test the converted map in game before a release.
 **What does converting the object data to SLK do?** The map's units, items and abilities become the game's own tables,
 so fewer objects are built when the map loads, which helps with Reforged disconnects on maps with hundreds of
 abilities. The map grows, because it carries the game's tables, and it still has to be proven in game, so it's off by
-default. It reads the tables of your installed Warcraft III, found automatically on Windows. Without the game (the
+default. It is not a protection layer: it changes the format the game reads and hides the custom objects from the
+editor, nothing more. It reads the tables of the game the map is for, found automatically on Windows (the installed
+Warcraft III). When those tables are not here the step is skipped and the report says why, so a classic map never gets
+the Reforged tables, which would change the numbers the game reads. For a Reforged map without the game (the
 site, Linux, or a PC without Warcraft III) it downloads the tables of Warcraft III 3.0.1.24371 from
 protect.devoltz.party once, 1.2 MB, checks them and keeps them.
 
@@ -138,7 +141,7 @@ on seven test maps that made the whole map 1.4% to 9% smaller, and almost nothin
 already been through a "squisher". The minified script gave less than 0.5% with the script obfuscated; with the obfuscator off it
 gave up to 10% on a map with a big script. Mono 22 kHz is a real loss for music, so listen to the map before you
 release it, and look at the models in game too. The site can't run ffmpeg, so it leaves the MP3 sounds as they are.
-Smaller textures made a 50 MB test map 23% smaller with the 512-byte pack: half of its textures belong to models
+Smaller textures made a 50 MB test map 23% smaller: half of its textures belong to models
 only, and each of those dropped its biggest mipmap. Converting TGA and PNG images saves room only in maps that carry
 big ones; most maps carry just the preview, which stays a TGA because the game reads it by that name.
 
@@ -161,9 +164,7 @@ GitHub whether a new version is out. On the site, very big maps with every optio
 memory (about 2 GB); use the program for those.
 
 **Does the site give the same map as the program?** The same files inside, yes. The site packs them with the
-browser's own zlib, so the map comes out a little bigger and its bytes differ. Turn on "same bytes as the desktop
-program" in the final pack's extras to pack with the program's compressors: the map is then byte for byte the same
-as on Windows, about 8 times slower on a big map.
+browser's own zlib, so the map comes out a little bigger and its bytes differ from the program's.
 
 ## Command line
 
@@ -180,26 +181,23 @@ is the keys folder of the previous release (its out folder).
 
 | Option | |
 |---|---|
-| `--skip=shuffle,obfuscate,block,decoys,pack,dds` | Steps to skip. |
-| `--pack` | Repack the archive with 512-byte sectors (off by default: the map gets bigger). |
+| `--skip=shuffle,obfuscate,block,decoys,dds` | Steps to skip. |
 | `--rename-imports` | Rename the imported files to random names of the same length, everywhere they are used (off by default). |
-| `--encrypt-files` | Store the files whose names the map gives encrypted, with the key taken from the name (512-byte sector pack only; off by default). |
 | `--remove-error-logs` | Remove the vJass and Wurst compiler error messages from the script (off by default). |
 | `--block=w3i,wtg,extra,units,doo,w3r` | Which editor files to remove (default: `w3i,wtg,extra,units,doo`). |
-| `--to-slk` | Convert the object data to the game's SLK tables (the installed game's, or a 1.2 MB download once). |
+| `--to-slk` | Convert the object data to the game's SLK tables (the tables of the game the map is for; skipped, with the reason in the report, when they are not here). It is not a protection layer. |
 | `--game=<folder>` | The Warcraft III folder, or a tables pack folder, for `--to-slk`. |
 | `--decoys=wtg,listfile,imp,preview,fill` | Decoy files (`listfile` removes the file list; `preview` only when you name it: the game may show that image). |
 | `--bombs` | Extract-all bombs. |
 | `--cut-hash` | Cut the hash table: MPQ Editor and StormLib open the map read-only. |
 | `--no-edit` | Mark the protected map as not allowed to edit (off by default, any mode): a file in the archive, a comment in the script and a signature in the header. Tools that respect the mark refuse to unprotect or change the map; the game ignores it. |
-| `--variant=header,high-sector,bit31` | Malformed-header markers (only with the 512-sector pack; `bit31` doesn't combine with `--bombs` or `--cut-hash`). |
-| `--mpq-barrier=bitmap,header-128mib` | MPQ barriers added at the very end (single maps; default `bitmap`, `--mpq-barrier=` with nothing turns it off). `bitmap`: a few bytes at the end of the file, and MPQ Editor does not open the map (its v1 mode opens it read-only). `header-128mib`: the archive moved 128 MiB into the file; MPQ Editor does not open it even in v1 mode, and the map grows by about 128 MB. Both load in Reforged; with the 512-sector pack MPQ Editor already refuses the map. |
+| `--mpq-barrier=bitmap,header-128mib` | MPQ barriers added at the very end (single maps; default `bitmap`, `--mpq-barrier=` with nothing turns it off). `bitmap`: a few bytes at the end of the file, and MPQ Editor does not open the map (its v1 mode opens it read-only). `header-128mib`: the archive moved 128 MiB into the file; MPQ Editor does not open it even in v1 mode, and the map grows by about 128 MB. Both load in Reforged. |
 | `--ids-non-ascii` | Non-printable object IDs (control characters). |
 | `--to-lua` | Convert a JASS script to Lua before obfuscating it (the map then needs 1.31 or newer). |
 | `--lua-layers=N` | Loader layers for an obfuscated Lua script (default 2). |
 | `--previous-key=<tsv>` | The ID key of your previous release (a campaign takes the keys folder). |
 | `--seed=N` | Shuffle seed (default: taken from the map). |
-| `--no-optimize` | Turn the optimize step off. It is on by default with the parts that lose nothing: the files the game never reads and the dead code of the JASS script. `--no-recompress` and `--no-dedup` turn a part of the 64 KB repack off (with `--skip=pack`); `--lossy` is only for maps over the game's 512 MiB limit. |
+| `--no-optimize` | Turn the optimize step off. It is on by default with the parts that lose nothing: the files the game never reads and the dead code of the JASS script. `--no-recompress` and `--no-dedup` turn a part of the 64 KB repack off; `--lossy` is only for maps over the game's 512 MiB limit. |
 | `--keep-unused` | Keep the files the game never reads (removed by default; the report lists each one). |
 | `--models[=lossless\|lossy]` | Part of the optimize step: drop the MDX animation keys that change nothing; `lossy` also thins straight animation tracks and rounds the low bits of the model numbers (the models pack 15% to 20% smaller; off by less than 0.05 units). |
 | `--mp3[=32\|48\|64\|96\|128]` | Part of the optimize step: re-encode the MP3 sounds in mono, 22 kHz, at that rate (default 64). Lossy; needs ffmpeg on the PATH or `--ffmpeg=<path>`. |
@@ -214,7 +212,7 @@ is the keys folder of the previous release (its out folder).
 | `--anti-cheat-actions=warn,nosave,defeat,end` | What to do when a cheat is found (default: `warn`). |
 | `--anti-cheat-gold-jump=N` | The gold or lumber jump with no event that counts as a cheat (default 400). |
 | `--anti-cheat-codes-mode=auto\|humans\|reload\|humans+reload` | When the cheat code detector arms (default `auto`). |
-| `--no-blp` | Keep the BLP textures as they are. By default they are rewritten without loss with either pack (the same pixels, a smaller map); `--no-blp-opt` means the same. |
+| `--no-blp` | Keep the BLP textures as they are. By default the optimize step rewrites them without loss (the same pixels, a smaller map); `--no-blp-opt` means the same. |
 
 `--help` shows everything. On Linux the program takes the same options after it:
 `./DevoProtect-linux-x86_64 <map> <out> [options]`.
