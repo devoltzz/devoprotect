@@ -69,7 +69,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 https://github.com/google/zopfli, through the `zopfli` Python package (https://github.com/fonttools/py-zopfli)
 
-The executables bundle zopfli, which compresses each 512-byte sector of a protected map as small as it can.
+The executables bundle zopfli, which compresses the sectors of a protected map as small as it can.
 
 ```
 Apache License
@@ -280,7 +280,7 @@ Apache License
 https://github.com/zlib-ng/zlib-ng (2.2.4)
 
 `engine/setor512.dll`, `engine/setor512.so` and the site's `setor512.wasm` (built from `engine/setor512.c`) carry
-zopfli 1.0.3 and zlib-ng 2.2.4, so a map protected on Linux or in the browser comes out byte for byte as on Windows.
+zopfli 1.0.3 and zlib-ng 2.2.4: the sector codec gives the same bytes the program writes on Windows.
 
 ```
 (C) 1995-2024 Jean-loup Gailly and Mark Adler
