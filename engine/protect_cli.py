@@ -23,69 +23,61 @@ USAGE = r"""DevoProtect: protect a Warcraft III map from casual editing.
                                                --save-preset); the options on the command line win over it
     --save-preset=<file.json>                  write a preset with the options given (and the preset's, if any)
 
-Options (each toggle of each step; default: full protection without the sector-512 pack, with the block bitmap
-barrier, ASCII IDs, no decoys, no MPQ variants):
-    --skip=shuffle,obfuscate,block,decoys,pack,dds   steps to skip
-    --pack                                     repack the archive with 512-byte sectors (off by default: the map
-                                               gets bigger; MPQ Editor refuses it)
+Options (each toggle of each step; default: full protection with the block bitmap barrier, ASCII IDs, no decoys):
+    --skip=shuffle,obfuscate,block,decoys,dds   steps to skip
     --rename-imports                           rename the imported files to meaningless names of the same length,
                                                in the archive and in every reference (object data, models and
                                                script). Off by default
-    --encrypt-files                            store the files whose names the map gives encrypted in the sector-512
-                                               pack (the key comes from the name). Off by default
     --remove-error-logs                        remove the compiler error messages vJass and Wurst leave in the
                                                script. Off by default
     --block=w3i,wtg,extra,units,doo,w3r        the editor-file mechanisms (default: w3i,wtg,extra,units,doo)
     --decoys=wtg,listfile,imp[,preview][,fill]   write decoy files (off by default; listfile removes the
                                                 file list; preview only if named; fill fills the hash
                                                 table to the header limit: no new file can be added)
-    --variant=header,high-sector,bit31         malformed-MPQ header markers. No extra barrier:
-                                               they ride on the sector-512 pack, which MPQ Editor already refuses
-                                               to open; ignored with --skip=pack
     --bombs                                    extract-all defense: decoy files with a huge declared size, so a
                                                tool that extracts everything balloons on disk; the game never
-                                               reads them. Not with --variant=bit31
+                                               reads them
     --cut-hash                                 cut the hash table: MPQ Editor and StormLib open the map read-only
                                                (they list and extract, but cannot edit it); the game plays it
-                                               unchanged. Not with --variant=bit31
+                                               unchanged
     --mpq-barrier=bitmap,header-128mib         MPQ barriers added at the very end (default: bitmap; single maps,
                                                not campaigns; --mpq-barrier= with nothing turns them off). bitmap: a block bitmap at the end of the file;
                                                MPQ Editor does not open the map (its v1 mode opens it read-only),
                                                a few bytes. header-128mib: the archive moved to 128 MiB into the
                                                file; MPQ Editor does not open it even in v1 mode, and the map
-                                               grows by about 128 MB. Both load in Reforged. With the sector-512
-                                               pack MPQ Editor already refuses the map: they matter most with
-                                               --skip=pack
+                                               grows by about 128 MB. Both load in Reforged
     --no-edit                                  mark the protected map as not allowed to edit: tools that respect
-                                               the mark refuse to unprotect or change it (off by default; the
-                                               block table bit31 variant does not survive it)
+                                               the mark refuse to unprotect or change it (off by default)
     --ids-non-ascii                            non-printable object IDs (control characters)
     --to-lua                                   convert a JASS script to Lua first (the map then needs 1.31+)
     --to-slk                                   convert the object data to the game's SLK tables (fewer objects are
                                                built on load, which helps Reforged; the editor no longer shows the
-                                               custom objects). Uses the tables of the installed Warcraft III (found
-                                               on Windows); without it, the Warcraft III tables pack is downloaded
-                                               from protect.devoltz.party once (1.2 MB, checked) and kept
+                                               custom objects). It uses the tables of the game the map is for: a
+                                               classic map gets that version's tables, and the step is SKIPPED when
+                                               they are not here (it never puts the Reforged tables on a classic
+                                               map); a Reforged map uses the installed Warcraft III (found on
+                                               Windows) or, without it, the Warcraft III tables pack downloaded from
+                                               protect.devoltz.party once (1.2 MB, checked) and kept
     --game=<folder>                            the Warcraft III folder (or a tables pack folder) for --to-slk
     --lua-layers=N                             loader layers for Lua maps (default 2)
     --no-blp                                   keep the BLP textures as they are. By default the BLP JPEG textures are
-                                               rewritten without loss (the same pixels, a smaller map), with either
-                                               final pack (--no-blp-opt still works and means the same)
+                                               rewritten without loss (the same pixels, a smaller map) by the
+                                               Optimize step (--no-blp-opt still works and means the same)
     --seed=N                                   shuffle seed (default: from the map's sha256)
     --previous-key=<tsv>                       the ID key of the PREVIOUS release of this map: every object that
                                                exists in both keeps the same shuffled ID (save codes keep working);
                                                only new objects are drawn. Campaign: the previous keys folder
 
-  Optimize size (a step before the final pack; the final pack is the sector-512 protect, or none with --skip=pack):
+  Optimize size (a step in every mode: it removes what the game never reads and repacks the map in 64 KB sectors):
     --no-optimize                              turn the step off. It is on by default with its lossless parts: the
                                                files the game never reads are removed and the JASS script loses the
-                                               code nothing runs; with --skip=pack it also repacks the map with 64 KB
-                                               sectors, the smallest it gets (--optimize is still accepted)
+                                               code nothing runs. With it off the map is only cleaned up (the old
+                                               copies the steps replaced are dropped), as it is; --optimize is
+                                               still accepted
     --keep-unused                              keep the files the game never reads (imported files that nothing in
                                                the map uses; removed by default, each one listed in the report)
     --no-minify                                keep the JASS script's dead code (removed by default)
-    --no-recompress / --no-dedup               turn off a part of the optimize step (both on by default;
-                                               the sector-512 pack always recompresses and dedups)
+    --no-recompress / --no-dedup               turn off a part of the optimize step (both on by default)
     --lossy                                    only for a map above the game's 512 MiB limit: textures at half size
                                                and WAV sounds mono 22 kHz, until it fits
     --models[=lossless|lossy]                  drop the animation keys of the MDX models that change nothing
@@ -151,7 +143,7 @@ def _opt(argv, name, default=None):
     return default
 
 
-VALUE_FLAGS = ('skip', 'block', 'decoys', 'variant', 'mpq-barrier', 'lua-layers', 'seed', 'previous-key', 'game',
+VALUE_FLAGS = ('skip', 'block', 'decoys', 'mpq-barrier', 'lua-layers', 'seed', 'previous-key', 'game',
                'anti-cheat-actions', 'anti-cheat-gold-jump', 'anti-cheat-codes-mode', 'ffmpeg', 'preset', 'save-preset')
 OPTIONAL_VALUE_FLAGS = ('anti-cheat', 'models', 'mp3', 'smaller-textures', 'to-dds')
 BARE_FLAGS = (
@@ -169,23 +161,24 @@ BARE_FLAGS = (
     'no-blp-opt',
     'lossy',
     'dds',
-    'pack',
     'bombs',
     'cut-hash',
     'minify',
     'tga-png',
     'rename-imports',
     'remove-error-logs',
-    'encrypt-files',
     'no-edit',
     'cli',
     'help',
     'version',
 )
 ON_FLAGS = (('ids-non-ascii', 'non_ascii_ids'), ('to-lua', 'to_lua'), ('blp', 'blp'), ('dds', 'dds'),
-            ('pack', 'pack'),
             ('bombs', 'bombs'), ('cut-hash', 'cut_hash'), ('to-slk', 'to_slk'), ('rename-imports', 'imports'),
-            ('remove-error-logs', 'error_logs'), ('encrypt-files', 'encrypt'), ('no-edit', 'no_edit'))
+            ('remove-error-logs', 'error_logs'), ('no-edit', 'no_edit'))
+REMOVED_FLAGS = {
+    'pack': '--pack was removed in 0.1.17: the MPQ Editor opens 512-byte-sector maps since 03/10/2026 (StormLib #455), '
+            'so it no longer protects anything.',
+}
 
 
 def positional(argv):
@@ -199,6 +192,8 @@ def parse_options(argv, extra_value=(), extra_bare=()):
         if a == '-h' or not a.startswith('-'):
             continue
         name, has_value = a[2:].split('=', 1)[0], '=' in a
+        if name in REMOVED_FLAGS:
+            raise ValueError(REMOVED_FLAGS[name])
         if not a.startswith('--') or name not in value_flags + bare_ok + OPTIONAL_VALUE_FLAGS:
             raise ValueError('unknown option %s (see --help)' % a)
         if name in value_flags and not has_value:
@@ -227,7 +222,6 @@ def parse_options(argv, extra_value=(), extra_bare=()):
     skip = names_of('skip', tuple(protect_app.STEP_KEYS) + ('dds',))
     block = names_of('block', protect_app.BLOCKS)
     decoys = names_of('decoys', tuple(protect_app.DECOYS))
-    variant = names_of('variant', tuple(k.replace('_', '-') for k in protect_app.VARIANTS))
     barrier = names_of('mpq-barrier', tuple(k.replace('_', '-') for k in protect_app.BARRIERS))
     ac_flags = [a for a in argv if a.startswith('--anti-cheat-')]
     anti_cheat = any(a == '--anti-cheat' or a.startswith('--anti-cheat=') for a in argv)
@@ -279,11 +273,6 @@ def parse_options(argv, extra_value=(), extra_bare=()):
             o.pop('decoy_' + k, None)
     for k in decoys:
         o['decoy_' + k] = True
-    if _opt(argv, 'variant') is not None:
-        for k in protect_app.VARIANTS:
-            o.pop('variant_' + k, None)
-    for k in variant:
-        o['variant_' + k.replace('-', '_')] = True
     if _opt(argv, 'mpq-barrier') is not None:
         for k in protect_app.BARRIERS:
             o['barrier_' + k] = False
@@ -317,8 +306,6 @@ def parse_options(argv, extra_value=(), extra_bare=()):
         raise ValueError('--blp and %s contradict each other: give one of them' % no_blp_flags[0])
     if no_blp_flags:
         o['blp'] = False
-    if '--encrypt-files' in argv and ('pack' in skip or not o.get('pack')):
-        warnings.append('--encrypt-files only works with the sector-512 pack (--pack): ignored')
     if _opt(argv, 'game') is not None:
         o['game'] = _opt(argv, 'game')
     if not optimize:
@@ -352,9 +339,6 @@ def parse_options(argv, extra_value=(), extra_bare=()):
             o['ffmpeg'] = _opt(argv, 'ffmpeg')
     for p in skip:
         o[p] = False
-    no_512 = [f for f in ('--variant',) if any(a == f or a.startswith(f + '=') for a in argv)]
-    if no_512 and not o.get('pack'):
-        warnings.append('%s ignored: it only applies to the sector-512 repack (--pack)' % ' '.join(no_512))
     q = _opt(argv, 'to-dds', 'normal' if '--to-dds' in argv else None)
     if q is not None:
         if q not in protect_app.TO_DDS_QUALITY:
@@ -363,10 +347,6 @@ def parse_options(argv, extra_value=(), extra_bare=()):
         o['to_dds_quality'] = q
     if o.get('to_dds') and (o.get('dds') or o.get('opt_tga_png')):
         raise ValueError('--to-dds does not combine with --dds or --tga-png: give one of them')
-    only_64k = [f for f in ('--no-recompress', '--no-dedup') if f in argv]
-    if only_64k and o.get('optimize') and o.get('pack'):
-        warnings.append('%s ignored: the sector-512 pack always recompresses every sector and stores identical files '
-                      'once (they only apply with --skip=pack)' % ' '.join(only_64k))
     return o, warnings
 
 
