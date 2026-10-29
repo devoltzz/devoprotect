@@ -133,6 +133,41 @@ def balance_of(w3i_bytes):
             pass
 
 
+CLASSIC_FOR_OLDER = '1.27b'
+
+
+def game_of(path=None, version=None):
+    import wc3_versions
+    if version:
+        if wc3_versions.is_reforged(version):
+            return None, 'Reforged (the target)'
+        v = wc3_versions.normalize(version) or version
+        return v, '%s (the target)' % v
+    if not path:
+        return None, 'Reforged'
+    try:
+        d = wc3_versions.detect(path)
+    except Exception as e:
+        return None, 'Reforged (the version of the map was not found: %s)' % str(e)[:60]
+    rng = d.get('range')
+    if rng == 'pre-1.24':
+        return CLASSIC_FOR_OLDER, '%s (the map is older than 1.24)' % CLASSIC_FOR_OLDER
+    if rng in ('1.24-1.28', '1.29') and d.get('version'):
+        return d['version'], '%s (the map is for %s)' % (d['version'], rng)
+    return None, 'Reforged (the map is for %s)' % (rng or 'Reforged')
+
+
+def game_base(version, w3i=None):
+    ob = _objetos()
+    if version:
+        import wc3_versions
+        g = wc3_versions.game(version)
+        if g is None:
+            raise RuntimeError('the game data of Warcraft III %s is not here' % version)
+        return ob.GameBase(casc=g, balance=balance_of(w3i))
+    return ob.GameBase(balance=balance_of(w3i))
+
+
 def _row_fields(cols, row, code=None):
     mapped, unmapped = [], []
     for col, text in row.items():
