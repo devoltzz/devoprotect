@@ -16,7 +16,6 @@ STEPS = {
     'obfuscate': 'Obfuscating the script...',
     'lock_editor': 'Removing the editor-only files...',
     'decoy': 'Writing the decoy files...',
-    'protect': 'Repacking the archive...',
     'optimize': 'Optimizing the size...',
     'dds': 'Converting DDS textures to BLP...',
     'content': 'Shrinking the models, sounds and script...',
@@ -37,7 +36,6 @@ DONE = {
     'obfuscate': 'Script obfuscated.',
     'lock_editor': 'Editor-only files removed.',
     'decoy': 'Decoy files written.',
-    'protect': 'Archive repacked.',
     'optimize': 'Size optimized.',
     'dds': 'DDS textures converted to BLP.',
     'content': 'Models, sounds and script shrunk.',
@@ -53,16 +51,9 @@ STEPS_TO_DDS = {'dds': 'Converting textures to DDS...'}
 DONE_TO_DDS = {'dds': 'Textures converted to DDS.'}
 
 
-STEP_KEYS = {
-    'shuffle': 'shuffle',
-    'obfuscate': 'obfuscate',
-    'block': 'lock_editor',
-    'decoys': 'decoy',
-    'pack': 'protect',
-}
+STEP_KEYS = {'shuffle': 'shuffle', 'obfuscate': 'obfuscate', 'block': 'lock_editor', 'decoys': 'decoy'}
 BLOCKS = ('w3i', 'wtg', 'extra', 'units', 'doo', 'w3r')
 DECOYS = {'wtg': 'wtg', 'listfile': 'listfile', 'imp': 'imp', 'preview': 'preview', 'fill': 'fill'}
-VARIANTS = {'header': 'header_text', 'high_sector': 'high-sector', 'bit31': 'bit31'}
 BARRIERS = {'bitmap': 'bitmap', 'header_128mib': 'header128m'}
 AC_PARTS = {'ledger': 'ledger', 'codes': 'codes', 'names': 'decoys', 'bj': 'bj', 'globals': 'globals'}
 AC_OFF = ('globals',)
@@ -101,10 +92,6 @@ def recipe_kwargs(options):
     if not decoys and 'decoy' not in skip:
         skip.append('decoy')
     blocks = [k for k in BLOCKS if o.get('block_' + k, k != 'w3r')]
-    variants = [internal for public, internal in VARIANTS.items() if o.get('variant_' + public)]
-    if o.get('variant_bit31') and 'protect' not in skip and (o.get('bombs') or o.get('cut_hash')):
-        raise ValueError('the bit31 variant does not combine with the extract-all bombs or the hash table cut: '
-                         'turn one of them off')
     if o.get('to_dds') and (o.get('dds') or (o.get('optimize') and o.get('opt_tga_png'))):
         raise ValueError('converting textures to DDS does not combine with converting DDS or TGA/PNG to BLP: '
                          'turn one of them off')
@@ -138,13 +125,11 @@ def recipe_kwargs(options):
         'skip': skip,
         'lock_editor': blocks,
         'decoys': tuple(decoys),
-        'variant': tuple(variants),
         'non_ascii_ids': bool(o.get('non_ascii_ids')),
         'lua_layers': int(o.get('lua_layers', 2)),
         'blp': bool(o.get('blp', True)),
         'imported': bool(o.get('imports')),
         'error_list': bool(o.get('error_logs')),
-        'cipher': bool(o.get('encrypt')),
         'convert_dds': bool(o.get('dds')),
         'convert_to_dds': bool(o.get('to_dds')),
         'dds_quality': o.get('to_dds_quality') if o.get('to_dds_quality') in TO_DDS_QUALITY else None,
@@ -171,10 +156,8 @@ def default_options():
         'shuffle': True,
         'obfuscate': True,
         'block': True,
-        'pack': False,
         'imports': False,
         'error_logs': False,
-        'encrypt': False,
         'block_w3i': True,
         'block_wtg': True,
         'block_extra': True,
@@ -355,7 +338,6 @@ PRESET_PATHS = ('previous_key', 'ffmpeg', 'game', 'tables')
 def preset_keys():
     keys = dict((k, type(v)) for k, v in default_options().items())
     keys.update(('decoy_' + k, bool) for k in DECOYS)
-    keys.update(('variant_' + k, bool) for k in VARIANTS)
     keys.update({'non_ascii_ids': bool, 'to_lua': bool, 'blp': bool, 'same_bytes': bool, 'seed': int})
     return keys
 
