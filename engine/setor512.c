@@ -1,4 +1,4 @@
-// The sector codec of the 512-byte pack in C, over zopfli and zlib-ng.
+// The sector codec in C, over zopfli and zlib-ng.
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
