@@ -342,13 +342,6 @@ def _deliver(tmp_folder, dest):
     return done_list
 
 
-def _decoy_of_list(steps):
-    p = next((p for p in steps if p.get('step') == 'decoy'), {})
-    return any(
-        n == '(listfile)' and x.get('action_code') == 'substituted' for n, x in (p.get('decoy_matrix') or {}).items()
-    )
-
-
 ART = ('.blp', '.tga', '.wav')
 
 
@@ -390,23 +383,6 @@ def images_summary(r):
     if reasons:
         txt += '; kept: ' + ', '.join('%d %s' % (k, m) for m, k in sorted(reasons.items(), key=lambda kv: -kv[1])[:3])
     return txt
-
-
-def _smaller_art(entry, output, optimization, pack_file, tmp):
-    import shrink
-    if not optimization.get('lossy') or os.path.getsize(output) <= shrink.LIMIT:
-        return None
-    smaller = os.path.join(tmp, 'optimize_art.w3x')
-    lo = shrink.lossy(entry, smaller, os.path.getsize(output) - shrink.LOSSY_TARGET)
-    if lo['state'] != 'done':
-        return {'map_path': None, 'summary': 'the pack is above 512 MiB and the art was not made smaller: %s'
-                                             % (lo.get('error') or 'nothing could be made smaller')}
-    pack_file(smaller)
-    summary = 'lossy (the pack was above 512 MiB): %d texture(s) at half size, %d sound(s) mono 22 kHz' % (
-        lo['textures'], lo['sounds'])
-    if os.path.getsize(output) > shrink.LIMIT:
-        summary += '; still above 512 MiB: the game will not open it'
-    return {'map_path': smaller, 'summary': summary}
 
 
 MODEL_LEVELS = ('lossless_keys', 'lossy_keys')
@@ -696,6 +672,12 @@ def recipe(entry, output, **kw):
     warning = _size_warning(entry, output, details)
     if warning:
         details.setdefault('warnings', []).append(warning)
+    try:
+        import lua_desync
+        for t in lua_desync.reforged_items(lua_desync.scan_map(entry), lambda c, s, t, f=None, **d: t):
+            details.setdefault('warnings', []).append(t)
+    except Exception:
+        pass
     return details
 
 
@@ -715,7 +697,6 @@ def _recipe(
     blp=False,
     lua_layers=2,
     decoys=(),
-    variant=(),
     non_ascii_ids=False,
     optimization=None,
     convert_dds=False,
@@ -740,7 +721,6 @@ def _recipe(
     content=None,
     imported=True,
     error_list=True,
-    cipher=True,
     no_use=False,
     barrier=(),
     mark_no_edit=False,
@@ -754,6 +734,7 @@ def _recipe(
     import lua_obfuscate
     import sector_pack
     skip = set(skip)
+    skip.add('protect')
     unknown_steps = skip - set(STEPS)
     if unknown_steps:
         raise SystemExit('unknown step in --skip: %s (valid: %s)' % (sorted(unknown_steps), ', '.join(STEPS)))
@@ -764,15 +745,6 @@ def _recipe(
         raise SystemExit(
             'unknown mechanism in --block: %s (valid: %s)'
             % (sorted(mechanisms - valid_ids), ', '.join(sorted(valid_ids)))
-        )
-    if (
-        'bit31' in variant
-        and 'protect' not in skip
-        and ((bulk and 'bulk' not in skip) or (cut_step and 'cut_step' not in skip))
-    ):
-        raise SystemExit(
-            'ABORT: the bit31 variant does not combine with the extract-all bombs (--bombs) nor with the hash table cut '
-            '(--cut-hash): both rewrite the tables and the mark is lost; turn one of them off'
         )
     if anticheat is not None:
         import anticheat as _anticheat
@@ -802,8 +774,6 @@ def _recipe(
         raise SystemExit('ABORT: the MPQ header of this map is not a normal MPQ v1 header (a map already protected by '
                          'another tool?): use the original map, as the World Editor saves it')
     _fpos, input_names = unnamed_encrypted(entry)
-    if _fpos is not None and 'protect' not in skip:
-        raise SystemExit('encrypted block at %d: this script does not decrypt it (it needs the file name)' % _fpos)
     if previous:
         previous = os.path.abspath(previous)
         if 'shuffle' in skip:
@@ -1015,6 +985,13 @@ def _recipe(
             warnings = [x for x in (jass_to_lua.waits_warning(waits),
                                     jass_to_lua.game_cases_warning(r.get('game_cases') or {})) if x]
             warning = ''.join('; WARNING: ' + x for x in warnings)
+            try:
+                import lua_desync
+                warnings += [x for x in lua_desync.reforged_items(lua_desync.scan(lua),
+                                                                  lambda c, s, t, f=None, **d: t) if x]
+                warning = ''.join('; WARNING: ' + x for x in warnings)
+            except Exception:
+                pass
             for x in warnings:
                 log('[lua] WARNING: ' + x)
             if not r['ok']:
@@ -1056,7 +1033,7 @@ def _recipe(
         new = next_steps('dds')
         import to_dds
         psnr_q, rdo_q = to_dds.QUALITIES[dds_quality or to_dds.DEFAULT_QUALITY]
-        r = to_dds.convert(current, new, sector_bytes=None if 'protect' in skip else 512, blp_best=blp, log=silent,
+        r = to_dds.convert(current, new, sector_bytes=None, blp_best=blp, log=silent,
                            psnr_min=psnr_q, rdo=rdo_q)
         for _n, _x in r['matrix'].items():
             if _x.get('action_code') == 'converted_file' and _x.get('new'):
@@ -1077,10 +1054,7 @@ def _recipe(
         t0 = time.time()
         new = next_steps('dds')
         import dds_to_blp
-
-        r = dds_to_blp.converte(
-            current, new, log=silent, types=image_kinds, sector_bytes=None if 'protect' in skip else 512
-        )
+        r = dds_to_blp.converte(current, new, log=silent, types=image_kinds, sector_bytes=None)
         if not r['ok']:
             raise SystemExit('ABORT at step dds: %s' % r.get('gate'))
         for _n, _x in r['matrix'].items():
@@ -1289,17 +1263,29 @@ def _recipe(
         import slk_objects as _so_slk
         a = mpqread.Archive(current)
         _le_slk = lambda n: editor_lock._read(a, n)
+        _slk_version, _slk_game_why = _so_slk.game_of(current)
+        base_slk, slk_source = None, {'game': _slk_game_why}
         try:
-            slk_casc, slk_source = obj2slk.open_tables(game=slk_game, pack=slk_pack)
-            base_slk = _ob_slk.GameBase(casc=slk_casc, balance=_so_slk.balance_of(_le_slk('war3map.w3i')))
+            if _slk_version:
+                base_slk = _so_slk.game_base(_slk_version, _le_slk('war3map.w3i'))
+                slk_source = {'source': 'classic', 'version': _slk_version, 'build_key': None}
+            else:
+                slk_casc, slk_source = obj2slk.open_tables(game=slk_game, pack=slk_pack)
+                base_slk = _ob_slk.GameBase(casc=slk_casc, balance=_so_slk.balance_of(_le_slk('war3map.w3i')))
+            slk_source['game'] = _slk_game_why
         except Exception as e:
-            raise SystemExit(
-                'ABORT at step slk: the game tables are needed and could not be read (%s). On '
-                'Windows the installed Warcraft III is found on its own; on Linux pass --game=<folder of the '
-                'Warcraft III>' % str(e)[:90]
-            )
-        slk_rep = obj2slk.convert(_le_slk, base_slk, list(ref_names), txt=slk_txt,
-                                  max_level=slk_max_level or obj2slk.MAX_LEVEL)
+            if not _slk_version:
+                raise SystemExit(
+                    'ABORT at step slk: the game tables are needed and could not be read (%s). On '
+                    'Windows the installed Warcraft III is found on its own; on Linux pass --game=<folder of the '
+                    'Warcraft III>' % str(e)[:90]
+                )
+            _slk_missing = 'the map is for Warcraft III %s and the tables of that game are not here' % _slk_version
+        if base_slk is None:
+            slk_rep = {'files': [], 'skipped': {'game': _slk_missing}}
+        else:
+            slk_rep = obj2slk.convert(_le_slk, base_slk, list(ref_names), txt=slk_txt,
+                                      max_level=slk_max_level or obj2slk.MAX_LEVEL)
         if not slk_rep['files']:
             why = '; '.join('%s: %s' % kv for kv in slk_rep['skipped'].items()) or 'nothing to convert'
             details['steps'].append({'step': 'slk', 'status': 'skipped (%s)' % why, 'tables': slk_source})
@@ -1434,99 +1420,36 @@ def _recipe(
         )
         current, last = new, 'decoy'
 
-    blp_512 = blp
-    p_optimize = before_optimize = None
     if optimization is not None:
+        import shrink
         optimization = dict(optimization)
         t0 = time.time()
-        before_optimize = last
-        if 'protect' in skip:
-            import shrink
-            new = os.path.join(tmp, '6_optimize.w3x')
-            log('[optimize] Optimizing the size...')
-            res = shrink.shrink(current, new, options=dict(optimization, blp=True) if blp else optimization)
-            if res.get('state') == 'nothing_to_do':
-                shutil.copyfile(current, new)
-                summary = 'nothing to gain (already compact)'
-            elif res.get('state') != 'done' or not os.path.isfile(new):
-                raise SystemExit('ABORT at step optimize: %s' % (res.get('error') or res.get('state')))
-            else:
-                summary = _shrink_summary(res)
-            stages['optimize'] = contents(new, ref_names)
-            _check_art(difference(stages[last], stages['optimize']), 'optimize')
-            p_optimize = on_close('optimize', 'ok', t0, last, 'optimize', {'summary': summary})
-            current, last = new, 'optimize'
+        new = os.path.join(tmp, '6_optimize.w3x')
+        log('[optimize] Optimizing the size...')
+        res = shrink.shrink(current, new, options=dict(optimization, blp=True) if blp else optimization)
+        if res.get('state') == 'nothing_to_do':
+            shutil.copyfile(current, new)
+            summary = 'nothing to gain (already compact)'
+        elif res.get('state') != 'done' or not os.path.isfile(new):
+            raise SystemExit('ABORT at step optimize: %s' % (res.get('error') or res.get('state')))
         else:
-            blp_512 = blp or bool(optimization.get('blp', True))
-            stages['optimize'] = stages[last]
-            p_optimize = {'step': 'optimize', 'status': 'ok', 'seconds': 0.0, 'files_changed': 0, 'detail': {},
-                          'summary': 'in the sector-512 pack: %s' % ('BLP textures rewritten without loss' if blp_512
-                                                                     else 'nothing to add (BLP rewrite off)')}
-            details['steps'].append(p_optimize)
-            log('[optimize] Optimizing the size in the sector-512 pack...')
-            last = 'optimize'
+            summary = _shrink_summary(res)
+        stages['optimize'] = contents(new, ref_names)
+        _check_art(difference(stages[last], stages['optimize']), 'optimize')
+        on_close('optimize', 'ok', t0, last, 'optimize', {'summary': summary})
+        current, last = new, 'optimize'
 
-    if 'protect' in skip:
-        details['steps'].append({'step': 'protect', 'status': 'skipped'})
-        log('[protect] skipped')
-        if clean and optimization is None and (last != 'entry' or blp):
-            log('[limpa] Dropping the old copies the steps replaced...')
-            limpo = os.path.join(tmp, '7_clean.w3x')
-            p = _clean_map(current, limpo, False, blp=blp)
-            details['steps'].append(p)
-            log('[clean] ok: %s' % p['summary'])
-            shutil.copyfile(limpo, output)
-        else:
-            shutil.copyfile(current, output)
+    details['steps'].append({'step': 'protect', 'status': 'skipped'})
+    log('[protect] skipped')
+    if clean and optimization is None and (last != 'entry' or blp):
+        log('[limpa] Dropping the old copies the steps replaced...')
+        limpo = os.path.join(tmp, '7_clean.w3x')
+        p = _clean_map(current, limpo, False, blp=blp)
+        details['steps'].append(p)
+        log('[clean] ok: %s' % p['summary'])
+        shutil.copyfile(limpo, output)
     else:
-        t0 = time.time()
-        drop_listfile = 'extra' in mechanisms and 'lock_editor' not in skip and not _decoy_of_list(details['steps'])
-
-        pack_rel = {}
-
-        def pack_file(origin):
-            r = sector_pack.protect(origin, output, blp=blp_512, orphan_blocks=True, no_listfile=drop_listfile,
-                                    name_list=input_names, cipher=cipher, variant=tuple(variant))
-            pack_rel.clear()
-            pack_rel.update(r)
-            return r
-        pack_file(current)
-        smaller = _smaller_art(current, output, optimization, pack_file, tmp) if optimization is not None else None
-        if smaller:
-            p_optimize['summary'] += '; ' + smaller['summary']
-            if smaller['map_path']:
-                stages['optimize'] = contents(smaller['map_path'], ref_names)
-                d_optimize = difference(stages[before_optimize], stages['optimize'])
-                _check_art(d_optimize, 'optimize')
-                p_optimize.update({'files_changed': len(d_optimize), 'seconds': round(time.time() - t0, 1),
-                                   'detail': dict((k, list(v)) for k, v in sorted(d_optimize.items()))})
-                current = smaller['map_path']
-        stages['protect'] = contents(output, ref_names)
-        base_p = 'optimize' if (smaller and smaller['map_path']) else last
-        d = difference(stages[base_p], stages['protect'])
-        outside = _outside_blp(d, stages[base_p], stages['protect']) if blp_512 else sorted(d)
-        on_close(
-            'protect',
-            'ok' if not outside else 'CHANGED CONTENT',
-            t0,
-            base_p,
-            'protect',
-            {
-                'encrypted_count': pack_rel.get('encrypted_count', 0),
-                'encrypt_skipped': pack_rel.get('encrypt_skipped', 0),
-                'summary': 'MPQ repacked (512-byte sectors%s), %d -> %d B%s'
-                % (
-                    ', lossless BLP' if blp_512 else '',
-                    os.path.getsize(current),
-                    os.path.getsize(output),
-                    ', %d block(s) encrypted by name' % pack_rel.get('encrypted_count', 0)
-                    if pack_rel.get('encrypted_count')
-                    else '',
-                ),
-            },
-        )
-        if outside:
-            raise SystemExit('ABORT: the mpq_recompress changed the content of %s' % outside[:5])
+        shutil.copyfile(current, output)
     if bulk and 'bulk' not in skip:
         t0 = time.time()
         import decoy_files
@@ -1748,7 +1671,6 @@ def _campaign(
     blp=False,
     lua_layers=2,
     decoys=(),
-    variant=(),
     non_ascii_ids=False,
     optimization=None,
     convert_dds=False,
@@ -1772,7 +1694,6 @@ def _campaign(
     content=None,
     imported=True,
     error_list=True,
-    cipher=True,
     no_use=False,
     barrier=(),
     mark_no_edit=False,
@@ -1781,7 +1702,7 @@ def _campaign(
 ):
     if bulk is not None or cut_step:
         raise SystemExit('campaign: --bulk and --cut-hash only work on a SINGLE MAP (the .w3x): in a campaign the '
-                         'embedded maps go through _clean_map (only the live blocks) and the .w3n through protect; the '
+                         'embedded maps go through _clean_map (only the live blocks) and the .w3n too; the '
                          'bulk in a campaign is left for the queue (the window parity, when the page covers it)')
     if barrier:
         raise SystemExit(
@@ -1797,7 +1718,6 @@ def _campaign(
     import editor_lock
     import mpqadd
     import mpqread
-    import sector_pack
     entry, output = os.path.abspath(entry), os.path.abspath(output)
     if not entry.lower().endswith('.w3n'):
         raise SystemExit('the input is not a campaign (.w3n): %s' % entry)
@@ -1815,8 +1735,6 @@ def _campaign(
         raise SystemExit('ABORT: the MPQ header of this campaign is not a normal MPQ v1 header (already protected by '
                          'another tool?): use the original campaign, as the World Editor saves it')
     _fpos, input_names = unnamed_encrypted(entry)
-    if _fpos is not None and 'protect' not in skip:
-        raise SystemExit('encrypted block at %d: this script does not decrypt it (it needs the file name)' % _fpos)
     if previous:
         previous = os.path.abspath(previous)
         if not os.path.isdir(previous):
@@ -1901,7 +1819,7 @@ def _campaign(
             lua_layers=lua_layers,
             decoys=decoys,
             non_ascii_ids=non_ascii_ids,
-            optimization=optimization if 'protect' in skip else None,
+            optimization=optimization,
             convert_dds=convert_dds,
             convert_tga_png=convert_tga_png,
             convert_lua=convert_lua,
@@ -1912,7 +1830,6 @@ def _campaign(
             anticheat=anticheat,
             imported=imported,
             error_list=error_list,
-            cipher=cipher,
             tmp=os.path.join(tmp, '%d_work' % i),
             retains=retains,
             verbose=verbose,
@@ -1923,11 +1840,9 @@ def _campaign(
             no_use=no_use,
         )
         clean = None
-        if 'protect' not in skip or optimization is None:
+        if optimization is None:
             limpo = os.path.join(tmp, '%d_clean.w3x' % i)
-            clean = _clean_map(map_out, limpo, 'protect' not in skip and 'extra' in set(lock_editor) and
-                               'lock_editor' not in skip and not _decoy_of_list(rm['steps']),
-                               optimization if 'protect' not in skip else None, blp=blp)
+            clean = _clean_map(map_out, limpo, False, blp=blp)
             log('[campaign] %s: %s' % (fname, clean['summary']))
             map_out = limpo
             if 'fill' in decoys and 'decoy' not in skip:
@@ -1964,7 +1879,7 @@ def _campaign(
         if clean:
             done['clean'] = clean
         details['map_list'].append(done)
-    if 'protect' in skip and optimization is not None:
+    if optimization is not None:
         import shrink
         t1 = time.time()
         log('[optimize] Optimizing the size...')
@@ -1984,61 +1899,14 @@ def _campaign(
             'summary': summary,
         }
         log('[optimize] ok: %s' % summary)
-    elif 'protect' in skip:
+    else:
         log('[limpa] Dropping the old copies the steps replaced...')
         limpo = os.path.join(tmp, 'campaign_clean.w3n')
-        lc = _clean_map(current, limpo, False, blp=blp)
+        lc = _clean_map(current, limpo, 'extra' in set(lock_editor) and 'lock_editor' not in skip, blp=blp)
         shutil.copyfile(limpo, output)
         details['clean'] = lc
-        details['protect'] = {
-            'step': 'protect',
-            'status': 'skipped',
-            'summary': 'in the sector-512 pack; ' + lc['summary'],
-        }
+        details['protect'] = {'step': 'protect', 'status': 'skipped', 'summary': lc['summary']}
         log('[clean] ok: %s' % lc['summary'])
-    else:
-        t1 = time.time()
-        blp_512 = blp or bool(optimization is not None and optimization.get('blp', True))
-        if optimization is not None:
-            log('[optimize] Optimizing the size in the sector-512 pack...')
-
-        pack_rel = {}
-
-        def pack_file(origin):
-            r = sector_pack.protect(origin, output, blp=blp_512, orphan_blocks=True,
-                                    no_listfile='extra' in set(lock_editor) and 'lock_editor' not in skip,
-                                    name_list=input_names, cipher=cipher, variant=tuple(variant))
-            pack_rel.clear()
-            pack_rel.update(r)
-            return r
-        pack_file(current)
-        before = contents(current, ref_names)
-        smaller = _smaller_art(current, output, optimization, pack_file, tmp) if optimization is not None else None
-        if smaller and smaller['map_path']:
-            with_art = contents(smaller['map_path'], ref_names)
-            _check_art(difference(before, with_art), 'optimize of the campaign')
-            current, before = smaller['map_path'], with_art
-        c_output = contents(output, ref_names)
-        d = difference(before, c_output)
-        outside = _outside_blp(d, before, c_output) if blp_512 else sorted(d)
-        details['protect'] = {
-            'step': 'protect',
-            'status': 'ok' if not outside else 'CHANGED CONTENT',
-            'seconds': round(time.time() - t1, 1),
-            'files_changed': len(d),
-            'encrypted_count': pack_rel.get('encrypted_count', 0),
-            'encrypt_skipped': pack_rel.get('encrypt_skipped', 0),
-            'summary': 'Campaign MPQ rewritten (sector 512%s), %d -> %d B%s'
-            % (
-                ', lossless BLP' if blp_512 else '',
-                os.path.getsize(current),
-                os.path.getsize(output),
-                ('; ' + smaller['summary']) if smaller else '',
-            ),
-        }
-        log('[protect] %s' % details['protect']['summary'])
-        if outside:
-            raise SystemExit('ABORT: the mpq_recompress changed the content of %s' % outside[:5])
     if 'fill' in decoys and 'decoy' not in skip:
         import decoy_files
         _r = decoy_files.fill(output, seed=seed, log=log)
