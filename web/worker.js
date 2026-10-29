@@ -3,7 +3,6 @@ import { loadPyodide } from './pyodide/pyodide.mjs';
 import { runWasi } from './wasi_mini.js';
 import { windowsRules } from './fs_windows.js';
 import { mpqNative } from './mpqcrypt.js';
-import { s512Native } from './setor512.js';
 
 const APP = '/home/pyodide/app';
 let py = null;
@@ -44,16 +43,6 @@ async function boot() {
   py.runPython('import sys; sys.path.insert(0, "/home/pyodide")');
   mod = py.pyimport('protect_worker');
   post({ type: 'ready' });
-}
-
-let s512 = null;
-async function sameBytes(on) {
-  if (on && !s512) {
-    const r = await fetch('setor512.wasm');
-    if (r.ok) s512 = s512Native(await r.arrayBuffer());
-  }
-  if (on && s512) self.s512Fatia = s512;
-  else delete self.s512Fatia;
 }
 
 const TABLES = '/home/pyodide/tables';
@@ -110,13 +99,12 @@ self.onmessage = ev => {
       post({ type: 'reply', rid: m.rid });
     } else if (m.type === 'job') {
       const o = m.job.options || (m.job.options = {});
-      return sameBytes(!!o.same_bytes)
-        .then(() => !o.to_slk || gameTables().then(dir => { o.tables = dir; return true; }, e => {
-          post({ type: 'event', event: JSON.stringify({ type: 'error', job: m.job.id,
-            message: 'The game tables could not be downloaded (' + String(e && e.message || e) + ').' }) });
-          return false;
-        }))
-        .then(go => go && mod.run(JSON.stringify(m.job), s => post({ type: 'event', event: s })));
+      const pronto = o.to_slk ? gameTables().then(dir => { o.tables = dir; return true; }, e => {
+        post({ type: 'event', event: JSON.stringify({ type: 'error', job: m.job.id,
+          message: 'The game tables could not be downloaded (' + String(e && e.message || e) + ').' }) });
+        return false;
+      }) : true;
+      return Promise.resolve(pronto).then(go => go && mod.run(JSON.stringify(m.job), s => post({ type: 'event', event: s })));
     }
   }).catch(e => {
     if (m.type === 'job' && m.job && m.job.id) post({ type: 'event', event: JSON.stringify({
