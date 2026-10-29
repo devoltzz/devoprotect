@@ -72,3 +72,7 @@ def wts_entries(data):
         i = k + 1
     return out
 
+
+def strings(wts):
+    return dict((int(m.group(1)), m.group(2).decode('utf-8', 'replace')) for m in wts_entries(wts or b''))
+
