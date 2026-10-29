@@ -487,7 +487,46 @@ def _verify(part, a, kept, data, group_of, plan, rewritten, names, shift, progre
     return '', ('opens' if r.get('opens') else 'not checked (no DLL)')
 
 
-def _report_sizes(a, kept, kinds, members, written, plan):
+WHY_ORPHAN = 'no hash table entry points to it (an old copy left behind by a replace or a delete)'
+WHY_MERGED = 'the same bytes as %s'
+WHY_KEPT = 'a hash table entry points to each (the game finds them by name)'
+WHY_LIST = 12
+
+
+def _why(a, kept, members, written, names, orphans, unused_bytes):
+    dropped = []
+    for bi in orphans:
+        dropped.append({'block': bi, 'name': _first(names, bi), 'bytes': _stored(a, bi)[1], 'why': WHY_ORPHAN})
+    merged = []
+    for g, m in members.items():
+        first = _first(names, m[0]) or 'block %d' % m[0]
+        for bi in m[1:]:
+            merged.append({'block': bi, 'name': _first(names, bi), 'same_as': first, 'bytes': written.get(g, 0),
+                           'why': WHY_MERGED % first})
+    return {'dropped': dropped, 'merged': merged, 'kept': {WHY_KEPT: len(kept) - len(merged)},
+            'unused_bytes': unused_bytes}
+
+
+def why_lines(why, limit=WHY_LIST):
+    lines = []
+    for key, head in (('dropped', 'Dropped'), ('merged', 'Stored once')):
+        items = sorted(why.get(key) or [], key=lambda x: -(x.get('bytes') or 0))
+        for x in items[:limit]:
+            lines.append(
+                '%s: %s (%d bytes): %s.'
+                % (head, x.get('name') or 'block %d' % x['block'], x.get('bytes') or 0, x['why'])
+            )
+        if len(items) > limit:
+            lines.append('%s: %d more file(s), %d bytes.' % (head, len(items) - limit,
+                                                             sum(x.get('bytes') or 0 for x in items[limit:])))
+    if why.get('unused_bytes'):
+        lines.append('Dropped: %d bytes no file uses (gaps between the files).' % why['unused_bytes'])
+    for reason, n in sorted((why.get('kept') or {}).items()):
+        lines.append('Kept: %d file(s): %s.' % (n, reason))
+    return lines
+
+
+def _report_sizes(a, kept, kinds, members, written, plan, names=None):
     by_kind, seen = {}, set()
     for bi in kept:
         k = by_kind.setdefault(kinds[bi], {'files': 0, 'before': 0, 'after': 0})
@@ -508,9 +547,11 @@ def _report_sizes(a, kept, kinds, members, written, plan):
             orphan_bytes += st[1]
     tables = 32 + 16 * (a.hash_n + a.block_n)
     used = sum(k['before'] for k in by_kind.values())
+    unused_bytes = max(0, len(a.d) - a.h.offset - tables - used - orphan_bytes)
     return {'by_kind': by_kind, 'tables': tables,
+            'why': _why(a, kept, members, written, names or {}, orphans, unused_bytes),
             'dropped': {'orphan_blocks': len(orphans), 'orphan_bytes': orphan_bytes,
-                        'unused_bytes': max(0, len(a.d) - a.h.offset - tables - used - orphan_bytes),
+                        'unused_bytes': unused_bytes,
                         'before_the_archive': a.h.offset - _prefix(a)},
             'dedup': {'files': sum(len(m) - 1 for m in members.values()),
                       'bytes': sum((len(m) - 1) * written[g] for g, m in members.items())},
@@ -680,6 +721,7 @@ def _with_lines(res):
     lines = []
     if res.get('state') == 'done' and res.get('size_before') and res.get('size_after'):
         lines.append('%.1f MiB -> %.1f MiB.' % (res['size_before'] / 1048576.0, res['size_after'] / 1048576.0))
+        lines.extend(why_lines(res.get('why') or {}))
     lo = res.get('lossy')
     if lo:
         if lo.get('state') == 'done' and not lo.get('error'):
@@ -775,7 +817,7 @@ def _shrink(path_in, path_out, options=None, progress=None):
         p('Writing the new map')
         written = _write(part, a, kept, group_of, plan, shift)
         res['size_after'] = os.path.getsize(part)
-        res.update(_report_sizes(a, kept, kinds, members, written, plan))
+        res.update(_report_sizes(a, kept, kinds, members, written, plan, names))
         if res['size_after'] >= res['size_before']:
             os.remove(part)
             res.update(state='nothing_to_do', seconds=round(time.time() - t0, 1))
