@@ -4,6 +4,10 @@ import contextlib
 
 _emit = None
 _stack = []
+def current(default_value=('', '')):
+    return (_stack[-1:] or [default_value])[0]
+
+
 def file_path():
     return '/'.join(n for n, _r in _stack)
 
@@ -23,15 +27,16 @@ def _send(label_text, done=None, total=None):
 
 @contextlib.contextmanager
 def stage(fname, label_text=None):
-    label_text = label_text or (_stack[-1][1] if _stack else fname)
+    label_text = label_text or current((fname, fname))[1]
     _stack.append((fname, label_text))
     stack_depth = len(_stack)
     _send(label_text)
     try:
         yield
     finally:
-        if len(_stack) >= stack_depth and _stack[stack_depth - 1][0] == fname:
+        x = _stack[stack_depth - 1:stack_depth]
+        if x and x[0][0] == fname:
             del _stack[stack_depth - 1:]
             if _stack:
-                _send(_stack[-1][1])
+                _send(current()[1])
 
