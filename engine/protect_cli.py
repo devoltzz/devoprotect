@@ -1,9 +1,12 @@
 # The command line: the same protection recipe the window runs, driven by flags.
+import json
 import os
 import sys
 
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+
+EXIT_OK, EXIT_FAILED, EXIT_USAGE, EXIT_NOT_FOUND, EXIT_BAD_VALUE, EXIT_INTERNAL = 0, 1, 2, 3, 4, 5
 
 
 USAGE = r"""DevoProtect: protect a Warcraft III map from casual editing.
@@ -59,7 +62,8 @@ Options (each toggle of each step; default: full protection with the block bitma
                                                Windows) or, without it, the Warcraft III tables pack downloaded from
                                                protect.devoltz.party once (1.2 MB, checked) and kept
     --game=<folder>                            the Warcraft III folder (or a tables pack folder) for --to-slk
-    --lua-layers=N                             loader layers for Lua maps (default 2)
+    --lua-layers=N                             loader layers for Lua maps (default: automatic, 2 up to a 512 KB script
+                                               and 1 above it; 1 or 2 to force it)
     --no-blp                                   keep the BLP textures as they are. By default the BLP JPEG textures are
                                                rewritten without loss (the same pixels, a smaller map) by the
                                                Optimize step (--no-blp-opt still works and means the same)
@@ -133,7 +137,20 @@ Options (each toggle of each step; default: full protection with the block bitma
     --anti-cheat-codes-mode=auto|humans|reload|humans+reload   when the cheat-code detector arms (auto)
   A map can ask the result: declare `function DevoProtect_CheatUsed takes player p returns boolean` (a stub that
   returns false); the protector fills it in (true once that player, or the map, was reported).
-"""
+
+  Command line only:
+    --inspect                                  read the map and print what the page would check (the script language,
+                                               the era, what would be locked), then exit
+    --recursive                                with a folder: protect the maps of the subfolders too, keeping the
+                                               folder tree in the output
+    --json                                     print one JSON object with the result (for a script or CI); the
+                                               progress lines go to stderr
+    --log=<file>                               write the report to a file (what --text does; the console stays quiet)
+    --check-update                             check the newest release on GitHub and print it, then exit (0 up to
+                                               date, 1 a newer one is out); needs the released program, not the source
+
+  Exit codes: 0 protected; 1 the protection failed; 2 bad command line; 3 the map or folder was not found; 4 an option
+  value is not valid (--seed, --lua-layers, --preset); 5 an unexpected error (the traceback is on stderr)."""
 
 
 def _opt(argv, name, default=None):
@@ -144,7 +161,8 @@ def _opt(argv, name, default=None):
 
 
 VALUE_FLAGS = ('skip', 'block', 'decoys', 'mpq-barrier', 'lua-layers', 'seed', 'previous-key', 'game',
-               'anti-cheat-actions', 'anti-cheat-gold-jump', 'anti-cheat-codes-mode', 'ffmpeg', 'preset', 'save-preset')
+               'anti-cheat-actions', 'anti-cheat-gold-jump', 'anti-cheat-codes-mode', 'ffmpeg', 'preset', 'save-preset',
+               'log')
 OPTIONAL_VALUE_FLAGS = ('anti-cheat', 'models', 'mp3', 'smaller-textures', 'to-dds')
 BARE_FLAGS = (
     'ids-non-ascii',
@@ -171,6 +189,10 @@ BARE_FLAGS = (
     'cli',
     'help',
     'version',
+    'inspect',
+    'recursive',
+    'json',
+    'check-update',
 )
 ON_FLAGS = (('ids-non-ascii', 'non_ascii_ids'), ('to-lua', 'to_lua'), ('blp', 'blp'), ('dds', 'dds'),
             ('bombs', 'bombs'), ('cut-hash', 'cut_hash'), ('to-slk', 'to_slk'), ('rename-imports', 'imports'),
@@ -252,10 +274,23 @@ def parse_options(argv, extra_value=(), extra_bare=()):
             o['ac_' + k] = k in actions
         o['ac_gold_jump'] = int(jump)
         o['ac_codes_mode'] = mode
-    if _opt(argv, 'lua-layers'):
-        o['lua_layers'] = int(_opt(argv, 'lua-layers'))
-    if _opt(argv, 'seed'):
-        o['seed'] = int(_opt(argv, 'seed'))
+    def _integer(name, minimum):
+        txt = _opt(argv, name)
+        if txt is None:
+            return None
+        t = str(txt).strip()
+        if not t.lstrip('-').isdigit():
+            raise ValueError('--%s needs a whole number, not %r' % (name, txt))
+        n = int(t)
+        if n < minimum:
+            raise ValueError('--%s needs a whole number of %d or more, not %d' % (name, minimum, n))
+        return n
+    layers = _integer('lua-layers', 0)
+    if layers is not None:
+        o['lua_layers'] = layers
+    seed = _integer('seed', -(1 << 63))
+    if seed is not None:
+        o['seed'] = seed
     if _opt(argv, 'previous-key') is not None:
         key_path = _opt(argv, 'previous-key')
         if not key_path or not os.path.exists(key_path):
@@ -350,66 +385,115 @@ def parse_options(argv, extra_value=(), extra_bare=()):
     return o, warnings
 
 
-def main(argv=None, version='0.1.10'):
+def main(argv=None, version='0.1.18'):
     import protect_app
+    protect_app.VERSION = version
     argv = sys.argv[1:] if argv is None else list(argv)
     try:
         sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
     except Exception:
         pass
+    log_path = _opt(argv, 'log')
+    log_file = None
+    if log_path:
+        try:
+            log_file = open(log_path, 'w', encoding='utf-8', newline='\n')
+            sys.stdout, sys.stderr = log_file, log_file
+        except OSError as e:
+            print('ERROR: --log: %s' % e, file=sys.stderr)
+            return EXIT_USAGE
+
+    def end_pos(code):
+        if log_file:
+            log_file.close()
+        return code
+
     if '--version' in argv:
         print('DevoProtect %s' % version)
-        return 0
+        return end_pos(EXIT_OK)
+    if '--check-update' in argv:
+        return end_pos(_check_update(version))
     args = positional(argv)
     save = _opt(argv, 'save-preset')
     if '--help' in argv or '-h' in argv or not (args or save):
         print(USAGE)
-        return 0 if ('--help' in argv or '-h' in argv) else 2
+        return end_pos(EXIT_OK if ('--help' in argv or '-h' in argv) else EXIT_USAGE)
     try:
         o, warnings = parse_options(argv)
         if len(args) > 2:
             raise ValueError('too many arguments: %s (expected <map> [out])' % ' '.join(args))
     except ValueError as e:
-        print('ERROR: %s' % e)
-        return 2
+        print('ERROR: %s' % e, file=sys.stderr)
+        return end_pos(EXIT_BAD_VALUE if 'needs a whole number' in str(e) or 'not one of' in str(e) else EXIT_USAGE)
     for w in warnings:
-        print('WARNING: %s' % w)
+        print('WARNING: %s' % w, file=sys.stderr)
+    if '--inspect' in argv:
+        if len(args) != 1:
+            print('ERROR: --inspect needs one map', file=sys.stderr)
+            return end_pos(EXIT_USAGE)
+        if not os.path.isfile(args[0]):
+            print('ERROR: map not found: %s' % args[0], file=sys.stderr)
+            return end_pos(EXIT_NOT_FOUND)
+        info = protect_app.inspect_map(args[0])
+        if '--json' in argv:
+            print(json.dumps(info, ensure_ascii=False))
+        else:
+            for k in ('campaign', 'script', 'era_label', 'players', 'w3i', 'bytes', 'refused', 'last_file',
+                      'own_blizzard'):
+                if info.get(k) is not None:
+                    print('%s: %s' % (k, info[k]))
+            if info.get('memhack'):
+                print('memhack: %s' % ', '.join(info['memhack']))
+            if info.get('counts'):
+                print('counts: %s' % ', '.join('%s=%d' % kv for kv in sorted(info['counts'].items())))
+        return end_pos(EXIT_OK)
     if save is not None:
         if not save:
-            print('ERROR: --save-preset needs a file name')
-            return 2
+            print('ERROR: --save-preset needs a file name', file=sys.stderr)
+            return end_pos(EXIT_USAGE)
         try:
             with open(save, 'w', encoding='utf-8', newline='\n') as f:
                 f.write(protect_app.preset_text(o))
         except OSError as e:
-            print('ERROR: --save-preset: %s' % e)
-            return 2
+            print('ERROR: --save-preset: %s' % e, file=sys.stderr)
+            return end_pos(EXIT_USAGE)
         print('preset saved: %s' % save)
         if not args:
-            return 0
+            return end_pos(EXIT_OK)
     map_path = args[0]
     if os.path.isdir(map_path):
-        return _folder(map_path, args[1] if len(args) > 1 else None, o)
+        return end_pos(_folder(map_path, args[1] if len(args) > 1 else None, o, version,
+                               recursive='--recursive' in argv, as_json='--json' in argv))
     if not os.path.isfile(map_path):
-        print('map not found: %s' % map_path)
-        return 2
+        print('ERROR: map not found: %s' % map_path, file=sys.stderr)
+        return end_pos(EXIT_NOT_FOUND)
     out_path = args[1] if len(args) > 1 else None
     if any(o.get(k) for k in ('opt_models', 'opt_mp3', 'dds', 'to_dds', 'opt_tga_png', 'opt_small_textures')):
         for w in protect_app.option_warnings(o, protect_app.inspect_map(map_path)):
-            print('WARNING: %s' % w)
-    job = {'task': 'protect', 'map': map_path, 'out': out_path, 'options': o}
+            print('WARNING: %s' % w, file=sys.stderr)
+    job = {'task': 'protect', 'map': map_path, 'out': out_path, 'options': o, 'version': version}
+    as_json = '--json' in argv
     state = {'ok': False}
 
     def emit(ev):
         t = ev.get('type')
         if t == 'progress' and ev.get('text'):
-            print('  [%s] %s' % (ev.get('step') or '-', ev['text']))
+            print('  [%s] %s' % (ev.get('step') or '-', ev['text']), file=sys.stderr)
         elif t == 'error':
-            print('ERROR: %s' % ev.get('message'))
+            state['error'] = ev.get('message')
+            print('ERROR: %s' % ev.get('message'), file=sys.stderr)
+            if ev.get('trace'):
+                print(ev['trace'], file=sys.stderr)
         elif t == 'result':
             state.update(ev)
-    res = protect_app.run_job(job, emit)
-    if res.get('lines'):
+    try:
+        res = protect_app.run_job(job, emit)
+    except BaseException:
+        import traceback
+        traceback.print_exc()
+        return end_pos(EXIT_INTERNAL)
+    if not as_json and (res.get('lines') or res.get('summary') or res.get('warnings')):
         print()
         for st, tx in res.get('lines', []):
             print(('  ! ' if st == 'bad' else '  ') + tx)
@@ -418,29 +502,68 @@ def main(argv=None, version='0.1.10'):
             print('  %d -> %d bytes (%.1fs)' % (res['bytes_in'], res['bytes_out'], res.get('seconds', 0)))
         if res.get('ok') and res.get('key'):
             print('  key (keep it, not in the map): %s' % res['key'])
-    return 0 if res.get('ok') else 1
+        for w in res.get('warnings') or []:
+            print('WARNING: %s' % w, file=sys.stderr)
+        if res.get('vault'):
+            print('  key vault: %s' % res['vault'])
+    if as_json:
+        json_result = dict(res)
+        if state.get('error'):
+            json_result['error'] = state['error']
+        print(json.dumps(json_result, ensure_ascii=False, default=str))
+    if res.get('ok'):
+        return end_pos(EXIT_OK)
+    return end_pos(EXIT_FAILED)
 
 
-def _folder(folder, out, o):
+def _check_update(version):
+    try:
+        import updater
+    except ImportError:
+        print('updater: only in the released program (the source tree has no updater.py)', file=sys.stderr)
+        return EXIT_USAGE
+    try:
+        release = updater.latest_release()
+    except Exception as e:
+        print('ERROR: could not check: %s' % e, file=sys.stderr)
+        return EXIT_FAILED
+    new_one = release.get('version') or ''
+    if updater.version_tuple(new_one) <= updater.version_tuple(version):
+        print('DevoProtect %s is up to date' % version)
+        return EXIT_OK
+    print('DevoProtect %s is out (you have %s)' % (new_one.lstrip('v'), version))
+    return EXIT_FAILED
+
+
+def _folder(folder, out, o, version='0.1.17', recursive=False, as_json=False):
     import protect_app
+    if not os.path.isdir(folder):
+        print('ERROR: folder not found: %s' % folder, file=sys.stderr)
+        return EXIT_NOT_FOUND
 
     def emit(ev):
         t = ev.get('type')
         if t == 'progress' and ev.get('text') and ev.get('step') == 'map':
-            print(ev['text'])
+            print(ev['text'], file=sys.stderr if as_json else sys.stdout)
         elif t == 'progress' and ev.get('text'):
-            print('  [%s] %s' % (ev.get('step') or '-', ev['text']))
+            print('  [%s] %s' % (ev.get('step') or '-', ev['text']), file=sys.stderr)
         elif t == 'error':
-            print('ERROR: %s' % ev.get('message'))
-    res = protect_app.run_folder({'task': 'protect', 'folder': folder, 'out': out, 'options': o}, emit)
+            print('ERROR: %s' % ev.get('message'), file=sys.stderr)
+    res = protect_app.run_folder({'task': 'protect', 'folder': folder, 'out': out, 'options': o,
+                                  'recursive': bool(recursive), 'version': version}, emit)
     if not res.get('maps'):
-        return 2
+        if as_json:
+            print(json.dumps(res, ensure_ascii=False, default=str))
+        return EXIT_NOT_FOUND
+    if as_json:
+        print(json.dumps(res, ensure_ascii=False, default=str))
+        return EXIT_OK if res.get('ok') else EXIT_FAILED
     print()
     for st, tx in res.get('lines', []):
         print(('  ! ' if st == 'bad' else '  ') + tx)
     print('\n%s' % res.get('summary'))
     print('  keys (keep them, not in the maps): next to each map in %s' % res['out'])
-    return 0 if res.get('ok') else 1
+    return EXIT_OK if res.get('ok') else EXIT_FAILED
 
 
 def install_launcher():
