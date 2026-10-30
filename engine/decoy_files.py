@@ -442,7 +442,62 @@ def fill(file_path, seed=None, rng=None, log=print, spare_last=False, together=F
 STANDARD = ('wtg', 'listfile', 'imp')
 
 
-def decoys(entry, output, chosen=STANDARD, seed=None, log=print, spare_last=False):
+def _anchor_names(plain_name, real_names):
+    if not real_names:
+        return plain_name
+    real_blocks = set()
+    import re as _re
+    for n in real_names:
+        m = _re.match(r'^Trig_(.+)_(?:Actions|Conditions)$', n)
+        if m:
+            real_blocks.add(m.group(1))
+    if not real_blocks:
+        return plain_name
+    in_use = set()
+    for _kind, v in plain_name['trigger_list']:
+        if 'Trig_%s_Actions' % v['T'] in real_names and v['T'] not in in_use:
+            in_use.add(v['T'])
+            continue
+        for cand in sorted(real_blocks):
+            if cand not in in_use:
+                v['T'] = cand
+                in_use.add(cand)
+                break
+    return plain_name
+
+
+def stubs_do_wtg(script, plain_name):
+    import re
+    body_text = script.decode('latin-1')
+    existing_ones = set(re.findall(r'\bfunction\s+([A-Za-z_]\w*)\s+takes', body_text))
+    block_list, done_list = [], []
+    for _kind, v in plain_name['trigger_list']:
+        base = v['T']
+        cond, act, begin = ('Trig_%s_Conditions' % base, 'Trig_%s_Actions' % base, 'InitTrig_%s' % base)
+        if cond not in existing_ones:
+            block_list.append('function %s takes nothing returns boolean\n    return true\nendfunction\n' % cond)
+            done_list.append(cond)
+        if act not in existing_ones:
+            block_list.append('function %s takes nothing returns nothing\nendfunction\n' % act)
+            done_list.append(act)
+        if begin not in existing_ones:
+            block_list.append('function %s takes nothing returns nothing\n'
+                              '    local trigger t = CreateTrigger()\n'
+                              '    call TriggerAddCondition(t, Condition(function %s))\n'
+                              '    call TriggerAddAction(t, function %s)\n'
+                              'endfunction\n' % (begin, cond, act))
+            done_list.append(begin)
+    if not block_list:
+        return script, []
+    new = body_text
+    if not new.endswith('\n'):
+        new += '\n'
+    new += '\n// GUI trigger stubs (the editor reads the wtg; the game runs none of these)\n'
+    new += '\n'.join(block_list)
+    return new.encode('latin-1'), done_list
+
+
+def decoys(entry, output, chosen=STANDARD, seed=None, log=print, spare_last=False, real_names=None):
     import editor_lock
     import mpqadd
     import mpqread
@@ -472,10 +527,21 @@ def decoys(entry, output, chosen=STANDARD, seed=None, log=print, spare_last=Fals
             log('[decoy] wtg+wct REFUSED: the map still has the real ones')
         else:
             plain_name = decoy_plan(pair_rng(seed))
+            plain_name = _anchor_names(plain_name, real_names)
             mt, ct = decoy_model(plain_name)
             import wtg as _wtg
             wtg, wct = _wtg.write_wtg(mt, _td()), _wtg.write_wct(ct)
             write_out += [('war3map.wtg', wtg), ('war3map.wct', wct)]
+            name_s, script_s = editor_lock._script(a)
+            if script_s and name_s.lower().endswith('.j'):
+                script_novo, done_list = stubs_do_wtg(script_s, plain_name)
+                if done_list:
+                    write_out.append((name_s, script_novo))
+                    details['matrix'][name_s] = {'action_code': 'stubs', 'func_list': done_list}
+                    log(
+                        '[decoy] %s: %d trigger function(s) added (the ones that were missing)'
+                        % (name_s, len(done_list))
+                    )
             trigger_names = ', '.join(t.name for t in mt.triggers)
             details['matrix']['war3map.wtg'] = {
                 'action_code': 'recorded',
