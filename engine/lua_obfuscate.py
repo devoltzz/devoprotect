@@ -39,12 +39,13 @@ DECIPHERER = (
     'function %(R)s(%(i)s,%(s)s)\n'
     'local %(c)s=%(C)s[%(i)s]\n'
     'if %(c)s==nil then\n'
-    'local %(x)s,%(t)s,%(n)s=(%(i)s*75+74)%%65537,{},0\n'
+    'local %(x)s,%(t)s,%(n)s=(%(i)s*%(a_num)d+%(b_num)d)%%46337,{},0\n'
     'for %(k)s=1,#%(s)s,3 do\n'
     'local %(a)s,%(b)s,%(d)s=%(Y)s(%(s)s,%(k)s,%(k)s+2)\n'
     '%(n)s=%(n)s+1\n'
     '%(t)s[%(n)s]=%(H)s(((%(a)s-48)*100+(%(b)s-48)*10+%(d)s-148-%(x)s%%256)%%256)\n'
-    '%(x)s=(%(x)s*75+74)%%65537\n'
+    'local %(q)s=%(x)s*%(x)s%%46337\n'
+    '%(x)s=(%(q)s+%(a_num)d*%(x)s+%(b_num)d)%%46337\n'
     'end\n'
     '%(c)s=%(T)s(%(t)s)\n'
     '%(C)s[%(i)s]=%(c)s\n'
@@ -52,7 +53,7 @@ DECIPHERER = (
     'return %(c)s\n'
     'end\n'
     'end')
-DECIPHERER_NAMES = ('H', 'Y', 'T', 'i', 's', 'c', 'x', 't', 'n', 'k', 'a', 'b', 'd')
+DECIPHERER_NAMES = ('H', 'Y', 'T', 'i', 's', 'c', 'x', 't', 'n', 'k', 'a', 'b', 'd', 'q')
 RX_LAYER = re.compile(
     r'local (\w+)=\{\} local (\w+)=(\d+) '
     r'for (\w+)=1,(\d+) do \2=\(\2\*75\+74\)%65537 local (\w+)=\2%256 if \6==0 then \6=1 end \1\[\4\]=\6 end '
@@ -205,21 +206,29 @@ def unwrap(body_text):
     return add_key(data_bytes, hash_key, -1), {'seed': seed, 'hash_key': n}
 
 
+_SAL = (75, 74)
+STRING_MOD = 46337
+
+
 def digits(index_, field_value):
-    x = (index_ * 75 + 74) % LEHMER
+    a, b = _SAL
+    x = (index_ * a + b) % STRING_MOD
     out = []
     for ch in field_value.encode('utf-8', 'surrogateescape'):
         out.append('%03d' % ((ch + x % 256) % 256 + 100))
-        x = (x * 75 + 74) % LEHMER
+        q = (x * x) % STRING_MOD
+        x = (q + a * x + b) % STRING_MOD
     return ''.join(out)
 
 
 def value_of(index_, digits_str):
-    x = (index_ * 75 + 74) % LEHMER
+    a, b = _SAL
+    x = (index_ * a + b) % STRING_MOD
     out = bytearray()
     for i in range(0, len(digits_str), 3):
         out.append((int(digits_str[i:i + 3]) - 100 - x % 256) % 256)
-        x = (x * 75 + 74) % LEHMER
+        q = (x * x) % STRING_MOD
+        x = (q + a * x + b) % STRING_MOD
     return bytes(out).decode('utf-8', 'surrogateescape')
 
 
@@ -1312,9 +1321,12 @@ def obfuscate(source, seed=None, keep_names=(), layers=2, no_names=False, no_str
         raise SystemExit('ABORT: the original does not parse (line %d): %s' % (e.line, e.message))
     rng = random.Random(seed if seed is not None else
                         int(hashlib.sha256(source.encode('utf-8', 'surrogateescape')).hexdigest()[:16], 16))
+    global _SAL
+    _SAL = (rng.randrange(2, STRING_MOD), rng.randrange(1, STRING_MOD))
     reserved = set(_RX_ID.findall(source)) | set(lua_ast.KEYWORDS) | {'self', '_ENV'} | set(keep_names)
     g = Names(reserved, rng)
-    details = {'ok': False, 'bytes_before': len(source.encode('utf-8', 'surrogateescape')), 'gates': {}}
+    details = {'ok': False, 'bytes_before': len(source.encode('utf-8', 'surrogateescape')), 'gates': {},
+               'string_key': {'a': _SAL[0], 'b': _SAL[1]}}
 
     if no_names:
         reverse, globals_block, local_vars = {}, set(), set()
@@ -1350,7 +1362,7 @@ def obfuscate(source, seed=None, keep_names=(), layers=2, no_names=False, no_str
         r_name, c_name = g.new(), g.new()
         idx_by_value = encrypt_strings(chunk, r_name, log=log)
         dec_names = dict((k, g.new()) for k in DECIPHERER_NAMES)
-        dec_names.update(R=r_name, C=c_name)
+        dec_names.update(R=r_name, C=c_name, a_num=_SAL[0], b_num=_SAL[1])
         dec = DECIPHERER % dec_names
         chunk.body[0:0] = lua_ast.parse(dec).body
         details['strings_encrypted'] = len(idx_by_value)
