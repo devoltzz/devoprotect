@@ -122,14 +122,29 @@ def run(job_json, emit_js):
             emit_js(json.dumps(event))
 
     try:
-        protect_app.run_job(dict(job, task='protect'), emit)
+        protect_app.run_job(dict(job, task='protect', vault=False), emit)
     except BaseException as e:
         held.append({'type': 'error', 'job': ident, 'trace': traceback.format_exc(limit=8),
-                     'message': '%s: %s' % (type(e).__name__, e) if str(e) else type(e).__name__})
+                     'message': str(e) or type(e).__name__})
     final = held[-1] if held else {'type': 'error', 'job': ident, 'message': 'the job ended without a result'}
     after = files_now()
     final['written'] = sorted(p for p, st in after.items() if before.get(p) != st)
+    if final.get('type') != 'result' or not final.get('ok'):
+        for p in final['written']:
+            try:
+                py_fs_remove(p)
+            except Exception:
+                pass
+        final['written'] = []
     emit_js(json.dumps(final))
+
+
+def py_fs_remove(path):
+    if os.path.isdir(path):
+        import shutil
+        shutil.rmtree(path, ignore_errors=True)
+    elif os.path.isfile(path):
+        os.remove(path)
 
 
 def zip_folder(folder, target):
