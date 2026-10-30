@@ -39,13 +39,13 @@ DECIPHERER = (
     'function %(R)s(%(i)s,%(s)s)\n'
     'local %(c)s=%(C)s[%(i)s]\n'
     'if %(c)s==nil then\n'
-    'local %(x)s,%(t)s,%(n)s=(%(i)s*%(a_num)d+%(b_num)d)%%46337,{},0\n'
+    'local %(x)s,%(t)s,%(n)s=(%(i)s*%(a_num)d+%(b_num)d)%%32749,{},0\n'
     'for %(k)s=1,#%(s)s,3 do\n'
     'local %(a)s,%(b)s,%(d)s=%(Y)s(%(s)s,%(k)s,%(k)s+2)\n'
     '%(n)s=%(n)s+1\n'
     '%(t)s[%(n)s]=%(H)s(((%(a)s-48)*100+(%(b)s-48)*10+%(d)s-148-%(x)s%%256)%%256)\n'
-    'local %(q)s=%(x)s*%(x)s%%46337\n'
-    '%(x)s=(%(q)s+%(a_num)d*%(x)s+%(b_num)d)%%46337\n'
+    'local %(q)s=%(x)s*%(x)s%%32749\n'
+    '%(x)s=(%(q)s+%(a_num)d*%(x)s+%(b_num)d)%%32749\n'
     'end\n'
     '%(c)s=%(T)s(%(t)s)\n'
     '%(C)s[%(i)s]=%(c)s\n'
@@ -207,7 +207,7 @@ def unwrap(body_text):
 
 
 _SAL = (75, 74)
-STRING_MOD = 46337
+STRING_MOD = 32749
 
 
 def digits(index_, field_value):
