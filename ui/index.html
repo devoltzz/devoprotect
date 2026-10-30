@@ -101,7 +101,7 @@
             <label class="tog"><input type="checkbox" data-opt="to_lua"> convert a JASS script to Lua first (the map then needs Warcraft III 1.31 or newer)<span class="why" id="w-to_lua"></span></label>
             <label class="tog">loader layers of a Lua script
               <select data-optv="lua_layers" id="luasel">
-                <option value="0">0</option>
+                <option value="0">automatic</option>
                 <option value="1">1</option>
                 <option value="2">2</option>
               </select><span class="why" id="w-lua_layers"></span></label>
@@ -254,8 +254,20 @@
           <div class="title" style="color:var(--warn)">Turned off</div>
           <div id="offlist"></div>
         </div>
-        <div style="margin-top:12px"><button class="btn primary go" id="run" disabled>Protect</button></div>
+        <div class="proof" id="proofbanner" hidden></div>
+        <div style="margin-top:12px"><button class="btn primary go" id="run" disabled>Protect</button>
+          <button class="btn small" id="cancel" hidden>Cancel</button></div>
+        <div class="bar" id="bar" hidden><div id="barfill"></div></div>
         <div class="sum" id="summary"></div>
+        <div class="outcome" id="outcome" hidden>
+          <div id="outsize"></div>
+          <div id="outtime"></div>
+          <div id="outreuse"></div>
+          <div id="outkey" class="keyline" hidden></div>
+          <div id="outwarn" class="warns"></div>
+          <div id="outcheck" class="checkline"></div>
+        </div>
+        <details id="tracedetails" hidden><summary>Technical details (for a bug report)</summary><pre id="tracebox"></pre></details>
         <div style="margin-top:8px"><button class="btn small" id="togglelog" hidden>Show details</button></div>
       </aside>
     </div>
@@ -272,6 +284,12 @@
   var MAP = null, OUT = null, OPTIONS = {}, RUNNING = false;
   var logEl = document.getElementById('log'), sumEl = document.getElementById('summary');
   var logBtn = document.getElementById('togglelog');
+  var outEl = document.getElementById('outcome'), barEl = document.getElementById('bar'), barFill = document.getElementById('barfill');
+  var cancelBtn = document.getElementById('cancel'), traceBox = document.getElementById('tracebox');
+  var traceWrap = document.getElementById('tracedetails');
+  var CUSTOM_LAST = null;
+  var NOTES = [];
+  var SEM_PROVA = ['to_dds', 'ac_globals'];
 
   var JOB = null;
   var KEY = null, KEY_CAMPAIGN = false;
@@ -286,6 +304,13 @@
   function shown(p){ return WEB ? baseName(p) : p; }
   function defaultOut(p){ return p.replace(/(\.[^.\\/]+)?$/, function(ext){ return '_protected' + (ext || ''); }); }
   function el(tag, cls, text){ var d = document.createElement(tag); if(cls){ d.className = cls; } if(text != null){ d.textContent = text; } return d; }
+  function note(t){ NOTES.push(t); if(sumEl){ sumEl.textContent = t; } renderNotes(); }
+  function renderNotes(){
+    if(!outEl){ return; }
+    var box = $('outcheck');
+    box.innerHTML = '';
+    NOTES.forEach(function(t){ box.appendChild(el('div', '', t)); });
+  }
 
   function setRunnable(){
     var refused = !!(MAPINFO && MAPINFO.refused);
@@ -295,6 +320,8 @@
     $('loadpreset').disabled = RUNNING;
     $('pickout').disabled = !(MAP || BATCH) || RUNNING;
     $('form').disabled = RUNNING;
+    $('cancel').hidden = !RUNNING;
+    $('cancel').disabled = !RUNNING;
     document.querySelectorAll('input[name="mode"]').forEach(function(r){ r.disabled = RUNNING; });
     $('pickkey').disabled = RUNNING || !OPTIONS['shuffle'];
     $('clearkey').disabled = RUNNING;
@@ -306,11 +333,30 @@
     if(KEY){ OPTIONS['previous_key'] = KEY; }else{ delete OPTIONS['previous_key']; }
     $('keyname').textContent = KEY || 'none: every ID is drawn anew';
     $('clearkey').hidden = !KEY;
+    remember();
+  }
+
+  function storeKey(p){ return 'devoprotect:map:' + String(p).toLowerCase(); }
+  function remember(){
+    if(!MAP){ return; }
+    try{
+      if(!window.localStorage){ return; }
+      var o = {};
+      Object.keys(OPTIONS).forEach(function(k){ if(k !== 'previous_key' && k !== 'seed' && k !== 'no_edit'){ o[k] = OPTIONS[k]; } });
+      localStorage.setItem(storeKey(MAP), JSON.stringify({options: o, key: KEY, out: OUT, seed: OPTIONS['seed'], no_edit: OPTIONS['no_edit'], custom: CUSTOM_LAST}));    }catch(e){ }
+  }
+  function recall(p){
+    try{
+      if(!window.localStorage){ return null; }
+      var s = localStorage.getItem(storeKey(p));
+      return s ? JSON.parse(s) : null;
+    }catch(e){ return null; }
   }
 
   function setOut(path){
     OUT = path || null;
     $('outname').textContent = MAP ? shown(OUT || defaultOut(MAP)) : BATCH ? shown(OUT || BATCH.out) : '-';
+    remember();
   }
 
   function showLog(on){
@@ -342,6 +388,11 @@
   function setOpen(id, on){
     $('gb-' + id).hidden = !on;
     $('gx-' + id).textContent = on ? '−' : '+';
+    var gx = $('gx-' + id);
+    if(gx && gx.setAttribute){
+      gx.setAttribute('aria-expanded', on ? 'true' : 'false');
+      gx.setAttribute('aria-controls', 'gb-' + id);
+    }
   }
   function openAll(on){ Object.keys(GROUPS).forEach(function(id){ setOpen(id, on); }); }
   function groupSummaries(){
@@ -398,7 +449,18 @@
     });
   }
   function applyMode(mode){
-    if(MODES[mode].set){
+    if(mode === 'custom' && CUSTOM_LAST && modeOf() !== 'custom'){
+      var k = OPTIONS['previous_key'], ne = !!OPTIONS['no_edit'];
+      OPTIONS = Object.assign({}, CUSTOM_LAST);
+      if(k){ OPTIONS['previous_key'] = k; }
+      OPTIONS['no_edit'] = ne;
+      ANTES = {};
+      syncControls();
+    }else if(MODES[mode].set){
+      if(modeOf() === 'custom'){
+        CUSTOM_LAST = {};
+        Object.keys(OPTIONS).forEach(function(x){ if(!NOT_SET[x]){ CUSTOM_LAST[x] = OPTIONS[x]; } });
+      }
       var keep = OPTIONS['previous_key'], noEdit = !!OPTIONS['no_edit'];
       OPTIONS = modeSet(mode);
       if(keep){ OPTIONS['previous_key'] = keep; }
@@ -409,6 +471,7 @@
     setModeRadio(mode);
     openAll(mode === 'custom');
     setRunnable();
+    remember();
   }
 
   var R = {
@@ -571,6 +634,15 @@
         if(i.memhack && i.memhack.length){ mc.appendChild(el('div', 'warn', 'Memory hack in the script: ' + i.memhack.join(', '))); }
       }
       if(i.bytes){ mc.appendChild(el('div', '', (i.bytes / 1048576).toFixed(1) + ' MB')); }
+      if(i.counts){
+        var c = i.counts, bits = [];
+        if(c.mdx || c.mdl){ bits.push((c.mdx || 0) + ' MDX'); }
+        if(c.blp){ bits.push(c.blp + ' BLP'); }
+        if(c.dds){ bits.push(c.dds + ' DDS'); }
+        if(c.tga_png){ bits.push(c.tga_png + ' TGA/PNG'); }
+        if(c.mp3){ bits.push(c.mp3 + ' MP3'); }
+        if(bits.length){ mc.appendChild(el('div', '', 'Files: ' + bits.join(', '))); }
+      }
       if(i.refused){ mc.appendChild(el('div', 'bad', 'This map cannot be protected: ' + i.refused)); }
     }
     var o = OPTIONS, steps = [];
@@ -610,6 +682,14 @@
       off.appendChild(d); n++;
     });
     $('offwrap').hidden = !n;
+    var sem = SEM_PROVA.filter(function(k){ return !!OPTIONS[k]; });
+    var pb = $('proofbanner');
+    if(sem.length && (MAP || BATCH)){
+      pb.hidden = false;
+      pb.textContent = 'Options without an in-game test are on: test this map before publishing.';
+    }else{
+      pb.hidden = true;
+    }
   }
 
   function bindControls(){
@@ -620,11 +700,15 @@
         OPTIONS[k] = e.checked;
         delete ANTES[k];
         if(e.checked && EXCLUSIVE[k]){
-          EXCLUSIVE[k].forEach(function(x){ var o2 = opt(x); OPTIONS[x] = false; delete ANTES[x]; if(o2){ o2.checked = false; } });
+          EXCLUSIVE[k].forEach(function(x){
+            var o2 = opt(x); OPTIONS[x] = false; delete ANTES[x]; if(o2){ o2.checked = false; }
+          });
+          note('The other texture conversion was turned off: the textures go one way only.');
         }
         applyRules();
         setModeRadio(modeOf());
         setRunnable();
+        remember();
       });
     });
     document.querySelectorAll('[data-optv]').forEach(function(e){
@@ -641,6 +725,7 @@
         }
         groupSummaries();
         setModeRadio(modeOf());
+        remember();
       });
     });
     document.querySelectorAll('input[name="mode"]').forEach(function(r){
@@ -688,8 +773,35 @@
   function setMap(path){
     MAP = path; BATCH = null; MAPINFO = null;
     $('mapname').textContent = shown(path);
+    var saved = recall(path);
+    var hadKey = KEY, hadCamp = KEY_CAMPAIGN, keepKey = !!KEY && KEY_CAMPAIGN === isCampaign(path);
+    if(!keepKey){ setKey(null); }
     setOut(null);
     sumEl.textContent = ''; clearLog();
+    outEl.hidden = true; traceWrap.hidden = true; NOTES = [];
+    if(hadKey && !keepKey){
+      sumEl.textContent = 'Previous key cleared: ' + (isCampaign(path) ? 'a campaign takes the keys folder.' :
+                                                                        'a map takes its .tsv key.');
+    }
+    CUSTOM_LAST = (saved && saved.custom) ? saved.custom : null;
+    if(saved && saved.options){
+      OPTIONS = Object.assign({}, DEFAULTS, saved.options);
+      if(saved.seed != null){ OPTIONS['seed'] = saved.seed; }
+      if(saved.no_edit != null){ OPTIONS['no_edit'] = saved.no_edit; }
+      syncControls();
+      if(saved.out){ setOut(saved.out); }
+      if(saved.key && !WEB && isCampaign(path) === !/\.tsv$/i.test(saved.key)){
+        setKey(saved.key); KEY_CAMPAIGN = isCampaign(path);
+      }
+      setModeRadio(modeOf());
+      openAll(modeOf() === 'custom');
+    }else{
+      OPTIONS = Object.assign({}, DEFAULTS);
+      syncControls();
+      setModeRadio(modeOf());
+      openAll(modeOf() === 'custom');
+    }
+    remember();
     var camp = isCampaign(path);
     $('pickkey').textContent = camp ? 'Previous keys folder...' : 'Previous key...';
     if(KEY && camp !== KEY_CAMPAIGN){
@@ -755,6 +867,7 @@
     setModeRadio(mode);
     openAll(mode === 'custom');
     setAntiCheat(); setRunnable();
+    remember();
   }
   $('savepreset').addEventListener('click', async function(){
     var o = Object.assign({}, OPTIONS);
@@ -775,37 +888,115 @@
   $('run').addEventListener('click', async function(){
     if(!(MAP || BATCH) || RUNNING) return;
     RUNNING = true; setRunnable();
-    clearLog(); sumEl.textContent = 'Working...';
+    remember();
+    clearLog(); sumEl.textContent = 'Working...'; outEl.hidden = true; traceWrap.hidden = true;
+    NOTES = []; renderNotes();
+    barEl.hidden = false;
+    if(barEl.classList){ barEl.classList.add('indet'); }
+    barFill.style.width = '';
+    PROG = 0;
+    $('cancel').hidden = false;
     JOB = null;
     try{
       JOB = await api().start(BATCH ? {folder: BATCH.folder, maps: BATCH.maps, out: OUT || BATCH.out, options: OPTIONS}
                                     : {map: MAP, out: OUT, options: OPTIONS});
       if(!JOB){ throw new Error('busy: a job is already running'); }
+      if(barEl.classList){ barEl.classList.remove('indet'); }
+      barFill.style.width = '8%';
     }catch(e){
       addLine('bad', 'ERROR: ' + (e && e.message ? e.message : e));
       showLog(true);
       sumEl.textContent = 'Failed.'; RUNNING = false; setRunnable();
     }
   });
+  $('cancel').addEventListener('click', async function(){
+    if(!RUNNING) return;
+    sumEl.textContent = 'Cancelling...';
+    try{ await api().cancel(JOB); }catch(e){ }
+  });
 
+  var PROG = 0;
   window.onJob = function(payload){
     var ev; try{ ev = JSON.parse(payload); }catch(e){ return; }
     if(JOB && ev.job && ev.job !== JOB){ return; }
-    if(ev.type === 'progress'){ if(ev.text){ addLine('prog', ev.text); sumEl.textContent = ev.text; } }
+    if(ev.type === 'progress'){
+      if(ev.text){
+        addLine('prog', ev.text); sumEl.textContent = ev.text;
+        PROG++; barFill.style.width = Math.min(92, 8 + PROG * 3) + '%';
+      }
+    }
     else if(ev.type === 'error'){
       addLine('bad', 'ERROR: ' + (ev.message||'')); showLog(true);
-      sumEl.textContent = 'Failed.'; RUNNING = false; setRunnable();
+      sumEl.textContent = 'Failed.';
+      if(ev.trace){ traceBox.textContent = ev.trace; traceWrap.hidden = false; }
+      RUNNING = false; barEl.hidden = true; setRunnable();
     }
     else if(ev.type === 'result'){
       (ev.lines||[]).forEach(function(l){ addLine(l[0], (l[0]==='bad'?'! ':'') + l[1]); });
       var s = ev.summary || '';
-      if(ev.out && !WEB){ s += '  ->  ' + ev.out; }
+      if(ev.cancelled){ s = 'Cancelled.'; }
       sumEl.textContent = s;
-      if(ev.ok && ev.key){ addLine('info', 'key (keep it, not in the map): ' + ev.key); }
-      if(!ev.ok){ showLog(true); }
+      barFill.style.width = '100%';
+      setTimeout(function(){ barEl.hidden = true; }, 600);
+      showOutcome(ev);
+      if(!ev.ok && !ev.cancelled){ showLog(true); }
       RUNNING=false; setRunnable();
     }
   };
+
+  function mb(n){ return (Number(n||0) / 1048576).toFixed(1) + ' MB'; }
+  function showOutcome(ev){
+    outEl.hidden = false;
+    $('outsize').textContent = '';
+    $('outtime').textContent = '';
+    $('outreuse').textContent = '';
+    $('outkey').hidden = true;
+    $('outwarn').innerHTML = '';
+    if(ev.ok && ev.bytes_in && ev.bytes_out){
+      var pct = Math.round((1 - ev.bytes_out / ev.bytes_in) * 100);
+      var d = el('div', pct >= 0 ? 'good' : '', 'Size: ' + mb(ev.bytes_in) + ' -> ' + mb(ev.bytes_out) +
+        (pct >= 0 ? ' (' + pct + '% smaller)' : ' (' + (-pct) + '% bigger)'));
+      $('outsize').appendChild(d);
+    }
+    if(ev.seconds != null){ $('outtime').textContent = 'Time: ' + ev.seconds + ' s'; }
+    if(ev.reuse){
+      var r = ev.reuse;
+      $('outreuse').textContent = 'Save code: reused ' + (r.reusados || 0) + ' of ' + (r.na_chave || 0) + ' old IDs' +
+        (r.novos_sorteados ? '; ' + r.novos_sorteados + ' new object(s) drew new IDs' : '');
+    }else if(ev.key){
+      $('outreuse').textContent = 'Save code: no previous key used; every ID was drawn anew.';
+    }
+    if(ev.ok && ev.key){
+      var k = $('outkey');
+      k.hidden = false;
+      k.textContent = 'Key (keep it, it is not inside the map): ' + shown(ev.key);
+    }
+    (ev.warnings||[]).forEach(function(w){
+      $('outwarn').appendChild(el('div', '', 'WARNING: ' + w));
+    });
+    renderNotes();
+    if(ev.ok){
+      $('outcheck').appendChild(el('div', '', 'Release checklist: keep the key, test the map in game, write the release entry.'));
+    }
+  }
+
+  if(document.addEventListener){
+    ['dragenter', 'dragover'].forEach(function(t){
+      document.addEventListener(t, function(e){ e.preventDefault(); document.body.classList.add('dragging'); });
+    });
+    ['dragleave', 'drop'].forEach(function(t){
+      document.addEventListener(t, function(e){ e.preventDefault(); document.body.classList.remove('dragging'); });
+    });
+    document.addEventListener('drop', function(e){
+      if(RUNNING){ return; }
+      var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if(!f){ return; }
+      if(!/\.(w3x|w3m|w3n)$/i.test(f.name)){ sumEl.textContent = 'Choose a .w3x, .w3m or .w3n map.'; return; }
+      var p = f.path || f.name;
+      if(WEB || !f.path){ sumEl.textContent = 'Use Choose a map... in the browser.'; return; }
+      setMap(p);
+    });
+  }
 
   function languagePicker(){
     var i18n = window.pageI18n, sel = $('lang');
