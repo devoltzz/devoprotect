@@ -25,15 +25,31 @@ def sha(file_path):
     return h.hexdigest()
 
 
-def contents(file_path, name_list=None):
+class _Contents(dict):
+    def __init__(self, *a, **k):
+        super().__init__(*a, **k)
+        self.block_list = {}
+
+
+def contents(file_path, name_list=None, base=None, modified=()):
     import editor_lock
     import mpqread
     a = mpqread.Archive(file_path)
-    out = {}
+    out = _Contents()
+    modified = set(str(n).lower() for n in (modified or ()))
+    base_blocks = getattr(base, 'block_list', None) or {}
     listing = list(editor_lock.map_names(a)) + list(name_list or ())
+    seen = set()
     for n in listing:
         k = n.lower()
-        if k in NO_CONTENTS or k in out:
+        if k in NO_CONTENTS or k in seen:
+            continue
+        seen.add(k)
+        finding = a.find(n)
+        block_list = a.blocks[finding[1]] if finding and finding[1] < len(a.blocks) else None
+        out.block_list[k] = block_list
+        if base is not None and k not in modified and k in base and base_blocks.get(k) == block_list:
+            out[k] = base[k]
             continue
         d = editor_lock._read(a, n)
         if d is not None:
@@ -389,6 +405,12 @@ MODEL_LEVELS = ('lossless_keys', 'lossy_keys')
 SOUND_KBPS = (32, 48, 64, 96, 128)
 
 
+def loader_layers(script, requested=None):
+    if requested:
+        return int(requested)
+    return 2 if len(script) <= 512 * 1024 else 1
+
+
 def normalize_content(content):
     if not content:
         return None
@@ -578,7 +600,13 @@ def _content_step(origin, new, content, name_list, ref, tmp, keep_names, short_n
                     f.write(new_b)
                 pj_a, _s = pjass_run(j_a, ref, os.path.join(tmp, 'pj_content_before'), verbose)
                 pj_b, _s = pjass_run(j_b, ref, os.path.join(tmp, 'pj_content_after'), verbose)
-                if pj_a is not None and pj_b is not None and (pj_b[0] > pj_a[0] or sum(pj_b) > sum(pj_a)):
+                if pj_a is None or pj_b is None:
+                    raise SystemExit(
+                        'ABORT in the content step: the pjass did not run (%s); without its check of the minified '
+                        'script the map is not written (check pjass in terceiros/ffmpeg/bin or the '
+                        'PJASS variable)' % ('before' if pj_a is None else 'after')
+                    )
+                if pj_b[0] > pj_a[0] or sum(pj_b) > sum(pj_a):
                     piece_list['script'] = (
                         'kept as it was: pjass finds %s (errors, warnings) in the minified script and %s '
                         'in the original' % (list(pj_b), list(pj_a))
@@ -597,9 +625,7 @@ def _content_step(origin, new, content, name_list, ref, tmp, keep_names, short_n
                             r['removed_globals'],
                             r['inlined'],
                             ', %d name(s) shortened' % r['renamed'] if short_names else '',
-                            'did not run'
-                            if pj_a is None or pj_b is None
-                            else '%s -> %s (errors, warnings)' % (list(pj_a), list(pj_b)),
+                            '%s -> %s (errors, warnings)' % (list(pj_a), list(pj_b)),
                         )
                     )
     summary = '; '.join('%s: %s' % kv for kv in piece_list.items())
@@ -676,8 +702,8 @@ def recipe(entry, output, **kw):
         import lua_desync
         for t in lua_desync.reforged_items(lua_desync.scan_map(entry), lambda c, s, t, f=None, **d: t):
             details.setdefault('warnings', []).append(t)
-    except Exception:
-        pass
+    except Exception as e:
+        details.setdefault('warnings', []).append('the Lua desync lint did not run: %s: %s' % (type(e).__name__, e))
     return details
 
 
@@ -713,6 +739,9 @@ def _recipe(
     verbose=False,
     previous=None,
     log=print,
+    product_version=None,
+    map_name=None,
+    map_sha=None,
     clean=True,
     convert_lua=False,
     bulk=None,
@@ -861,8 +890,12 @@ def _recipe(
                 f.write(new_t)
             pj_before, _s = pjass_run(j_before, ref, os.path.join(tmp, 'pj_ac_before'), verbose)
             pj_after, _s = pjass_run(j_after, ref, os.path.join(tmp, 'pj_ac_after'), verbose)
-            if pj_before is not None and pj_after is not None and (pj_after[0] > pj_before[0] or
-                                                                   sum(pj_after) > sum(pj_before)):
+            if pj_before is None or pj_after is None:
+                raise SystemExit(
+                    'ABORT in the anti-cheat step: the pjass did not run (%s); the script with the anti-cheat '
+                    'cannot be approved without that check' % ('before' if pj_before is None else 'after')
+                )
+            if pj_after[0] > pj_before[0] or sum(pj_after) > sum(pj_before):
                 raise SystemExit('ABORT at step anticheat: pjass finds %s with the anti-cheat and %s without it'
                                  % (pj_after, pj_before))
         new = next_steps('anticheat')
@@ -870,7 +903,7 @@ def _recipe(
         mpqadd.add_files(new, [(fname, new_t)], log=lambda *x: None)
         if mpqread.Archive(new).read(fname) != new_t:
             raise SystemExit('ABORT at step anticheat: the script written in the map is not the injected one')
-        stages['anticheat'] = contents(new, ref_names)
+        stages['anticheat'] = contents(new, ref_names, base=stages[previous], modified=(fname,))
         outside = set(difference(stages[previous], stages['anticheat'])) - {fname.lower()}
         if outside:
             raise SystemExit('ABORT at step anticheat: something else changed (%s)' % ', '.join(sorted(outside)))
@@ -901,7 +934,9 @@ def _recipe(
         t0 = time.time()
         new = next_steps('shuffle')
         r = id_shuffle.shuffle(current, new, tsv=os.path.join(tmp_key, os.path.basename(tsv)), seed=seed,
-                               keep_names=keep_names, non_ascii=non_ascii_ids, previous=previous, log=silent)
+                               keep_names=keep_names, non_ascii=non_ascii_ids, previous=previous, log=silent,
+                               version_num=product_version, meta_map=map_name or os.path.basename(entry),
+                               meta_sha=map_sha or sha(entry))
         if not r['ok']:
             raise SystemExit('ABORT at step shuffle: the self-check failed (%s)' % new)
         stages['shuffle'] = contents(new, ref_names)
@@ -910,6 +945,8 @@ def _recipe(
             log('[shuffle] previous key: %d reused, %d new, %d without reuse%s'
                 % (prev_item['reused'], prev_item['new_drawn'], len(prev_item['no_reuse']),
                    ''.join('\n  no reuse %s: %s' % kv for kv in list(prev_item['no_reuse'].items())[:20])))
+            if prev_item.get('warning'):
+                details.setdefault('warnings', []).append(prev_item['warning'])
         on_close(
             'shuffle',
             'ok',
@@ -990,8 +1027,9 @@ def _recipe(
                 warnings += [x for x in lua_desync.reforged_items(lua_desync.scan(lua),
                                                                   lambda c, s, t, f=None, **d: t) if x]
                 warning = ''.join('; WARNING: ' + x for x in warnings)
-            except Exception:
-                pass
+            except Exception as e:
+                warnings.append('the Lua desync lint did not run: %s: %s' % (type(e).__name__, e))
+                warning = ''.join('; WARNING: ' + x for x in warnings)
             for x in warnings:
                 log('[lua] WARNING: ' + x)
             if not r['ok']:
@@ -1010,7 +1048,8 @@ def _recipe(
                 ref_names.append('war3map.lua')
             if 'war3map.lua' not in [x.lower() for x in input_names]:
                 input_names.append('war3map.lua')
-            stages['lua'] = contents(new, ref_names)
+            stages['lua'] = contents(new, ref_names, base=stages[last],
+                                     modified=(j_name, 'war3map.lua', 'war3map.w3i'))
             outside = set(difference(stages[last], stages['lua'])) - {j_name.lower(), 'war3map.lua', 'war3map.w3i'}
             if outside:
                 raise SystemExit('ABORT at step lua: something else changed (%s)' % ', '.join(sorted(outside)))
@@ -1094,7 +1133,7 @@ def _recipe(
                 mpqadd.add_files(new, [(name_e, r['output'])], log=lambda *x: None)
                 if mpqread.Archive(new).read(name_e) != r['output']:
                     raise SystemExit('ABORTS in the errors step: the written script is not the cleaned one')
-                stages['error_list'] = contents(new, ref_names)
+                stages['error_list'] = contents(new, ref_names, base=stages[last], modified=(name_e,))
                 outside = set(difference(stages[last], stages['error_list'])) - {name_e.lower()}
                 if outside:
                     raise SystemExit(
@@ -1116,7 +1155,8 @@ def _recipe(
         r_c = _content_step(current, next_steps('content'), content, ref_names, ref, tmp, keep_for_obfuscator,
                             short_names='obfuscate' in skip, verbose=verbose)
         if r_c['map_path']:
-            stages['content'] = contents(r_c['map_path'], ref_names)
+            stages['content'] = contents(r_c['map_path'], ref_names, base=stages[last],
+                                         modified=r_c['may_change'])
             outside = sorted(set(difference(stages[last], stages['content'])) - r_c['may_change'])
             if outside:
                 raise SystemExit('ABORT at step content: something else changed (%s)' % ', '.join(outside[:5]))
@@ -1171,14 +1211,16 @@ def _recipe(
         fname, script = ('war3map.lua', lua) if lua else editor_lock._script(a)
         script_before = script
         if script is not None and fname.endswith('.lua'):
-            r = lua_obfuscate.obfuscate(script, layers=lua_layers, keep_names=keep_for_obfuscator, ref=ref, log=silent)
+            r = lua_obfuscate.obfuscate(
+                script, layers=loader_layers(script, lua_layers), keep_names=keep_for_obfuscator, ref=ref, log=silent
+            )
             new = next_steps('obfuscate')
             shutil.copyfile(current, new)
             obfuscated = r['output'].encode('utf-8', 'surrogateescape')
             mpqadd.add_files(new, [(fname, obfuscated)], log=lambda *x: None)
             if mpqread.Archive(new).read(fname) != obfuscated:
                 raise SystemExit('ABORT at step obfuscate: the script written in the map is not the obfuscated one')
-            stages['obfuscate'] = contents(new, ref_names)
+            stages['obfuscate'] = contents(new, ref_names, base=stages[last], modified=(fname,))
             on_close('obfuscate', 'ok', t0, last, 'obfuscate', {
                 'script': fname, 'bytes_before': r['bytes_before'], 'bytes_after': r['bytes_after'],
                 'names_swapped': r['names_swapped'], 'strings_encrypted': r['strings_encrypted'],
@@ -1228,14 +1270,16 @@ def _recipe(
                     % (code_part, (body_text.strip().splitlines() or ['no output'])[-1][:200])
                 )
             after_pj, _s = pjass_run(output_j, ref, os.path.join(tmp, 'pj_after'), verbose)
-            gate = 'pjass did not run'
-            if before_pj is not None and after_pj is not None:
-                if after_pj[0] > before_pj[0] or sum(after_pj) > sum(before_pj):
-                    raise SystemExit(
-                        'ABORT at step obfuscate: pjass finds %s in the obfuscated one and %s in the original'
-                        % (after_pj, before_pj)
-                    )
-                gate = 'pjass original=%s obfuscated=%s (errors, warnings)' % (before_pj, after_pj)
+            if before_pj is None or after_pj is None:
+                raise SystemExit(
+                    'ABORT in the obfuscate step: the pjass did not run (%s); the obfuscated script is not '
+                    'written without that check (check pjass in terceiros/ffmpeg/bin or the PJASS '
+                    'variable)' % ('original' if before_pj is None else 'obfuscated')
+                )
+            if after_pj[0] > before_pj[0] or sum(after_pj) > sum(before_pj):
+                raise SystemExit('ABORT at step obfuscate: pjass finds %s in the obfuscated one and %s in the original'
+                                 % (after_pj, before_pj))
+            gate = 'pjass original=%s obfuscated=%s (errors, warnings)' % (before_pj, after_pj)
             with open(output_j, 'rb') as f:
                 obfuscated = f.read()
             added = beyond_era(script, obfuscated, ep)
@@ -1250,7 +1294,7 @@ def _recipe(
                 mpqadd.add_files(new, [(fname, obfuscated)], log=lambda *x: None)
                 if mpqread.Archive(new).read(fname) != obfuscated:
                     raise SystemExit('ABORT at step obfuscate: the script written in the map is not the obfuscated one')
-                stages['obfuscate'] = contents(new, ref_names)
+                stages['obfuscate'] = contents(new, ref_names, base=stages[last], modified=(fname,))
                 on_close('obfuscate', 'ok', t0, last, 'obfuscate', {
                     'script': fname, 'bytes_before': len(script), 'bytes_after': len(obfuscated), 'pjass_gate': gate,
                     'summary': '%s %d -> %d B; %s' % (fname, len(script), len(obfuscated), gate)})
@@ -1393,8 +1437,18 @@ def _recipe(
         _which = tuple(x for x in decoys if not (x == 'fill' and bulk and 'bulk' not in skip))
         if len(_which) != len(tuple(decoys)):
             log('[decoy] the fill waits until after the bulk')
+        _real_names = None
+        if 'wtg' in _which:
+            try:
+                _decoy_archive = mpqread.Archive(current)
+                _decoy_script_name, _decoy_script = editor_lock._script(_decoy_archive)
+                if _decoy_script and _decoy_script_name.lower().endswith('.j'):
+                    _real_names = set(x.decode('latin-1') for x in
+                                      re.findall(rb'function\s+([A-Za-z_]\w*)', _decoy_script))
+            except Exception:
+                _real_names = None
         r = decoy_files.decoys(current, new, chosen=_which, seed=seed, log=silent,
-                               spare_last=bool(cut_step and 'cut_step' not in skip))
+                               spare_last=bool(cut_step and 'cut_step' not in skip), real_names=_real_names)
         if not r['ok']:
             raise SystemExit('ABORT at step decoy: %s' % r.get('gate'))
         stages['decoy'] = contents(new, ref_names)
@@ -1504,24 +1558,32 @@ def _recipe(
         _current_c = os.path.join(tmp, '%d_cut.w3x' % (STEPS.index('cut_step') + 1))
         with open(output, 'rb') as f:
             _b_c = f.read()
-        _o_c = sector_pack.cut_hash(_b_c, stats=_rc, log=silent)
-        with open(_current_c, 'wb') as f:
-            f.write(_o_c)
-        os.replace(_current_c, output)
-        stages['cut_step'] = contents(output, ref_names)
-        on_close(
-            'cut_step',
-            'ok',
-            t0,
-            last,
-            'cut_step',
-            {
-                'summary': 'declared hash table %d, physical %d (the read-only '
-                'of StormLib); %d -> %d B'
-                % (_rc.get('hash_n', 0), _rc.get('physical', 0), _rc.get('entry', 0), _rc.get('output', 0))
-            },
-        )
-        last = 'cut_step'
+        try:
+            _o_c = sector_pack.cut_hash(_b_c, stats=_rc, log=silent)
+        except SystemExit as e:
+            why = str(e.code or e)
+            details['steps'].append({'step': 'cut_step', 'status': 'skipped (%s)' % why})
+            details.setdefault('warnings', []).append('--cut-hash: skipped: %s' % why)
+            log('[cut] skipped: %s' % why)
+            _o_c = None
+        if _o_c is not None:
+            with open(_current_c, 'wb') as f:
+                f.write(_o_c)
+            os.replace(_current_c, output)
+            stages['cut_step'] = contents(output, ref_names)
+            on_close(
+                'cut_step',
+                'ok',
+                t0,
+                last,
+                'cut_step',
+                {
+                    'summary': 'declared hash table %d, physical %d (the read-only '
+                    'of StormLib); %d -> %d B'
+                    % (_rc.get('hash_n', 0), _rc.get('physical', 0), _rc.get('entry', 0), _rc.get('output', 0))
+                },
+            )
+            last = 'cut_step'
     if mark_no_edit and 'mark' not in skip:
         details['steps'].append(_mark_no_edit(output, tmp, log=log))
     if barrier and 'barrier' not in skip:
@@ -1699,6 +1761,7 @@ def _campaign(
     mark_no_edit=False,
     convert_to_dds=False,
     dds_quality=None,
+    product_version=None,
 ):
     if bulk is not None or cut_step:
         raise SystemExit('campaign: --bulk and --cut-hash only work on a SINGLE MAP (the .w3x): in a campaign the '
@@ -1805,6 +1868,10 @@ def _campaign(
         prev_key_path = os.path.join(previous, os.path.basename(hash_key)) if previous else None
         if prev_key_path and not os.path.isfile(prev_key_path):
             log('[campaign] %s: no previous key (%s): all ids drawn' % (fname, prev_key_path))
+            details.setdefault('warnings', []).append(
+                '%s: no previous key in the keys folder (%s); every ID is drawn anew '
+                'and the save code changes' % (fname, os.path.basename(prev_key_path))
+            )
             prev_key_path = None
         rm = recipe(
             map_in,
@@ -1838,6 +1905,9 @@ def _campaign(
             clean=False,
             content=content,
             no_use=no_use,
+            product_version=product_version,
+            map_name=fname,
+            map_sha=hashlib.sha256(data_bytes).hexdigest(),
         )
         clean = None
         if optimization is None:
