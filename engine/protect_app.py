@@ -8,6 +8,7 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 APP = 'DevoProtect'
+VERSION = ''
 
 STEPS = {
     'anticheat': 'Adding the anti-cheat...',
@@ -164,7 +165,7 @@ def default_options():
         'block_units': True,
         'block_doo': True,
         'block_w3r': False,
-        'lua_layers': 2,
+        'lua_layers': 0,
         'blp': True,
         'optimize': True,
         'opt_recompress': True,
@@ -252,10 +253,16 @@ def tables_info():
     return {'version': TABLES['version'], 'bytes': TABLES['bytes'], 'sha256': TABLES['sha256']}
 
 
+class _Cancelled(Exception):
+    pass
+
+
 def run_job(job, emit):
     import protect_recipe
     task = job.get('task', 'protect')
     map_path = job.get('map')
+    cancel = job.get('cancel')
+    warnings = []
     if task != 'protect':
         emit({'type': 'error', 'message': 'unknown task: %s' % task})
         return {'ok': False}
@@ -267,7 +274,7 @@ def run_job(job, emit):
         out_path = os.path.join(out_path, os.path.basename(_default_out(map_path)))
     options = dict(job.get('options') or {})
     if options.get('previous_key') and os.path.isdir(options['previous_key']) and not map_path.lower().endswith('.w3n'):
-        found = resolve_previous(map_path, options['previous_key'])
+        found = resolve_previous(map_path, options['previous_key'], warnings)
         if found:
             options['previous_key'] = found
         else:
@@ -277,6 +284,7 @@ def run_job(job, emit):
     except (ValueError, TypeError) as e:
         emit({'type': 'error', 'message': 'invalid option: %s' % e})
         return {'ok': False}
+    kwargs['product_version'] = job.get('version') or VERSION or None
     is_campaign = map_path.lower().endswith('.w3n')
     if is_campaign:
         kwargs['barrier'] = ()
@@ -285,6 +293,8 @@ def run_job(job, emit):
     emit({'type': 'progress', 'step': 'open', 'text': 'Reading %s...' % os.path.basename(map_path)})
 
     def log(*a):
+        if cancel is not None and cancel.is_set():
+            raise _Cancelled()
         msg = ' '.join(str(x) for x in a)
         if msg.startswith('['):
             code = msg[1:msg.index(']')] if ']' in msg else ''
@@ -305,13 +315,21 @@ def run_job(job, emit):
     try:
         fn = protect_recipe.campaign if is_campaign else protect_recipe.recipe
         report = fn(map_path, out_path, log=log, **kwargs)
+    except _Cancelled:
+        emit({'type': 'result', 'cancelled': True, 'ok': False, 'out': out_path, 'seconds': round(time.time() - t0, 1),
+              'lines': [], 'summary': 'Cancelled.', 'key': None, 'reuse': None, 'warnings': warnings,
+              'bytes_in': os.path.getsize(map_path), 'bytes_out': None})
+        return {'ok': False, 'cancelled': True, 'out': out_path, 'summary': 'Cancelled.'}
     except SystemExit as e:
         emit({'type': 'error', 'message': str(e.code) if e.code else 'aborted'})
         return {'ok': False}
     except BaseException as e:
         import traceback
-        emit({'type': 'error', 'message': '%s: %s' % (type(e).__name__, e), 'trace': traceback.format_exc(limit=6)})
+        emit({'type': 'error', 'message': str(e) or type(e).__name__, 'trace': traceback.format_exc(limit=8)})
         return {'ok': False}
+    reuse = report_reuse(report)
+    if reuse:
+        reuse = dict((k, v) for k, v in reuse.items() if k not in ('no_reuse', 'hash_key'))
     resultado = {
         'ok': bool(report.get('ok')),
         'out': out_path,
@@ -319,11 +337,59 @@ def run_job(job, emit):
         'lines': report_lines(report),
         'summary': report_summary(report, out_path),
         'key': report_key(report),
+        'reuse': reuse,
+        'warnings': warnings + list(report.get('warnings') or []),
         'bytes_in': os.path.getsize(map_path),
         'bytes_out': os.path.getsize(out_path) if os.path.isfile(out_path) else None,
     }
+    if resultado['ok'] and resultado['key'] and job.get('vault', True):
+        try:
+            resultado['vault'] = vault_record(out_path, map_path, resultado)
+        except OSError:
+            resultado['vault'] = None
+
     emit(dict(resultado, type='result'))
     return resultado
+
+
+def vault_record(out_path, map_path, resultado):
+    import hashlib
+    import json
+    vault = os.path.join(os.path.dirname(os.path.abspath(out_path)), 'devoprotect_keys.json')
+    key = resultado.get('key')
+    if not os.path.isfile(key):
+        return None
+    h = hashlib.sha256()
+    with open(key, 'rb') as f:
+        for b in iter(lambda: f.read(1 << 20), b''):
+            h.update(b)
+    entry = {'map': os.path.basename(map_path), 'out': os.path.basename(out_path),
+             'version': VERSION or '', 'sha256': _sha_file(map_path), 'key': os.path.basename(key),
+             'key_sha256': h.hexdigest(), 'bytes': resultado.get('bytes_out'),
+             'reused': (resultado.get('reuse') or {}).get('reused'),
+             'of_key': (resultado.get('reuse') or {}).get('in_key'),
+             'when': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}
+    try:
+        with open(vault, encoding='utf-8') as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        data = {'devoprotect_keys': 1, 'releases': []}
+    releases = data.setdefault('releases', [])
+    if any(e.get('key_sha256') == entry['key_sha256'] and e.get('sha256') == entry['sha256'] for e in releases):
+        return vault
+    releases.append(entry)
+    with open(vault, 'w', encoding='utf-8', newline='\n') as f:
+        f.write(json.dumps(data, ensure_ascii=False, indent=1) + '\n')
+    return vault
+
+
+def _sha_file(path):
+    import hashlib
+    h = hashlib.sha256()
+    with open(path, 'rb') as f:
+        for b in iter(lambda: f.read(1 << 20), b''):
+            h.update(b)
+    return h.hexdigest()
 
 
 def _default_out(map_path):
@@ -383,24 +449,40 @@ def read_preset(text):
         if o[k] not in valid:
             raise ValueError('%s: %r is not one of %s' % (k, o[k], ', '.join(str(x) for x in valid)))
     for k in ('lua_layers', 'ac_gold_jump'):
-        if o[k] < 1:
-            raise ValueError('%s: %r is below 1' % (k, o[k]))
+        if o[k] < (0 if k == 'lua_layers' else 1):
+            raise ValueError('%s: %r is below %d' % (k, o[k], 0 if k == 'lua_layers' else 1))
     return o, warnings
 
 
 MAP_EXTS = ('.w3x', '.w3m', '.w3n')
 
 
-def maps_in(folder):
-    return sorted((n for n in os.listdir(folder) if n.lower().endswith(MAP_EXTS)
-                   and os.path.isfile(os.path.join(folder, n))), key=lambda n: n.lower())
+def maps_in(folder, recursive=False):
+    if not recursive:
+        return sorted((n for n in os.listdir(folder) if n.lower().endswith(MAP_EXTS)
+                       and os.path.isfile(os.path.join(folder, n))), key=lambda n: n.lower())
+    out = []
+    for root, dirs, names in os.walk(folder):
+        dirs.sort(key=str.lower)
+        for n in sorted(names, key=str.lower):
+            if n.lower().endswith(MAP_EXTS):
+                p = os.path.join(root, n)
+                out.append(os.path.relpath(p, folder))
+    return out
 
 
 def default_folder_out(folder):
     return os.path.normpath(folder).rstrip('\\/') + '_protected'
 
 
-def resolve_previous(map_path, previous):
+def _stem_version(name):
+    import re
+    stem = os.path.splitext(os.path.basename(name))[0].lower()
+    stem = re.sub(r'[\s_\-]*v?\d+(?:[._]\d+)*(?:[a-z])?$', '', stem)
+    return re.sub(r'[^a-z0-9]+', '', stem)
+
+
+def resolve_previous(map_path, previous, warnings=None):
     if not previous or not os.path.isdir(previous):
         return previous or None
     stem = os.path.splitext(os.path.basename(map_path))[0]
@@ -409,7 +491,50 @@ def resolve_previous(map_path, previous):
         p = os.path.join(previous, name if is_campaign else name + '.tsv')
         if os.path.isdir(p) if is_campaign else os.path.isfile(p):
             return p
-    return previous if is_campaign else None
+    if is_campaign:
+        return previous
+    import id_shuffle
+    keys = []
+    try:
+        for n in sorted(os.listdir(previous)):
+            p = os.path.join(previous, n)
+            if n.lower().endswith('.tsv') and os.path.isfile(p):
+                meta = id_shuffle.meta_tsv(p)
+                if meta:
+                    keys.append((p, meta))
+    except OSError:
+        keys = []
+    target, target_stem = os.path.basename(map_path).lower(), _stem_version(map_path)
+    for p, meta in keys:
+        if (meta.get('map') or '').lower() == target:
+            if warnings is not None:
+                warnings.append('previous key found by its metadata, not by the file name: %s' % os.path.basename(p))
+            return p
+    for p, meta in keys:
+        if _stem_version(meta.get('map') or '') == target_stem and target_stem:
+            if warnings is not None:
+                warnings.append('previous key found for a map of another version (%s): %s'
+                                % (meta.get('map'), os.path.basename(p)))
+            return p
+    target_sha = None
+    for p, meta in keys:
+        if meta.get('sha256'):
+            if target_sha is None:
+                import hashlib
+                h = hashlib.sha256()
+                with open(map_path, 'rb') as f:
+                    for b in iter(lambda: f.read(1 << 20), b''):
+                        h.update(b)
+                target_sha = h.hexdigest()
+            if meta['sha256'] == target_sha:
+                if warnings is not None:
+                    warnings.append('previous key found by the sha256 of the map, not by its name: %s'
+                                    % os.path.basename(p))
+                return p
+    if warnings is not None:
+        warnings.append('no previous key for %s in %s: every ID is drawn anew and the save code changes'
+                        % (os.path.basename(map_path), os.path.basename(previous)))
+    return None
 
 
 def run_folder(job, emit, run_one=None):
@@ -422,7 +547,7 @@ def run_folder(job, emit, run_one=None):
     if os.path.normcase(os.path.abspath(out)) == os.path.normcase(os.path.abspath(folder)):
         emit({'type': 'error', 'message': 'the output folder must be another folder (the maps are never overwritten)'})
         return {'ok': False}
-    names = maps_in(folder)
+    names = maps_in(folder, recursive=bool(job.get('recursive')))
     if not names:
         emit({'type': 'error', 'message': 'no map in %s (.w3x, .w3m, .w3n)' % folder})
         return {'ok': False}
@@ -435,11 +560,17 @@ def run_folder(job, emit, run_one=None):
     os.makedirs(out, exist_ok=True)
     t0 = time.time()
     maps = []
+    cancel = job.get('cancel')
     for i, name in enumerate(names):
+        if cancel is not None and cancel.is_set():
+            emit({'type': 'progress', 'step': 'map', 'text': 'Cancelled.'})
+            break
         src, dst = os.path.join(folder, name), os.path.join(out, name)
+        os.makedirs(os.path.dirname(dst) or out, exist_ok=True)
         emit({'type': 'progress', 'step': 'map', 'text': 'Map %d of %d: %s' % (i + 1, len(names), name)})
         opts = dict(options)
-        prev_key = resolve_previous(src, previous) if previous else None
+        warns = []
+        prev_key = resolve_previous(src, previous, warns) if previous else None
         if prev_key:
             opts['previous_key'] = prev_key
         failed = []
@@ -449,13 +580,18 @@ def run_folder(job, emit, run_one=None):
                 failed.append(ev.get('message') or 'aborted')
             elif ev.get('type') == 'progress':
                 emit(ev)
-        res = run_one({'task': 'protect', 'map': src, 'out': dst, 'options': opts}, sub) or {}
+        res = run_one({'task': 'protect', 'map': src, 'out': dst, 'options': opts,
+                       'version': job.get('version'), 'cancel': cancel}, sub) or {}
         maps.append({'name': name, 'ok': bool(res.get('ok')), 'out': dst if res.get('ok') else None,
                      'key': res.get('key'), 'seconds': res.get('seconds'), 'bytes_in': os.path.getsize(src),
-                     'bytes_out': res.get('bytes_out'),
+                     'bytes_out': res.get('bytes_out'), 'reuse': res.get('reuse'), 'warnings': warns,
                      'reason': None if res.get('ok') else (failed[-1] if failed else res.get('summary') or 'failed')})
     result = folder_report(maps, out)
     result.update(folder=folder, seconds=round(time.time() - t0, 1))
+    if cancel is not None and cancel.is_set():
+        result['cancelled'] = True
+        result['ok'] = False
+        result['summary'] = 'Cancelled after %d of %d map(s).' % (len(maps), len(names))
     emit(dict(result, type='result'))
     return result
 
@@ -464,19 +600,23 @@ def folder_report(maps, out):
     lines = [('title', 'Folder: %d map(s)' % len(maps))]
     for m in maps:
         if m['ok']:
-            lines.append(('info', 'ok  %s: %s -> %s bytes (%ss)%s' % (
+            reuse = m.get('reuse') or {}
+            extra = ''
+            if reuse:
+                extra = '; reused %d of %d old IDs' % (reuse.get('reused', 0), reuse.get('in_key', 0))
+            lines.append(('info', 'ok  %s: %s -> %s bytes (%ss)%s%s' % (
                 m['name'], m['bytes_in'], m.get('bytes_out'), m.get('seconds'),
-                '; key: %s' % os.path.basename(m['key']) if m.get('key') else '')))
+                '; key: %s' % os.path.basename(m['key']) if m.get('key') else '', extra)))
+            for w in m.get('warnings') or []:
+                lines.append(('warn', 'WARNING: %s' % w))
         else:
             lines.append(('bad', 'refused  %s: %s' % (m['name'], m.get('reason'))))
     done = sum(1 for m in maps if m['ok'])
-    return {
-        'ok': done == len(maps),
-        'maps': maps,
-        'out': out,
-        'lines': lines,
-        'summary': 'Protected %d of %d map(s). Saved to %s' % (done, len(maps), os.path.basename(out.rstrip('\\/'))),
-    }
+    reused = sum((m.get('reuse') or {}).get('reused', 0) for m in maps)
+    return {'ok': done == len(maps), 'maps': maps, 'out': out, 'lines': lines,
+            'summary': 'Protected %d of %d map(s)%s. Saved to %s' % (
+                done, len(maps), ', %d old IDs reused' % reused if reused else '',
+                os.path.basename(out.rstrip('\\/')))}
 
 
 def report_lines(report):
@@ -510,11 +650,28 @@ def report_key(report):
     )
 
 
+def report_reuse(report):
+    if report.get('type_name') == 'campaign':
+        for m in report.get('map_list', []):
+            for p in (m.get('details') or {}).get('steps', []):
+                if p.get('step') == 'shuffle' and p.get('previous'):
+                    return p['previous']
+        return None
+    for p in report.get('steps', []):
+        if p.get('step') == 'shuffle' and p.get('previous'):
+            return p['previous']
+    return None
+
+
 def report_summary(report, out_path):
     if not report.get('ok'):
         return 'Protection failed - see the report.'
     n = len(report.get('map_list', [])) if report.get('type_name') == 'campaign' else 1
-    return 'Protected %d file(s). Saved to %s' % (n, os.path.basename(out_path))
+    txt = 'Protected %d file(s). Saved to %s' % (n, os.path.basename(out_path))
+    prev_item = report_reuse(report)
+    if prev_item:
+        txt += '. Reused %d of %d old IDs' % (prev_item.get('reused', 0), prev_item.get('in_key', 0))
+    return txt
 
 
 def ui_folder():
@@ -531,6 +688,7 @@ class Api:
         self._version = version
         self._initial = initial_map
         self._jobs = {}
+        self._cancels = {}
         self._n = 0
         self._release = None
 
@@ -629,6 +787,9 @@ class Api:
         self._n += 1
         ident = 'job%d' % self._n
         job = dict(params or {}, task='protect')
+        cancel = threading.Event()
+        job['cancel'] = cancel
+        self._cancels[ident] = cancel
 
         def emit(event):
             self._push(ident, event)
@@ -638,10 +799,22 @@ class Api:
                 (run_folder if job.get('folder') else run_job)(job, emit)
             except BaseException as e:
                 self._push(ident, {'type': 'error', 'message': str(e)})
+            finally:
+                self._cancels.pop(ident, None)
         t = threading.Thread(target=work, daemon=True)
         self._jobs[ident] = t
         t.start()
         return ident
+
+    def cancel(self, ident=None):
+        if ident:
+            ev = self._cancels.get(ident)
+            if ev is not None:
+                ev.set()
+                return True
+        for ev in self._cancels.values():
+            ev.set()
+        return bool(self._cancels)
 
     def _push(self, ident, event):
         import json
@@ -655,6 +828,8 @@ class Api:
 
 
 def run(version, initial_map=None, icon=None):
+    global VERSION
+    VERSION = version
     import webview
     try:
         import updater
