@@ -3,6 +3,30 @@
 What each version of DevoProtect brought, the newest first. The downloads are on the
 [Releases](https://github.com/devoltzz/devoprotect/releases) page.
 
+## 0.1.18 (2026-10-30)
+
+- The save-code key is safer and easier to keep. The `.tsv` now carries the map name, its sha256, the version and the
+  object count: a key from another map warns instead of entering silently, a low reuse warns, and a map renamed from
+  one version to the next finds its key by the name without the version or by the sha256. The summary says how many old
+  IDs were reused, and a `devoprotect_keys.json` next to the output keeps the version, the hashes and the key of every
+  release. `protect_keys.py` compares two releases and says which save codes still work.
+- The pjass check cannot be skipped anymore: when it cannot measure, the protection aborts instead of writing the
+  script without the check. The impossible `--cut-hash` is skipped with a warning instead of aborting the whole map.
+  The Lua loader layers now follow the script size (2 up to 512 KB, 1 above; automatic is the default), and the
+  steps that only change the script do not decompress the whole map again to check it.
+- The Lua strings got a per-map key: the public LCG over the index is gone, replaced by a quadratic recurrence with
+  two constants drawn for each map. The decoy `war3map.wtg`/`wct` now comes with the trigger functions it cites in
+  the script, so a GUI-versus-script comparison no longer gives it away.
+- The window shows a simple result outside the log (size before and after, time, the save-code reuse, the key and the
+  warnings), a progress bar and a Cancel button, drag and drop, `aria-expanded` on the groups and a release checklist.
+  It remembers the options, the out folder and the key of each map, and the Custom set is not lost when another mode is
+  picked. The errors show the message and keep the trace in a "for a bug report" block.
+- The command line has `--json`, `--inspect`, `--recursive` and `--check-update`, writes errors to stderr, uses a
+  different exit code per kind of failure, and `--text` is the same command line with the report in a `--log=`. The site
+  tells the user to use the program when the browser runs out of memory, drops the output of a failed job and shows a
+  bar on the first engine download.
+- The 512-byte pack texts left the 16 translations; the new page texts are translated in all of them.
+
 ## 0.1.17 (2026-10-29)
 
 - The 512-byte sector pack is gone. On 3 October 2026 StormLib got issue 455 fixed (commit 744ec1d): MPQ Editor opens
