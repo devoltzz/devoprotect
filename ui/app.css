@@ -83,6 +83,25 @@ input[type=text]:focus, input[type=number]:focus, select:focus { outline: none; 
   letter-spacing: 0; }
 #log .prog { color: var(--muted); }
 
+.outcome { margin-top: 10px; font-size: 12.5px; line-height: 1.55; }
+.outcome .good { color: var(--good); }
+.outcome .warn { color: var(--warn); }
+.outcome .bad { color: var(--bad); }
+.outcome .keyline { margin-top: 6px; padding: 6px 8px; border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--card-2); overflow-wrap: anywhere; font: 12px var(--mono); }
+.outcome .warns div { color: var(--warn); margin-top: 4px; }
+.outcome .checkline div { color: var(--muted); margin-top: 4px; }
+.bar { height: 5px; background: var(--card-2); border-radius: 3px; overflow: hidden; margin-top: 10px; }
+.bar > div { height: 100%; width: 0; background: var(--accent); transition: width .25s; }
+.bar.indet > div { width: 35%; animation: slide 1.1s infinite ease-in-out; }
+@keyframes slide { 0% { margin-left: 0; } 100% { margin-left: 65%; } }
+.proof { margin-top: 12px; padding: 8px 10px; border: 1px solid var(--warn); border-radius: var(--radius);
+  color: var(--warn); font-size: 12px; line-height: 1.45; }
+#tracedetails { margin-top: 8px; color: var(--muted); font-size: 12px; }
+#tracedetails summary { cursor: pointer; }
+#tracebox { white-space: pre-wrap; font: 11.5px/1.45 var(--mono); color: var(--muted); max-height: 220px; overflow: auto; }
+body.dragging #app { outline: 2px dashed var(--accent); outline-offset: -8px; }
+
 @media (max-width: 1000px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
   .panel { position: static; }
