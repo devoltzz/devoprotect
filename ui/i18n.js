@@ -99,7 +99,16 @@
     }
     return v;
   }
-  const tr = s => (s.indexOf('\n') >= 0 ? s.split('\n').map(x => line(x)).join('\n') : line(s));
+  const trNow = s => (s.indexOf('\n') >= 0 ? s.split('\n').map(x => line(x)).join('\n') : line(s));
+  const CACHE_MAX = 20000;
+  let cache = new Map(), cacheLang = null;
+  function tr(s) {
+    if (!D.textos[lang]) return trNow(s);
+    if (cacheLang !== lang || cache.size > CACHE_MAX) { cache = new Map(); cacheLang = lang; }
+    let out = cache.get(s);
+    if (out === undefined) { out = trNow(s); cache.set(s, out); }
+    return out;
+  }
 
   function skipped(node) {
     const p = node.nodeType === 1 ? node : node.parentElement;
