@@ -1654,9 +1654,30 @@ def read_tsv(file_path):
     with open(file_path, encoding='utf-8') as f:
         next(f)
         for ln in f:
+            if ln.startswith('#'):
+                continue
             c = ln.rstrip('\r\n').split('\t')
             if len(c) >= 2:
-                out[bytes.fromhex(c[0])] = (id_from_text(c[1]),) + tuple(c[2:5])
+                try:
+                    old = bytes.fromhex(c[0])
+                except ValueError:
+                    continue
+                out[old] = (id_from_text(c[1]),) + tuple(c[2:5])
+    return out
+
+
+def meta_tsv(file_path):
+    out = {}
+    try:
+        with open(file_path, encoding='utf-8') as f:
+            for ln in f:
+                if not ln.startswith('#'):
+                    continue
+                c = ln[1:].rstrip('\r\n').split('\t')
+                if len(c) >= 2:
+                    out[c[0].strip()] = c[1].strip()
+    except OSError:
+        return {}
     return out
 
 
@@ -1671,13 +1692,15 @@ def read_previous(file_path):
         raise SystemExit('--previous-key: %s is not an ID key (.tsv): %s' % (file_path, e))
 
 
-def write_tsv(file_path, ids, defs, retired=None):
+def write_tsv(file_path, ids, defs, retired=None, meta=None):
     type_name = dict((e, t) for e, _n, t in TYPES)
 
     def limpo(x):
         return x.replace('\t', ' ').replace('\r', ' ').replace('\n', ' ')
     with open(file_path, 'w', encoding='utf-8', newline='\n') as f:
         f.write('old_id_hex\tnew_id\ttype\tbase\tname\n')
+        for k, v in sorted((meta or {}).items()):
+            f.write('# %s\t%s\n' % (limpo(str(k)), limpo(str(v))))
         for old, new in sorted(ids.items(), key=lambda x: (defs[x[0]][0], x[0])):
             ext, base, fname = defs[old]
             f.write('%s\t%s\t%s\t%s\t%s\n' % (old.hex(), id_text(new), type_name[ext], base, limpo(fname)))
@@ -1753,11 +1776,12 @@ def references(m, universe):
 
 
 def shuffle(entry, output, tsv=None, seed=None, keep_names=(), undo=None, only_count=False, game=None,
-            non_ascii=False, previous=None, log=print):
+            non_ascii=False, previous=None, log=print, version_num=None, meta_map=None, meta_sha=None):
     details = {'entry': entry, 'output': output, 'ok': False}
     if previous and undo:
         raise SystemExit('--anterior does not combine with --desfaz (the undo already follows the key it receives)')
     prev_tab = read_previous(previous) if previous else None
+    meta_ant = meta_tsv(previous) if previous else {}
     retired = {}
     a = mpqread.Archive(entry)
     m = read_map(a)
@@ -1769,6 +1793,15 @@ def shuffle(entry, output, tsv=None, seed=None, keep_names=(), undo=None, only_c
                 'I will not shuffle.' % (fname, len(j))
             )
     defs = defined(m['files_'])
+    map_name = meta_map or os.path.basename(entry)
+    if meta_sha:
+        input_sha = meta_sha
+    else:
+        h = hashlib.sha256()
+        with open(entry, 'rb') as f:
+            for block_entry in iter(lambda: f.read(1 << 20), b''):
+                h.update(block_entry)
+        input_sha = h.hexdigest()
     if undo:
         tab = read_tsv(undo)
         ids = dict((new, old) for old, (new, _t, _b, _n) in tab.items() if new in defs)
@@ -1776,11 +1809,7 @@ def shuffle(entry, output, tsv=None, seed=None, keep_names=(), undo=None, only_c
         avoid = {}
     else:
         if seed is None:
-            h = hashlib.sha256()
-            with open(entry, 'rb') as f:
-                for block_entry in iter(lambda: f.read(1 << 20), b''):
-                    h.update(block_entry)
-            seed = int(h.hexdigest()[:16], 16)
+            seed = int(input_sha[:16], 16)
         keep_names = set(x.encode('latin-1') for x in keep_names)
         avoid = where_is(m, set(defs) - keep_names)
         for k in keep_names & set(defs):
@@ -1812,6 +1841,21 @@ def shuffle(entry, output, tsv=None, seed=None, keep_names=(), undo=None, only_c
             details['previous'] = {'hash_key': previous, 'in_key': len(prev_tab), 'reused': len(reuse),
                                    'new_drawn': new_ones, 'retired': len(retired),
                                    'no_reuse': dict((k.decode('latin-1'), v) for k, v in sorted(no_reuse.items()))}
+            warning = None
+            old_map = (meta_ant.get('map') or '').strip()
+            if old_map and old_map.lower() != map_name.lower():
+                warning = (
+                    'the previous key belongs to the map %s, and this one is %s: a save code does not carry over '
+                    'between maps' % (old_map, map_name)
+                )
+            base_reuse = len(reuse) + len(no_reuse)
+            if base_reuse >= 10 and len(reuse) * 2 < base_reuse:
+                low = ('only %d of %d old IDs were reused (%.0f%%): the save code that stores the other objects '
+                       'changes in this release' % (len(reuse), base_reuse, 100.0 * len(reuse) / base_reuse))
+                warning = low if not warning else warning + '; ' + low
+            if warning:
+                details['previous']['warning'] = warning
+                log('WARNING: %s' % warning)
             log('previous: %d of %d ids of the key %s reused; %d new object(s) drawn; %d without reuse (the save '
                 'that stores these ids breaks); %d retired id(s) reserved'
                 % (len(reuse), len(prev_tab), previous, new_ones, len(no_reuse), len(retired)))
@@ -1826,7 +1870,10 @@ def shuffle(entry, output, tsv=None, seed=None, keep_names=(), undo=None, only_c
         details['non_ascii'] = non_ascii
         details['game_ids'] = len(from_game)
     if tsv and not undo:
-        write_tsv(tsv, ids, defs, retired)
+        meta = {'map': map_name, 'sha256': input_sha, 'version': version_num or '',
+                'objects': len(ids)}
+        write_tsv(tsv, ids, defs, retired, meta=meta)
+        details['meta'] = meta
         log('table (the KEY; does not go with the map): %s' % tsv)
     details['replaced'] = len(ids)
     details['by_kind'] = dict(collections.Counter(defs[k][0] for k in ids))
