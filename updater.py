@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 import re
+import ssl
 import subprocess
 import sys
 import threading
@@ -14,6 +15,25 @@ API = 'https://api.github.com/repos/{}/releases/latest'
 TIMEOUT = 6
 INDEX = 'names.npz'
 PROGRAM = 'DevoProtect-linux-x86_64' if sys.platform.startswith('linux') else 'DevoProtect.exe'
+CA_FILES = ('/etc/ssl/certs/ca-certificates.crt', '/etc/pki/tls/certs/ca-bundle.crt', '/etc/ssl/ca-bundle.pem',
+            '/etc/ssl/cert.pem', '/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem')
+_opener = []
+
+
+def _open(request, timeout):
+    if not _opener:
+        context = ssl.create_default_context()
+        if not context.cert_store_stats().get('x509_ca'):
+            for path in CA_FILES:
+                if os.path.isfile(path):
+                    try:
+                        context.load_verify_locations(cafile=path)
+                        break
+                    except (OSError, ssl.SSLError):
+                        continue
+        _opener.append(urllib.request.build_opener(urllib.request.HTTPSHandler(context=context)))
+        urllib.request.install_opener(_opener[0])
+    return _opener[0].open(request, timeout=timeout)
 
 
 def version_tuple(text):
@@ -27,7 +47,7 @@ def enabled(argv):
 def latest_release():
     request = urllib.request.Request(API.format(REPOSITORY), headers={
         'Accept': 'application/vnd.github+json', 'User-Agent': 'DevoProtect'})
-    with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
+    with _open(request, TIMEOUT) as response:
         data = json.load(response)
     assets = data.get('assets', [])
     exe = next((a for a in assets if a.get('name', '').lower() == PROGRAM.lower()), {})
@@ -75,7 +95,7 @@ def open_page(release):
 def _download(url, target, size, minimum):
     part = target + '.new'
     request = urllib.request.Request(url, headers={'User-Agent': 'DevoProtect'})
-    with urllib.request.urlopen(request, timeout=60) as response, open(part, 'wb') as out:
+    with _open(request, 60) as response, open(part, 'wb') as out:
         while True:
             chunk = response.read(1 << 16)
             if not chunk:
