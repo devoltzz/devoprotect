@@ -21,7 +21,26 @@ async function boot() {
   post({ type: 'boot', label: 'Loading the protector...' });
   const r = await fetch('engine.zip');
   if (!r.ok) throw new Error('engine.zip: ' + r.status);
-  py.unpackArchive(await r.arrayBuffer(), 'zip', { extractDir: APP });
+  const total = Number(r.headers.get('content-length') || 0);
+  let bytes = null;
+  if (r.body && total) {
+    const reader = r.body.getReader();
+    const chunks = [];
+    let got = 0;
+    for (;;) {
+      const part = await reader.read();
+      if (part.done) break;
+      chunks.push(part.value);
+      got += part.value.length;
+      post({ type: 'boot', label: 'Loading the protector...', pct: Math.min(99, Math.round(got * 100 / total)) });
+    }
+    bytes = new Uint8Array(got);
+    let off = 0;
+    for (const c of chunks) { bytes.set(c, off); off += c.length; }
+  } else {
+    bytes = new Uint8Array(await r.arrayBuffer());
+  }
+  py.unpackArchive(bytes, 'zip', { extractDir: APP });
   const pj = await fetch('pjass.wasm');
   if (pj.ok) {
     const wasm = await WebAssembly.compile(await pj.arrayBuffer());
@@ -107,8 +126,12 @@ self.onmessage = ev => {
       return Promise.resolve(pronto).then(go => go && mod.run(JSON.stringify(m.job), s => post({ type: 'event', event: s })));
     }
   }).catch(e => {
+    const msg = String(e && e.message || e);
+    const memory = /memory|out of bounds|allocation|RangeError/i.test(msg);
     if (m.type === 'job' && m.job && m.job.id) post({ type: 'event', event: JSON.stringify({
-      type: 'error', job: m.job.id, message: 'The engine stopped: ' + String(e && e.message || e) }) });
-    else if (m.rid) post({ type: 'reply', rid: m.rid, error: String(e && e.message || e) });
+      type: 'error', job: m.job.id,
+      message: memory ? 'Not enough memory in this browser for this map. Use the program (DevoProtect.exe): it has '
+                        + 'the whole computer and the same options.' : 'The engine stopped: ' + msg }) });
+    else if (m.rid) post({ type: 'reply', rid: m.rid, error: msg });
   });
 };
