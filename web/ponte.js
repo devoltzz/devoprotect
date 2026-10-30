@@ -15,6 +15,15 @@
     if (el) el.textContent = text;
   }
 
+  function bootBar(label, pct) {
+    const bar = document.getElementById('bar');
+    const fill = document.getElementById('barfill');
+    if (!bar || !fill) return;
+    bar.hidden = false;
+    if (pct == null) { bar.classList.add('indet'); }
+    else { bar.classList.remove('indet'); fill.style.width = Math.max(4, Math.min(99, pct)) + '%'; }
+  }
+
   function call(msg) {
     return new Promise((res, rej) => {
       const id = ++rid;
@@ -48,8 +57,8 @@
 
   worker.onmessage = msg => {
     const m = msg.data;
-    if (m.type === 'boot') status(m.label);
-    else if (m.type === 'ready') { status(''); readyDone(); }
+    if (m.type === 'boot') { status(m.label); bootBar(m.label, m.pct); }
+    else if (m.type === 'ready') { status(''); const b = document.getElementById('bar'); if (b) b.hidden = true; readyDone(); }
     else if (m.type === 'boot_failed') {
       status('The protector did not load: ' + m.message);
       readyFail(new Error(m.message));
@@ -86,7 +95,7 @@
       const ev = await new Promise(done => {
         subjobs[sub] = { send, done };
         worker.postMessage({ type: 'job', job: { id: sub, map: path, out: params.out + '/' + protectedName(name),
-                                                 options: params.options } });
+                                                 options: params.options, version: CFG.version || '' } });
       });
       delete subjobs[sub];
       const ok = ev.type === 'result' && !!ev.ok;
@@ -194,8 +203,14 @@
       }
       const id = 'job' + (++rid);
       const out = params.out || '/out/' + protectedName(params.map);
-      worker.postMessage({ type: 'job', job: { id, map: params.map, out, options: params.options } });
+      worker.postMessage({ type: 'job', job: { id, map: params.map, out, options: params.options,
+                                               version: CFG.version || '' } });
       return id;
+    },
+    cancel: async () => {
+      try { worker.terminate(); } catch (e) { }
+      location.reload();
+      return true;
     },
   };
 
