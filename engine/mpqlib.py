@@ -35,7 +35,7 @@ def _native_decrypt():
 
 def decrypt_bytes(data, key):
     native_lib = _NATIVE_DECRYPT[0] if _NATIVE_DECRYPT[0] is not None else _native_decrypt()
-    if native_lib and len(data) >= 16:
+    if native_lib and len(data) >= 16 and 0 <= key <= 0xFFFFFFFF:
         return native_lib(data, key)
     n = len(data) // 4
     src = array('I')
