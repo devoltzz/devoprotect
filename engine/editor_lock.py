@@ -399,11 +399,27 @@ def lock_editor(
         return details
     if os.path.normcase(os.path.abspath(output)) == os.path.normcase(os.path.abspath(entry)):
         raise SystemExit('the output must be a different file (the original does not change)')
-    shutil.copyfile(entry, output)
-    if repl or to_delete:
-        import mpqadd
-        mpqadd.add_files(output, repl, to_delete=to_delete, log=lambda *x: None)
-    b = mpqread.Archive(output)
+    part = os.path.splitext(output)[0] + '.part' + os.path.splitext(output)[1]
+    if os.path.normcase(os.path.abspath(part)) == os.path.normcase(os.path.abspath(entry)):
+        raise SystemExit('the input is the .part of the output: pick another output name')
+    ready = False
+    try:
+        shutil.copyfile(entry, part)
+        if repl or to_delete:
+            import mpqadd
+            mpqadd.add_files(part, repl, to_delete=to_delete, log=lambda *x: None)
+        details = _check_written(details, a, part, output, name_list, repl, to_delete, modified_names, log)
+        if details['ok']:
+            os.replace(part, output)
+            ready = True
+    finally:
+        if not ready and os.path.isfile(part):
+            os.remove(part)
+    return details
+
+
+def _check_written(details, a, part, output, name_list, repl, to_delete, modified_names, log):
+    b = mpqread.Archive(part)
     problems = []
     new_ones = dict((k.lower(), v) for k, v in repl)
     to_delete_low = set(k.lower() for k in to_delete)
