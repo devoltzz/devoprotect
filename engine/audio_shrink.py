@@ -10,6 +10,13 @@ FFMPEG_DEFAULT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(_
                                                'ffmpeg', 'bin', 'ffmpeg.exe'))
 
 
+MAX_SECONDS = 1800
+
+
+def _max_wall_time(n_bytes):
+    return 300 + 60 * (n_bytes // (1 << 20) + 1)
+
+
 def executable(ffmpeg=None):
     if ffmpeg or os.environ.get('FFMPEG'):
         return ffmpeg or os.environ.get('FFMPEG')
@@ -38,10 +45,17 @@ def reencode(data_bytes, ext, kbps=32, channels=1, rate=22050, ffmpeg=None):
         open(ent, 'wb').write(data_bytes)
         cmd = [exe, '-v', 'error', '-nostdin', '-y', '-i', ent, '-map', '0:a:0', '-map_metadata', '-1',
                '-id3v2_version', '0', '-write_id3v1', '0', '-ac', str(channels), '-ar', str(rate),
-               '-codec:a', 'libmp3lame', '-b:a', '%dk' % kbps, out_path]
-        r = subprocess.run(cmd, capture_output=True)
+               '-codec:a', 'libmp3lame', '-b:a', '%dk' % kbps, '-t', str(MAX_SECONDS + 1), out_path]
+        try:
+            r = subprocess.run(cmd, capture_output=True, timeout=_max_wall_time(len(data_bytes)))
+        except subprocess.TimeoutExpired:
+            raise RuntimeError(
+                'ffmpeg ran past %d s (%d bytes of input)' % (_max_wall_time(len(data_bytes)), len(data_bytes))
+            )
         if r.returncode != 0 or not os.path.isfile(out_path):
             raise RuntimeError('ffmpeg failed (%d): %s' % (r.returncode, r.stderr.decode('utf-8', 'replace')[-400:]))
+        if os.path.getsize(out_path) > MAX_SECONDS * kbps * 125:
+            raise RuntimeError('the sound is longer than %d s (the cap of a map sound)' % MAX_SECONDS)
         return open(out_path, 'rb').read()
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
