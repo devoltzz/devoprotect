@@ -395,6 +395,8 @@ class Archive:
                     idx.setdefault((ht[i * 4], ht[i * 4 + 1]), []).append(i)
             self._idx, self._free = idx, free_slots
         hn = self.hash_n
+        if hn & (hn - 1):
+            return self._mask_probe(h0, h1, h2)
         slot = h0 & (hn - 1)
         ceiling = hn
         if self._free:
@@ -408,6 +410,28 @@ class Archive:
                 bl, bi = self.ht[i * 4 + 2], self.ht[i * 4 + 3]
                 out.append((dist, (i, bl & 0xFFFF, (bl >> 16) & 0xFF, bi & BLOCK_MASK, (bl >> 24) & 0xFF)))
         return [e for _d, e in sorted(out)]
+
+    def _mask_probe(self, h0, h1, h2):
+        cands = self._idx.get((h1, h2))
+        if not cands:
+            return []
+        tgt = set(cands)
+        bitmask = self.hash_n - 1
+        i = h0 & bitmask
+        seen, out = set(), []
+        missing_items = len(tgt)
+        while i not in seen:
+            seen.add(i)
+            if i in tgt:
+                bl, bi = self.ht[i * 4 + 2], self.ht[i * 4 + 3]
+                out.append((i, bl & 0xFFFF, (bl >> 16) & 0xFF, bi & BLOCK_MASK, (bl >> 24) & 0xFF))
+                missing_items -= 1
+                if not missing_items:
+                    break
+            elif i < self.hash_n_read and self.ht[i * 4 + 3] == 0xFFFFFFFF:
+                break
+            i = (i + 1) & bitmask
+        return out
 
     def find(self, name):
         es = self.hash_entries(name)
@@ -742,6 +766,8 @@ def _validate_block(a, bi, fname=None, _key=None):
         return 'invalid', 'data past the end of the file'
     if fs == 0:
         return 'ok', 'empty'
+    if fs > FILE_SIZE_CAP:
+        return 'invalid', 'the declared size (%d B) is above the limit of %d MB' % (fs, FILE_SIZE_CAP >> 20)
     def raw(i=0, j=None):
         end_pos = cs if j is None else min(j, cs)
         return a.d[p + i:p + end_pos] if i < end_pos else b''
