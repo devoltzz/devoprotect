@@ -5,7 +5,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 IMAGE = 'devoprotect-linux'
-PJASS_COMMIT = '378a1ca'
+PJASS_COMMIT = '654c3cf'
 STEPS = "\n".join([
     'set -e',
     'rm -rf /tmp/pjass && git clone -q https://github.com/lep/pjass.git /tmp/pjass',
