@@ -1521,6 +1521,22 @@ def _decode(buf):
     return Chunk(body, functions, comments)
 
 
+def recursion_room(f):
+    import functools
+
+    @functools.wraps(f)
+    def run(*args, **kwargs):
+        old = sys.getrecursionlimit()
+        if old < _RECURSION:
+            sys.setrecursionlimit(_RECURSION)
+        try:
+            return f(*args, **kwargs)
+        finally:
+            if old < _RECURSION:
+                sys.setrecursionlimit(old)
+    return run
+
+
 def _parse_python(text):
     old = sys.getrecursionlimit()
     if old < _RECURSION:
