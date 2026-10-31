@@ -97,7 +97,7 @@
   "Optimize size",
   "Optimize the size",
   "Optimizing the size...",
-  "Optional, in every mode. The map plays the same; the mark is a request written into the file, the script and the archive header.",
+  "Optional, in every mode. The map plays the same; the mark is a request written into the file and the script.",
   "Options without an in-game test are on: test this map before publishing.",
   "Previous key cleared: a campaign takes the keys folder.",
   "Previous key cleared: a folder takes the keys folder.",
