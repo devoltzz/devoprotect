@@ -216,11 +216,28 @@ class _NoFreeIndex:
 
     def lookup(self, ia, pair):
         import bisect
+        if self.n & (self.n - 1):
+            my_parts, deleted_here = set(self.by_pair.get(pair, ())), set(self.deleted_slots)
+            slots, first_free_slot, i, seen = [], None, ia, set()
+            while i not in seen:
+                seen.add(i)
+                if i in my_parts:
+                    slots.append(i)
+                elif first_free_slot is None and i in deleted_here:
+                    first_free_slot = i
+                i = (i + 1) & (self.n - 1)
+            return slots, first_free_slot
         slots = sorted(self.by_pair.get(pair, ()), key=lambda s: (s - ia) % self.n)
         k = bisect.bisect_left(self.deleted_slots, ia)
         if k < len(self.deleted_slots):
             return slots, self.deleted_slots[k]
         return slots, (self.deleted_slots[0] if self.deleted_slots else None)
+
+    def dropped(self, s, pair):
+        import bisect
+        if s in self.by_pair.get(pair, ()):
+            self.by_pair[pair].remove(s)
+        bisect.insort(self.deleted_slots, s)
 
     def occupy(self, s, pair):
         import bisect
@@ -319,6 +336,20 @@ def _add_to_open_file(f, path, repl, to_delete, reset, all_entries, fake_count, 
             i = (i + 1) & (hcount - 1)
         if not achou:
             log('delete: %s is not in the map' % name)
+    if repl or weight:
+        replaced_pairs = set((m.hash_string(n, 1), m.hash_string(n, 2)) for n, _c in repl)
+        hash_entries = list(struct.iter_unpack('<IIHHI', htab))
+        new_block_cap = (
+            bcount + len(repl) + len(weight) + sum(1 for e in hash_entries if (e[0], e[1]) in replaced_pairs)
+        )
+        wakeable = [i for i, e in enumerate(hash_entries)
+                    if e[4] not in (FREE, DELETED) and bcount <= (e[4] & 0x0FFFFFFF) < new_block_cap]
+        for i in wakeable:
+            struct.pack_into('<I', htab, i * 16 + 12, DELETED)
+        if wakeable:
+            log('%d hash table entr(ies) with a block just past the table (where the new blocks go) -> removed'
+                % len(wakeable))
+        del hash_entries
     no_free = _NoFreeIndex.if_needed(htab, hcount) if (repl or weight) else None
     for name, content in repl:
         ia = m.hash_string(name, 0) & (hcount - 1)
@@ -373,9 +404,20 @@ def _add_to_open_file(f, path, repl, to_delete, reset, all_entries, fake_count, 
                 struct.pack_into('<IIII', btab, bi * 16, details, len(packed), len(content), nflags)
                 log('replaced %s: hash#%d block#%d locale 0x%x platform 0x%x flags 0x%x size=%d packed=%d'
                       % (name, hi, bi, loc, plat & 0xFF, plat >> 8, len(content), len(packed)))
+            if not all_entries and neutrals:
+                target_block_index = struct.unpack_from('<I', htab, targets[0][0] * 16 + 12)[0] & 0x0FFFFFFF
+                for x in [x for x in hits if x not in targets and x[2] != 0 and x[1] != target_block_index]:
+                    struct.pack_into('<I', htab, x[0] * 16 + 12, DELETED)
+                    hits.remove(x)
+                    if not any(y[1] == x[1] for y in hits):
+                        uses.get(x[1], set()).discard((ha, hb))
+                    if no_free is not None:
+                        no_free.dropped(x[0], (ha, hb))
+                    log('   locale entry 0x%x of %s (hash#%d, block#%d) -> removed: the game opens the replaced one'
+                        % (x[2], name, x[0], x[1]))
             if len(hits) > len(targets):
                 log('   (%d entries with this name; the other(s) remain: %s)' % (
-                    len(hits), [(x[0], hex(x[3])) for x in hits if x not in targets]))
+                    len(hits), [(x[0], hex(x[2])) for x in hits if x not in targets]))
         else:
             bi = len(btab) // 16
             btab += struct.pack('<IIII', details, len(packed), len(content), nflags)
