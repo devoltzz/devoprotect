@@ -185,6 +185,7 @@ def mine_bytes(data_bytes):
         out |= slk_dir_file(data_bytes)
     if b'\x00' in data_bytes:
         out.update(v.decode('latin-1').replace('/', '\\') for v in nul_values(data_bytes))
+    out = set(n for n in out if not re.search(r'\.\.[\\/]', n))
     for m in _paths(data_bytes):
         s = m.group(0).decode('latin-1', 'replace').replace('/', '\\').strip()
         s = s.strip('"\' \t\r\n\x00')
