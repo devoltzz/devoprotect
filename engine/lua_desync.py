@@ -211,6 +211,7 @@ def _assigned_in_functions(tree, functions):
     return out
 
 
+@lua_ast.recursion_room
 def scan(text, tree=None):
     res = {'items': [], 'error': None}
     if tree is None:
@@ -225,11 +226,13 @@ def scan(text, tree=None):
 
     def builds(name, seen):
         if name in memo:
-            return memo[name]
-        if name in seen or name not in functions:
-            return None
-        seen = seen | {name}
-        found = None
+            return memo[name], False
+        if name not in functions:
+            return None, False
+        if name in seen:
+            return None, True
+        seen.add(name)
+        found, cut = None, False
         for c, _h in _run_calls(functions[name]):
             n = _call_name(c)
             if n is None:
@@ -237,12 +240,14 @@ def scan(text, tree=None):
             if n in made and n not in functions:
                 found = ([], n)
                 break
-            sub = builds(n, seen)
+            sub, sub_cut = builds(n, seen)
+            cut = cut or sub_cut
             if sub is not None:
                 found = ([n] + sub[0], sub[1])
                 break
-        memo[name] = found
-        return found
+        if found is not None or not cut:
+            memo[name] = found
+        return found, cut
 
     reassigned = None
     for c, holder in _run_calls(tree.body):
@@ -252,7 +257,7 @@ def scan(text, tree=None):
         if n in made and n not in functions:
             kind, via, native = 'direct', [], n
         else:
-            got = builds(n, frozenset())
+            got = builds(n, set())[0]
             if got is None:
                 continue
             kind, via, native = 'via', [n] + got[0], got[1]
