@@ -1,5 +1,6 @@
 # Makes a JASS script smaller: no comments, short names, dead code out, constants inlined.
 import os
+import re
 
 import jass_ast
 
@@ -9,6 +10,8 @@ ALPHA = 'etaoinshrdlucmfwypvbgkqjxzETAOINSHRDLUCMFWYPVBGKQJXZ'
 ALNUM = ALPHA + '0123456789'
 INLINE_STRING_MAX = 14
 KEPT = ('main', 'config')
+SCRIPT_RUNNERS = frozenset(('EXExecuteScript',))
+_RX_WORD = re.compile(r'[A-Za-z_]\w*')
 _ENGINE = {}
 _REF_TYPES = (jass_ast.Name, jass_ast.Call, jass_ast.FuncRef)
 
@@ -62,7 +65,7 @@ def minify_text(text, options=None):
     opt = dict({'rename': True, 'dead': True, 'inline': True, 'keep': (), 'libraries': None}, **(options or {}))
     rep = {'state': 'nothing_to_do', 'reason': None, 'before': len(text), 'after': len(text), 'removed_functions': 0,
            'removed_globals': 0, 'removed_names': [], 'inlined': 0, 'renamed': 0, 'names': {}, 'dynamic_execute': False,
-           'dynamic_variable_events': False}
+           'dynamic_variable_events': False, 'dynamic_script': False}
     try:
         tree = jass_ast.parse(text)
     except jass_ast.JassSyntaxError as e:
@@ -85,6 +88,12 @@ def minify_text(text, options=None):
                     var_literals.add(_string_value(a))
                 else:
                     rep['dynamic_variable_events'] = True
+            elif n.name in SCRIPT_RUNNERS:
+                a = n.args[0] if n.args else None
+                if type(a) is jass_ast.Literal and a.kind == 'string':
+                    keep.update(_RX_WORD.findall(_string_value(a)))
+                else:
+                    rep['dynamic_script'] = True
     if opt['inline']:
         uses = {}
         for n in jass_ast.walk(tree):
@@ -101,14 +110,14 @@ def minify_text(text, options=None):
                     consts[g.name] = lit
         if consts:
             rep['inlined'] = _inline(tree, consts)
-    if opt['dead'] and not rep['dynamic_execute']:
+    if opt['dead'] and not rep['dynamic_execute'] and not rep['dynamic_script']:
         dead = _dead_functions(tree, funcs, keep, exec_literals)
         if dead:
             tree.items = [it for it in tree.items if not (type(it) is jass_ast.Function and not it.is_native and
                                                           it.name in dead)]
             rep['removed_functions'] = len(dead)
             funcs = dict((n, f) for n, f in funcs.items() if n not in dead)
-    if opt['dead']:
+    if opt['dead'] and not rep['dynamic_script']:
         gone = _dead_globals(tree, funcs, var_literals, keep)
         rep['removed_globals'] = len(gone)
         rep['removed_names'] = gone
@@ -233,8 +242,8 @@ def _rename(tree, funcs, keep, exec_literals, var_literals, rep, libraries):
     protected = set(engine) | natives | types_ | set(keep)
     glob = dict((g.name, g) for it in tree.items if type(it) is jass_ast.Globals for g in it.decls)
     top_names = set(glob) | set(funcs)
-    rename_funcs = not rep['dynamic_execute']
-    rename_globals = not rep['dynamic_variable_events']
+    rename_funcs = not rep['dynamic_execute'] and not rep['dynamic_script']
+    rename_globals = not rep['dynamic_variable_events'] and not rep['dynamic_script']
     refs, external, freq = {}, set(), {}
     for f in tree.functions:
         if f.name not in funcs:
