@@ -107,7 +107,7 @@
  "Optimize size": "Tối ưu dung lượng",
  "Optimize the size": "Tối ưu dung lượng",
  "Optimizing the size...": "Đang tối ưu dung lượng...",
- "Optional, in every mode. The map plays the same; the mark is a request written into the file, the script and the archive header.": "Tùy chọn, ở mọi chế độ. Bản đồ chơi như cũ; dấu này là một yêu cầu được ghi vào tệp, vào script và vào header của archive.",
+ "Optional, in every mode. The map plays the same; the mark is a request written into the file and the script.": "Tùy chọn, ở mọi chế độ. Bản đồ chơi như cũ; dấu này là một yêu cầu được ghi vào tệp và vào script.",
  "Options without an in-game test are on: test this map before publishing.": "Có tùy chọn chưa được thử trong game đang bật: hãy thử bản đồ này trước khi phát hành.",
  "Preset loaded: {0}": "Đã tải preset: {0}",
  "Preset saved: {0}": "Đã lưu preset: {0}",
