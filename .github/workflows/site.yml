@@ -14,7 +14,7 @@ permissions:
   contents: write
 
 env:
-  PJASS_COMMIT: 378a1ca
+  PJASS_COMMIT: 654c3cf
   TAG: ${{ github.event.release.tag_name || inputs.tag }}
   GH_TOKEN: ${{ github.token }}
 
