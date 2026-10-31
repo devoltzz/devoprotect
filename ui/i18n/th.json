@@ -107,7 +107,7 @@
  "Optimize size": "ปรับขนาดให้เล็กลง",
  "Optimize the size": "ปรับขนาดให้เล็กลง",
  "Optimizing the size...": "กำลังปรับขนาดให้เล็กลง...",
- "Optional, in every mode. The map plays the same; the mark is a request written into the file, the script and the archive header.": "ไม่บังคับ ใช้ได้ทุกโหมด แผนที่เล่นได้เหมือนเดิม เครื่องหมายเป็นคำขอที่เขียนไว้ในไฟล์ ในสคริปต์ และในส่วนหัวของ archive",
+ "Optional, in every mode. The map plays the same; the mark is a request written into the file and the script.": "ไม่บังคับ ใช้ได้ทุกโหมด แผนที่เล่นได้เหมือนเดิม เครื่องหมายเป็นคำขอที่เขียนไว้ในไฟล์และในสคริปต์",
  "Options without an in-game test are on: test this map before publishing.": "มีตัวเลือกที่ยังไม่ได้ทดสอบในเกมเปิดอยู่: ทดสอบแผนที่นี้ก่อนเผยแพร่",
  "Preset loaded: {0}": "โหลดพรีเซ็ตแล้ว: {0}",
  "Preset saved: {0}": "บันทึกพรีเซ็ตแล้ว: {0}",
