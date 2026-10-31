@@ -7,6 +7,7 @@ import ssl
 import subprocess
 import sys
 import threading
+import time
 import urllib.request
 import webbrowser
 
@@ -17,7 +18,18 @@ INDEX = 'names.npz'
 PROGRAM = 'DevoProtect-linux-x86_64' if sys.platform.startswith('linux') else 'DevoProtect.exe'
 CA_FILES = ('/etc/ssl/certs/ca-certificates.crt', '/etc/pki/tls/certs/ca-bundle.crt', '/etc/ssl/ca-bundle.pem',
             '/etc/ssl/cert.pem', '/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem')
+HOSTS = ('github.com', 'githubusercontent.com')
 _opener = []
+
+
+class _GitHubOnly(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        import urllib.parse
+        address = urllib.parse.urlparse(newurl)
+        host = (address.hostname or '').lower()
+        if address.scheme != 'https' or not any(host == h or host.endswith('.' + h) for h in HOSTS):
+            raise OSError('the download was sent to %s, not to GitHub' % (address.hostname or newurl))
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
 def _open(request, timeout):
@@ -31,7 +43,7 @@ def _open(request, timeout):
                         break
                     except (OSError, ssl.SSLError):
                         continue
-        _opener.append(urllib.request.build_opener(urllib.request.HTTPSHandler(context=context)))
+        _opener.append(urllib.request.build_opener(urllib.request.HTTPSHandler(context=context), _GitHubOnly))
         urllib.request.install_opener(_opener[0])
     return _opener[0].open(request, timeout=timeout)
 
@@ -55,7 +67,8 @@ def latest_release():
     sums = next((a for a in assets if a.get('name', '') == 'SHA256SUMS.txt'), {})
     cli = next((a for a in assets if a.get('name', '') == 'DevoProtect-cli.exe'), {})
     return {'version': data.get('tag_name', ''), 'page': data.get('html_url', ''),
-            'exe': exe.get('browser_download_url'), 'size': exe.get('size'),
+            'exe': exe.get('browser_download_url'), 'size': exe.get('size'), 'digest': exe.get('digest'),
+            'index_digest': index.get('digest'),
             'index': index.get('browser_download_url'), 'index_size': index.get('size'),
             'sums': sums.get('browser_download_url'), 'cli': cli.get('browser_download_url'),
             'cli_size': cli.get('size')}
@@ -89,23 +102,52 @@ def check(current, found, index_needed=None):
 
 
 def open_page(release):
-    webbrowser.open(release.get('page') or 'https://github.com/' + REPOSITORY + '/releases')
+    page = release.get('page') or ''
+    if not page.startswith('https://github.com/' + REPOSITORY + '/'):
+        page = 'https://github.com/' + REPOSITORY + '/releases'
+    webbrowser.open(page)
 
 
 def _download(url, target, size, minimum):
-    part = target + '.new'
+    part, new = target + '.part', target + '.new'
     request = urllib.request.Request(url, headers={'User-Agent': 'DevoProtect'})
-    with _open(request, 60) as response, open(part, 'wb') as out:
-        while True:
-            chunk = response.read(1 << 16)
-            if not chunk:
-                break
-            out.write(chunk)
-    got = os.path.getsize(part)
-    if got < minimum or got != (size or got):
-        os.remove(part)
-        raise OSError('the download is incomplete')
-    return part
+    try:
+        with _open(request, 60) as response, open(part, 'wb') as out:
+            while True:
+                chunk = response.read(1 << 16)
+                if not chunk:
+                    break
+                out.write(chunk)
+        got = os.path.getsize(part)
+        if got < minimum or got != (size or got):
+            raise OSError('the download is incomplete')
+        os.replace(part, new)
+    except BaseException:
+        if os.path.exists(part):
+            os.remove(part)
+        raise
+    return new
+
+
+def _check_digest(path, digest, required=True):
+    import hashlib
+    if not digest:
+        if required:
+            os.remove(path)
+            raise OSError('the release gives no checksum for this file')
+        return
+    h = hashlib.sha256()
+    with open(path, 'rb') as f:
+        for block in iter(lambda: f.read(1 << 20), b''):
+            h.update(block)
+    if 'sha256:' + h.hexdigest() != digest.lower():
+        os.remove(path)
+        raise OSError('the download does not match the checksum of the release')
+
+
+def _index_ready(path):
+    import zipfile
+    return zipfile.is_zipfile(path)
 
 
 def _verify(path, name, release):
@@ -127,6 +169,10 @@ def _verify(path, name, release):
 
 def download_index(release):
     part = _download(release['index'], index_path(), release.get('index_size'), 1)
+    _check_digest(part, release.get('index_digest'), required=False)
+    if not _index_ready(part):
+        os.remove(part)
+        raise OSError('the downloaded file name index is damaged')
     try:
         os.replace(part, index_path())
     except OSError:
@@ -140,11 +186,20 @@ def install(release):
         return False
     new = _download(release['exe'], exe, release.get('size'), 1 << 20)
     _verify(new, PROGRAM, release)
+    _check_digest(new, release.get('digest'))
     old = exe + '.old'
     if os.path.exists(old):
         os.remove(old)
     os.replace(exe, old)
-    os.replace(new, exe)
+    for attempt in range(5):
+        try:
+            os.replace(new, exe)
+            break
+        except OSError:
+            if attempt == 4:
+                os.replace(old, exe)
+                raise
+            time.sleep(0.3)
     if not sys.platform.startswith('win'):
         os.chmod(exe, 0o755)
     cli = os.path.join(os.path.dirname(exe), 'DevoProtect-cli.exe')
@@ -155,13 +210,13 @@ def install(release):
             os.replace(part, cli)
         except OSError:
             pass
-    subprocess.Popen([exe], close_fds=True)
+    subprocess.Popen([exe], close_fds=True, env=dict(os.environ, PYINSTALLER_RESET_ENVIRONMENT='1'))
     return True
 
 
 def cleanup():
     exe = sys.executable if getattr(sys, 'frozen', False) else None
-    for leftover in ((exe + '.old', exe + '.new') if exe else ()):
+    for leftover in ((exe + '.old', exe + '.new', exe + '.part') if exe else ()) + (index_path() + '.part',):
         try:
             if os.path.exists(leftover):
                 os.remove(leftover)
@@ -170,6 +225,9 @@ def cleanup():
     pending = index_path() + '.new'
     if os.path.exists(pending):
         try:
-            os.replace(pending, index_path())
+            if _index_ready(pending):
+                os.replace(pending, index_path())
+            else:
+                os.remove(pending)
         except OSError:
             pass
