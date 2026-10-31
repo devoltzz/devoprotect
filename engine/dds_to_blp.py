@@ -189,6 +189,26 @@ def _cited_names(data_bytes, rx_ext):
 
 
 def converte(entry, output, only_smaller=False, log=print, types=('dds',), sector_bytes=None):
+    entry, output = os.path.abspath(entry), os.path.abspath(output)
+    if entry == output:
+        raise SystemExit('the output must be another file (the input never changes)')
+    root, ext = os.path.splitext(output)
+    part = root + '.part' + (ext or '.w3x')
+    if os.path.normcase(part) == os.path.normcase(entry):
+        raise SystemExit('the input is the .part of the output: pick another output name')
+    try:
+        details = _convert_to_part(entry, part, only_smaller, log, types, sector_bytes, output)
+        os.replace(part, output)
+    except BaseException:
+        try:
+            os.remove(part)
+        except OSError:
+            pass
+        raise
+    return details
+
+
+def _convert_to_part(entry, output, only_smaller, log, types, sector_bytes, final):
     import editor_lock
     import blpread
     import mpqadd
@@ -196,9 +216,6 @@ def converte(entry, output, only_smaller=False, log=print, types=('dds',), secto
     import shutil
     import struct
     types = tuple(t for t in TYPES if t in set(types))
-    entry, output = os.path.abspath(entry), os.path.abspath(output)
-    if entry == output:
-        raise SystemExit('the output must be another file (the input never changes)')
     a = mpqread.Archive(entry)
     name_list, names_low = [], set()
     for n in editor_lock.map_names(a):
@@ -211,7 +228,7 @@ def converte(entry, output, only_smaller=False, log=print, types=('dds',), secto
         return ext[1:] if ext[:1] == '.' and ext[1:] in types else None
     dds = [n for n in name_list if n.lower().endswith('.dds')] if 'dds' in types else []
     images = [n for n in name_list if type_of(n) in ('tga', 'png')]
-    details = {'entry': entry, 'output': output, 'dds': len(dds), 'types': list(types), 'matrix': {}, 'replaced': 0,
+    details = {'entry': entry, 'output': final, 'dds': len(dds), 'types': list(types), 'matrix': {}, 'replaced': 0,
                'ok': False}
     for t in types:
         if t != 'dds':
@@ -395,7 +412,7 @@ def converte(entry, output, only_smaller=False, log=print, types=('dds',), secto
     details['replaced'] = len(to_delete)
     details['ok'] = True
     if types == ('dds',):
-        log('DDS %s: %d .dds -> .blp in %s' % ('OK' if details['ok'] else 'FAILED', details['replaced'], output))
+        log('DDS %s: %d .dds -> .blp in %s' % ('OK' if details['ok'] else 'FAILED', details['replaced'], final))
     else:
-        log('BLP %s: %d image(s) -> .blp in %s' % ('OK' if details['ok'] else 'FAILED', details['replaced'], output))
+        log('BLP %s: %d image(s) -> .blp in %s' % ('OK' if details['ok'] else 'FAILED', details['replaced'], final))
     return details
