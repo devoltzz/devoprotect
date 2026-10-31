@@ -575,8 +575,8 @@ def _var_name(fname, prefix=''):
     return fname.replace('_', ' ')
 
 
-RX_RECT = re.compile(r'gg_rct_([A-Za-z0-9_]+)\s*=\s*Rect\(\s*([^)]*)\)')
-RX_RECT_JASS = re.compile(r'set\s+gg_rct_([A-Za-z0-9_]+)\s*=\s*Rect\(\s*([^)]*)\)')
+RX_RECT = re.compile(r'gg_rct_([A-Za-z0-9_]+)\s*=\s*Rect\(([^)]*)\)')
+RX_RECT_JASS = re.compile(r'set\s+gg_rct_([A-Za-z0-9_]+)\s*=\s*Rect\(([^)]*)\)')
 RX_WEATHER = re.compile(r'AddWeatherEffect\(\s*gg_rct_([A-Za-z0-9_]+)\s*,\s*'
                         r'(?:FourCC\(\s*[\'"](.{1,4})[\'"]\s*\)|\'(.{1,4})\')')
 RX_SOUND_POS = re.compile(r'SetSoundPosition\(\s*(gg_snd_[A-Za-z0-9_]+)\s*,\s*'
@@ -635,7 +635,7 @@ def _bodies_of_role(body_text, role):
     return ''.join(bodies[n] for n in name_list if n in bodies)
 
 
-RX_ANY_RECT = re.compile(r'set\s+(\w+)\s*=\s*Rect\(\s*([^)]*)\)')
+RX_ANY_RECT = re.compile(r'set\s+(\w+)\s*=\s*Rect\(([^)]*)\)')
 RX_ANY_WEATHER = re.compile(r'AddWeatherEffect\(\s*(\w+)\s*,\s*(?:FourCC\(\s*[\'"](.{1,4})[\'"]\s*\)|\'(.{1,4})\')')
 
 
