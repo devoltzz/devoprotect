@@ -107,7 +107,7 @@
  "Optimize size": "Ottimizza le dimensioni",
  "Optimize the size": "Ottimizza le dimensioni",
  "Optimizing the size...": "Ottimizzazione delle dimensioni...",
- "Optional, in every mode. The map plays the same; the mark is a request written into the file, the script and the archive header.": "Facoltativo, in ogni modalità. La mappa si gioca uguale; il contrassegno è una richiesta scritta nel file, nello script e nell'intestazione dell'archivio.",
+ "Optional, in every mode. The map plays the same; the mark is a request written into the file and the script.": "Facoltativo, in ogni modalità. La mappa si gioca uguale; il contrassegno è una richiesta scritta nel file e nello script.",
  "Options without an in-game test are on: test this map before publishing.": "Ci sono opzioni non provate in partita attive: prova questa mappa prima di pubblicare.",
  "Preset loaded: {0}": "Preset caricato: {0}",
  "Preset saved: {0}": "Preset salvato: {0}",
