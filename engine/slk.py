@@ -5,6 +5,9 @@ import sys
 
 
 
+MAX_X = 999999
+
+
 _NAT = [None]
 
 
@@ -15,7 +18,8 @@ def _native_sound():
         _NAT[0] = False
         try:
             import ctypes
-            jn = sys.modules.get('jass_native')
+            jn = next((m for k, m in list(sys.modules.items())
+                       if m is not None and k.rsplit('.', 1)[-1] == 'jass_native'), None)
             if jn is None:
                 source = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'jass_native.py')
                 if os.path.isfile(source):
@@ -146,7 +150,9 @@ def parse_slk_bytes(raw, native=True):
         cells.setdefault(cur_y, {})[x] = k
     if 1 not in cells:
         return [], {}
-    header = cells[1]
+    header = dict((x, v) for x, v in cells[1].items() if x <= MAX_X)
+    if not header:
+        return [], {}
     maxx = max(header)
     hdr = [header.get(i, '') for i in range(1, maxx + 1)]
     for y in sorted(cells):
