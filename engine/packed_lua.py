@@ -129,7 +129,7 @@ def texts(body_text):
     return out
 
 
-RX_W3P_PATH = re.compile(r'[\w\\/ .\-()\[\]]+\.[A-Za-z0-9]{2,4}')
+RX_W3P_PATH = re.compile(r'[\w\\/ .\-()\[\]]{1,180}\.[A-Za-z0-9]{2,4}')
 
 
 def paths(body_text):
