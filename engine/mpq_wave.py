@@ -5,6 +5,9 @@ import zlib
 from array import array
 
 
+CAP_WITHOUT_EXPECTED = 64 << 20
+
+
 _NATIVE_SOUND = [None]
 
 
@@ -523,22 +526,36 @@ def decompress_sector_chain(sector_bytes, expected_len=None):
     if bitmask & 0x20:
         raise WaveError('mask 0x%02x: sparse (0x20) not implemented here' % bitmask)
     data_bytes = sector_bytes[1:]
+    ceiling = expected_len if expected_len is not None else CAP_WITHOUT_EXPECTED
     for k, (bit, fname) in enumerate(steps):
         last = k == len(steps) - 1
         try:
             if bit == 0x10:
-                data_bytes = bz2.decompress(data_bytes)
-                if expected_len is not None:
-                    data_bytes = data_bytes[:expected_len]
+                d = bz2.BZ2Decompressor()
+                data_bytes = d.decompress(data_bytes, ceiling + 1)
+                if len(data_bytes) > ceiling:
+                    data_bytes, rest = data_bytes[:ceiling], 0
+                    while not d.eof:
+                        if d.needs_input:
+                            raise WaveError('bzip2 (mask 0x%02x): the stream ends before its end' % bitmask)
+                        rest += len(d.decompress(b'', 1 << 20))
+                        if rest > CAP_WITHOUT_EXPECTED:
+                            raise WaveError('bzip2 (mask 0x%02x): the stream goes %d MB past the sector'
+                                            % (bitmask, CAP_WITHOUT_EXPECTED >> 20))
+                elif not d.eof:
+                    raise WaveError('bzip2 (mask 0x%02x): the stream ends before its end' % bitmask)
             elif bit == 0x08:
                 import pkware
                 data_bytes = pkware.decompress(data_bytes, expected=expected_len if last else None)
                 if expected_len is not None:
                     data_bytes = data_bytes[:expected_len]
             elif bit == 0x02:
-                data_bytes = zlib.decompress(data_bytes)
-                if expected_len is not None and len(data_bytes) > expected_len:
-                    raise WaveError('zlib: %d bytes, more than the %d of the sector' % (len(data_bytes), expected_len))
+                d = zlib.decompressobj()
+                data_bytes = d.decompress(data_bytes, ceiling + 1)
+                if len(data_bytes) > ceiling:
+                    raise WaveError('zlib: more bytes than the %d of the sector' % ceiling)
+                if not d.eof:
+                    raise WaveError('zlib (mask 0x%02x): the stream ends before its end' % bitmask)
             elif bit == 0x01:
                 data_bytes = decompress_huffman(data_bytes, expected_len)
             elif bit == 0x80:
