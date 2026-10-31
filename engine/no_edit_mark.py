@@ -1,10 +1,9 @@
-# Writes the three "not allowed to edit" marks into a protected map without moving its other files.
+# Writes the "not allowed to edit" marks (the file and the script comment) into a protected map without moving its other files.
 import hashlib
 import os
 import struct
 
-from no_edit import (HEADER_BLOCK, HEADER_HASH, HEADER_SECTOR, NAME, SCRIPT_TEXT, content, map_script_entry, of_archive,
-                     read, script_marked)
+from no_edit import NAME, SCRIPT_TEXT, content, map_script_entry, of_archive, read, script_marked
 
 
 FREE, DELETED = 0xFFFFFFFF, 0xFFFFFFFE
@@ -17,16 +16,6 @@ def mark_script(name, data):
     eol = b'\r\n' if b'\r\n' in data else b'\r' if b'\r' in data else b'\n'
     good = b'\xef\xbb\xbf' if data.startswith(b'\xef\xbb\xbf') else b''
     return good + line + eol + data[len(good):]
-
-
-def mark_header(data, fname=None):
-    import sector_pack
-    off, fields = sector_pack.header_text(data, fname=fname)
-    out = bytearray(data)
-    struct.pack_into('<H', out, off + 14, (fields[4] & 0xFF) | (HEADER_SECTOR << 8))
-    struct.pack_into('<I', out, off + 24, (fields[7] & 0x0FFFFFFF) | (HEADER_HASH << 28))
-    struct.pack_into('<I', out, off + 28, (fields[8] & 0x0FFFFFFF) | (HEADER_BLOCK << 28))
-    return bytes(out)
 
 
 def _encrypt_packed(packed, key, fsize, sector):
@@ -170,7 +159,7 @@ def mark_copy(src, dst, log=None):
     special = set(mpqread._hashes3(n)[1:] for n in ('(attributes)', '(listfile)'))
     if script_name:
         special.add(mpqread._hashes3(script_name)[1:])
-    expected = ['file'] + (['script'] if script_name else []) + ['header']
+    expected = ['file'] + (['script'] if script_name else [])
     tmp = '%s.part%s' % os.path.splitext(dst)
     try:
         with open(tmp, 'wb') as f:
@@ -192,10 +181,6 @@ def mark_copy(src, dst, log=None):
             with open(tmp, 'wb') as f:
                 f.write(truncated)
             log('the hash table cut again')
-        with open(tmp, 'rb') as f:
-            signed = mark_header(f.read(), fname=tmp)
-        with open(tmp, 'wb') as f:
-            f.write(signed)
         c = mpqread.Archive(tmp)
         final = of_archive(c)
         if final is None or set(final['marks']) != set(expected):
