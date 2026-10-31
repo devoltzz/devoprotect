@@ -94,6 +94,7 @@ def _truthy(v):
 
 
 MAX_STRING = 1 << 20
+MAX_KEPT = 512 << 20
 
 
 def _concat_or_add(a, b):
@@ -226,6 +227,7 @@ class Interpreter(object):
         self.ops = 0
         self.thread_costs = {}
         self.thread_budget = set()
+        self.kept_chars = 0
         self._frames = []
         self.early = 0.0
         self.early_timers = []
@@ -261,6 +263,13 @@ class Interpreter(object):
                 self.functions[f.name] = f
         self._trees = trees
 
+    def hold(self, old, new):
+        n = (len(new) if isinstance(new, str) else 0) - (len(old) if isinstance(old, str) else 0)
+        if n:
+            self.kept_chars += n
+            if self.kept_chars > MAX_KEPT:
+                raise Budget('the strings kept passed %d characters' % MAX_KEPT)
+
     def tick(self, n=1):
         self.steps += n
         if self.steps > self.budget:
@@ -283,6 +292,9 @@ class Interpreter(object):
                 except (Crash,) + _MATH_ERRORS as e:
                     self.globals[g.name] = UNSET
                     self.crashes.append('global %s: %s' % (g.name, e))
+                except RecursionError:
+                    self.globals[g.name] = UNSET
+                    self.crashes.append('global %s: too deep' % g.name)
 
     def thread(self, name, args=()):
         frame = [self.ops, 0, name]
@@ -429,6 +441,18 @@ class Interpreter(object):
                                    False, d.type))
         body = self._block(f.body, local_names)
         rtype = f.return_type
+        arrays = [n for n, _i, is_array, _t in init_calls if is_array]
+        if arrays:
+            inner, it = body, self
+
+            def body(env):
+                try:
+                    return inner(env)
+                finally:
+                    for n in arrays:
+                        a = env.get(n)
+                        if a:
+                            it.kept_chars -= sum(len(v) for v in a.values() if type(v) is str)
 
         def run(args):
             env = {}
@@ -528,8 +552,14 @@ class Interpreter(object):
                 return set_local
             types = self.global_types
 
+            hold = self.hold
+
             def set_global(env):
-                g[name] = _coerce(types.get(name), value(env))
+                v = _coerce(types.get(name), value(env))
+                old = g.get(name)
+                if type(v) is str or type(old) is str:
+                    hold(old, v)
+                g[name] = v
                 return 0
             return set_global
         name = target.base.name
@@ -544,8 +574,13 @@ class Interpreter(object):
             arr = env[name] if local else g.get(name)
             if not isinstance(arr, dict):
                 raise Crash('%s is not an array' % name)
-            arr[i] = _coerce(atype, value(env))
+            v = _coerce(atype, value(env))
+            old = arr.get(i)
+            if type(v) is str or type(old) is str:
+                hold(old, v)
+            arr[i] = v
             return 0
+        hold = self.hold
         return set_index
 
     def _expr(self, e, local_names):
@@ -644,6 +679,8 @@ class Interpreter(object):
             v = f({})
         except RecursionError:
             raise Crash('too deep')
+        except _MATH_ERRORS as x:
+            raise Crash(str(x))
         finally:
             self.budget, self.steps = saved
         if v is UNSET:
@@ -845,6 +882,8 @@ def _register_timer_event(it, t, timeout, periodic):
 def _ht_key(kind):
     def save(it, ht, p, c, v):
         if isinstance(ht, Handle):
+            if kind == 's':
+                it.hold(ht.data.get((kind, p, c)), v)
             ht.data[(kind, p, c)] = v
     def load(it, ht, p, c):
         if isinstance(ht, Handle):
@@ -855,18 +894,19 @@ def _ht_key(kind):
         return isinstance(ht, Handle) and (kind, p, c) in ht.data
     def remove(it, ht, p, c):
         if isinstance(ht, Handle):
-            ht.data.pop((kind, p, c), None)
+            it.hold(ht.data.pop((kind, p, c), None), None)
     return save, load, have, remove
 
 
 def _flush_child(it, ht, p):
     if isinstance(ht, Handle):
         for k in [k for k in ht.data if k[1] == p]:
-            del ht.data[k]
+            it.hold(ht.data.pop(k), None)
 
 
 def _flush_parent(it, ht):
     if isinstance(ht, Handle):
+        it.kept_chars -= sum(len(v) for v in ht.data.values() if type(v) is str)
         ht.data.clear()
 
 
