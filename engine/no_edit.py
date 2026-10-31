@@ -1,7 +1,8 @@
-# The three "not allowed to edit" marks of a map: written into the map when its author asks, read by the tools that respect them.
+# The "not allowed to edit" marks of a map: a file inside the archive and a comment in the script (an old MPQ header signature is still read), read by the tools that respect them.
 import contextlib
 import io
 import json
+import os
 import re
 
 
@@ -195,6 +196,48 @@ def _of_broken(path):
         return None
 
 
+CAMPAIGN_MAP_RX = re.compile(rb'[^\x00-\x1f"*<>?|]{1,260}?\.w3[mx]', re.I)
+
+
+def of_campaign_maps(a):
+    import shutil
+    import tempfile
+    try:
+        if a.find('war3campaign.w3f') is None or a.find('war3map.w3i') is not None:
+            return None
+        names = []
+        for source in ('(listfile)', 'war3campaign.w3f'):
+            data = _read_uncached(a, source) or b''
+            names += [m.group(0).strip().decode('utf-8', 'surrogateescape') for m in CAMPAIGN_MAP_RX.finditer(data)]
+    except BaseException as e:
+        if isinstance(e, KeyboardInterrupt):
+            raise
+        return None
+    seen = set()
+    folder = tempfile.mkdtemp(prefix='devos_map_doctor_')
+    try:
+        for name in names:
+            if name.upper() in seen:
+                continue
+            seen.add(name.upper())
+            data = _read_uncached(a, name)
+            if not data:
+                continue
+            path = os.path.join(folder, '%03d%s' % (len(seen), os.path.splitext(name)[1].lower()))
+            with open(path, 'wb') as f:
+                f.write(data)
+            mark = read(path)
+            os.remove(path)
+            if mark:
+                return dict(mark, map=name)
+    except BaseException as e:
+        if isinstance(e, KeyboardInterrupt):
+            raise
+    finally:
+        shutil.rmtree(folder, ignore_errors=True)
+    return None
+
+
 def read(path):
     import mpqread
     try:
@@ -204,4 +247,4 @@ def read(path):
         if isinstance(e, KeyboardInterrupt):
             raise
         return _of_broken(path)
-    return of_archive(a)
+    return of_archive(a) or of_campaign_maps(a)
