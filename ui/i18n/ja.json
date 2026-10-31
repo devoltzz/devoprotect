@@ -107,7 +107,7 @@
  "Optimize size": "サイズを最適化",
  "Optimize the size": "サイズを最適化",
  "Optimizing the size...": "サイズを最適化中...",
- "Optional, in every mode. The map plays the same; the mark is a request written into the file, the script and the archive header.": "任意で、どのモードでも使えます。マップの遊び方は変わりません。マークはファイル、スクリプト、アーカイブのヘッダーに書き込まれる要望です。",
+ "Optional, in every mode. The map plays the same; the mark is a request written into the file and the script.": "任意で、どのモードでも使えます。マップの遊び方は変わりません。マークはファイルとスクリプトに書き込まれる要望です。",
  "Options without an in-game test are on: test this map before publishing.": "ゲーム内で未検証のオプションが有効です。公開前にこのマップをテストしてください。",
  "Preset loaded: {0}": "プリセットを読み込みました: {0}",
  "Preset saved: {0}": "プリセットを保存しました: {0}",
