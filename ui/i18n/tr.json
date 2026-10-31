@@ -107,7 +107,7 @@
  "Optimize size": "Boyutu optimize et",
  "Optimize the size": "Boyutu optimize et",
  "Optimizing the size...": "Boyut optimize ediliyor...",
- "Optional, in every mode. The map plays the same; the mark is a request written into the file, the script and the archive header.": "İsteğe bağlı, her modda. Harita aynı oynanır; işaret dosyaya, betiğe ve arşiv başlığına yazılan bir istektir.",
+ "Optional, in every mode. The map plays the same; the mark is a request written into the file and the script.": "İsteğe bağlı, her modda. Harita aynı oynanır; işaret dosyaya ve betiğe yazılan bir istektir.",
  "Options without an in-game test are on: test this map before publishing.": "Oyunda denenmemiş seçenekler açık: yayınlamadan önce bu haritayı test et.",
  "Preset loaded: {0}": "Ön ayar yüklendi: {0}",
  "Preset saved: {0}": "Ön ayar kaydedildi: {0}",
