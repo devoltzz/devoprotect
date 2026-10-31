@@ -15,7 +15,19 @@ def _nothing(*_a, **_k):
 
 
 def _unprotector():
-    return sys.modules.get('name_recovery')
+    if _FOUND:
+        return _FOUND[0]
+    u = sys.modules.get('name_recovery')
+    if u is None:
+        u = next((m for k, m in list(sys.modules.items()) if m is not None and k.rsplit('.', 1)[-1] == 'name_recovery'),
+                 None)
+    if u is not None and hasattr(u, '_listfile_status'):
+        _FOUND.append(u)
+        return u
+    return None
+
+
+_FOUND = []
 
 
 def _open(path):
