@@ -107,7 +107,7 @@
  "Optimize size": "크기 최적화",
  "Optimize the size": "크기 최적화",
  "Optimizing the size...": "크기를 최적화하는 중...",
- "Optional, in every mode. The map plays the same; the mark is a request written into the file, the script and the archive header.": "선택 사항이며 모든 모드에서 쓸 수 있습니다. 맵은 똑같이 플레이됩니다. 이 표시는 파일, 스크립트, 아카이브 헤더에 기록되는 요청입니다.",
+ "Optional, in every mode. The map plays the same; the mark is a request written into the file and the script.": "선택 사항이며 모든 모드에서 쓸 수 있습니다. 맵은 똑같이 플레이됩니다. 이 표시는 파일과 스크립트에 기록되는 요청입니다.",
  "Options without an in-game test are on: test this map before publishing.": "게임에서 검증되지 않은 옵션이 켜져 있습니다: 배포 전에 이 맵을 테스트하세요.",
  "Preset loaded: {0}": "프리셋을 불러왔습니다: {0}",
  "Preset saved: {0}": "프리셋을 저장했습니다: {0}",
