@@ -107,7 +107,7 @@
  "Optimize size": "Оптимізувати розмір",
  "Optimize the size": "Оптимізувати розмір",
  "Optimizing the size...": "Оптимізація розміру...",
- "Optional, in every mode. The map plays the same; the mark is a request written into the file, the script and the archive header.": "Необов'язково, у будь-якому режимі. Мапа грається так само; позначка — це прохання, записане у файл, у скрипт і в заголовок архіву.",
+ "Optional, in every mode. The map plays the same; the mark is a request written into the file and the script.": "Необов'язково, у будь-якому режимі. Мапа грається так само; позначка — це прохання, записане у файл і в скрипт.",
  "Options without an in-game test are on: test this map before publishing.": "Увімкнено параметри, не перевірені в грі: перевірте цю карту перед публікацією.",
  "Preset loaded: {0}": "Пресет завантажено: {0}",
  "Preset saved: {0}": "Пресет збережено: {0}",
