@@ -3,6 +3,16 @@
 What each version of DevoProtect brought, the newest first. The downloads are on the
 [Releases](https://github.com/devoltzz/devoprotect/releases) page.
 
+## 0.1.19 (2026-10-31)
+
+- The "Mark the map as not allowed to edit" option no longer stops the map from appearing in the game. The mark used to
+  write a 16-bit signature into the MPQ header: a high byte of the sector size and a high nibble of the hash and block
+  counts, on the assumption that the game ignores those bits as StormLib does. The game does not: its map list could not
+  read `war3map.w3i`, and the marked map was not listed. The mark now writes only the file inside the archive and the
+  comment line in the script; the tools that respect it still refuse to change the map. A map marked by 0.1.14 to 0.1.18
+  still reads as marked, because the reader keeps recognizing the old header signature; protect such a map again from the
+  original to get the two safe marks.
+
 ## 0.1.18 (2026-10-30)
 
 - The save-code key is safer and easier to keep. The `.tsv` now carries the map name, its sha256, the version and the
@@ -14,9 +24,9 @@ What each version of DevoProtect brought, the newest first. The downloads are on
   script without the check. The impossible `--cut-hash` is skipped with a warning instead of aborting the whole map.
   The Lua loader layers now follow the script size (2 up to 512 KB, 1 above; automatic is the default), and the
   steps that only change the script do not decompress the whole map again to check it.
-- The Lua strings got a per-map key: the public LCG over the index is gone, replaced by a quadratic recurrence with
-  two constants drawn for each map. The decoy `war3map.wtg`/`wct` now comes with the trigger functions it cites in
-  the script, so a GUI-versus-script comparison no longer gives it away.
+- The Lua strings use a key drawn for each map: a quadratic recurrence that replaces the same formula for every map.
+  The decoy `war3map.wtg`/`wct` now carries the trigger functions it cites in the script, so the GUI and the script
+  agree when the editor compares them.
 - The window shows a simple result outside the log (size before and after, time, the save-code reuse, the key and the
   warnings), a progress bar and a Cancel button, drag and drop, `aria-expanded` on the groups and a release checklist.
   It remembers the options, the out folder and the key of each map, and the Custom set is not lost when another mode is
