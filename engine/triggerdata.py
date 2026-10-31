@@ -10,6 +10,13 @@ import re
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE_DIR = os.path.normpath(os.path.join(HERE, '..', 'cache'))
+DOCS_COPY = next((p for p in (os.path.normpath(os.path.join(HERE, '..', 'docs', 'script-para-gatilhos', 'game',
+                                                            'war3.w3mod__ui__triggerdata.txt')),
+                              os.path.normpath(os.path.join(HERE, '..', 'ref', '3.0', 'TriggerData.txt')),
+                              os.path.join(HERE, 'ref', '3.0', 'TriggerData.txt'))
+                  if os.path.isfile(p)),
+                 os.path.normpath(os.path.join(HERE, '..', 'docs', 'script-para-gatilhos', 'game',
+                                               'war3.w3mod__ui__triggerdata.txt')))
 CACHE_FORMAT = 1
 
 KINDS = ('event', 'condition', 'action', 'call')
