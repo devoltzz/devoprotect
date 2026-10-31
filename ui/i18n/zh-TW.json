@@ -107,7 +107,7 @@
  "Optimize size": "最佳化大小",
  "Optimize the size": "最佳化大小",
  "Optimizing the size...": "正在最佳化大小...",
- "Optional, in every mode. The map plays the same; the mark is a request written into the file, the script and the archive header.": "可選，所有模式皆可用。地圖玩法不變；此標記是寫入檔案、腳本和封包標頭的請求。",
+ "Optional, in every mode. The map plays the same; the mark is a request written into the file and the script.": "可選，所有模式皆可用。地圖玩法不變；此標記是寫入檔案和腳本的請求。",
  "Options without an in-game test are on: test this map before publishing.": "有尚未在遊戲中驗證的選項已開啟：發佈前請測試這張地圖。",
  "Preset loaded: {0}": "已載入預設：{0}",
  "Preset saved: {0}": "已儲存預設：{0}",
