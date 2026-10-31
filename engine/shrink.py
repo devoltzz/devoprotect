@@ -40,10 +40,18 @@ POOL_PACK_OTHER = 16 << 20
 POOL_BLP = 128 << 10
 BLP_WHY = {'not a BLP1 JPEG': 'not a BLP1 JPEG', 'no mipmap': 'no mipmap',
            'mipmaps overlap': 'mipmaps overlap', 'a mipmap goes past the end': 'a mipmap goes past the end',
-           'decodificacao': 'does not decode', 'not baseline': 'not baseline JPEG (progressive or other)',
-           'no DHT': 'no Huffman table', 'DHT parte no cabecalho': 'tables in the header and in the mipmaps',
+           'decoding: %s: %s': 'does not decode', 'not baseline': 'not baseline JPEG (progressive or other)',
+           'no DHT': 'no Huffman table',
+           'DHT parte no cabecalho, parte no mipmap': 'tables in the header and in the mipmaps',
            'the header is no longer a common one': 'the shared header would differ',
-           'PIXEL DIFERENTE': 'the pixels would differ', 'did not get smaller': 'not smaller'}
+           'PIXEL DIFFERENT (not written)': 'the pixels would differ', 'did not get smaller': 'not smaller'}
+
+
+def _blp_why_key(why):
+    for k in BLP_WHY:
+        if why == k or ('%' in k and why.startswith(k.split('%', 1)[0])):
+            return k
+    return why.split(' (')[0].split(',')[0].split(':')[0]
 
 
 def _nothing(*_a, **_k):
@@ -354,7 +362,7 @@ def _plan(a, kept, data, opts, sector, cod, progress, sha):
             if workers > 1 and sum(map(len, todo.values())) > POOL_BLP:
                 pool = _pool(workers)
             for h, (nb, why) in _blp(todo, pool, progress).items():
-                reasons[why.split(' (')[0].split(',')[0].split(':')[0]] += 1
+                reasons[_blp_why_key(why)] += 1
                 if nb is not None:
                     new[h] = nb
         pack = {}
@@ -648,6 +656,11 @@ def lossy(path_in, path_out, need, progress=None):
         return res
     p('Finding the art')
     unprotect = sys.modules.get('name_recovery')
+    if unprotect is None:
+        unprotect = next((m for k, m in list(sys.modules.items())
+                          if m is not None and k.rsplit('.', 1)[-1] == 'name_recovery'), None)
+    if unprotect is not None and not hasattr(unprotect, 'map_names'):
+        unprotect = None
     if unprotect is not None:
         with unprotect.quiet():
             every = unprotect.map_names(a)
@@ -833,6 +846,8 @@ def _shrink(path_in, path_out, options=None, progress=None):
         return _fail(res, 'The check of the new map failed (%s).' % (str(e) or type(e).__name__), t0)
     if rewritten:
         res['attributes'] = _redo_attributes(path_out, p)
+        if res['attributes'].get('state') == 'redone':
+            res['size_after'] = os.path.getsize(path_out)
     res.update(state='done', checked=len(kept), stormlib=storm, seconds=round(time.time() - t0, 1))
     p('Done')
     return res
