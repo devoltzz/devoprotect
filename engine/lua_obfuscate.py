@@ -1301,6 +1301,7 @@ def compile_lua53(data_bytes):
     return False, r.decode('utf-8', 'replace') if isinstance(r, bytes) else str(r)
 
 
+@lua_ast.recursion_room
 def obfuscate(source, seed=None, keep_names=(), layers=2, no_names=False, no_strings=False, marker=None,
               log=print, no_globals=False, ref=None):
     keep_names = set(keep_names) | {'_ENV'}
