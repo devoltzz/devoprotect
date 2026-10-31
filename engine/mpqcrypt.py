@@ -216,15 +216,17 @@ def load_sound():
 
     def huffman(data_bytes, ceiling):
         data_bytes = bytes(data_bytes)
-        out = ctypes.create_string_buffer(ceiling)
-        r = fh(data_bytes, len(data_bytes), out, ceiling)
-        return None if r < 0 else out.raw[:r]
+        cap = min(ceiling, 8 * len(data_bytes) + 16)
+        out = ctypes.create_string_buffer(cap)
+        r = fh(data_bytes, len(data_bytes), out, cap)
+        return None if r < 0 else ctypes.string_at(out, r)
 
     def adpcm(data_bytes, channels, ceiling):
         data_bytes = bytes(data_bytes)
-        out = ctypes.create_string_buffer(ceiling)
-        r = fa(data_bytes, len(data_bytes), channels, out, ceiling)
-        return None if r < 0 else out.raw[:r]
+        cap = min(ceiling, 2 * len(data_bytes) + 4)
+        out = ctypes.create_string_buffer(max(cap, 1))
+        r = fa(data_bytes, len(data_bytes), channels, out, cap)
+        return None if r < 0 else ctypes.string_at(out, r)
     return huffman, adpcm
 
 
