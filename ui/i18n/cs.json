@@ -107,7 +107,7 @@
  "Optimize size": "Optimalizovat velikost",
  "Optimize the size": "Optimalizovat velikost",
  "Optimizing the size...": "Optimalizuji velikost...",
- "Optional, in every mode. The map plays the same; the mark is a request written into the file, the script and the archive header.": "Volitelné, v každém režimu. Mapa se hraje stejně; značka je žádost zapsaná do souboru, do skriptu a do hlavičky archivu.",
+ "Optional, in every mode. The map plays the same; the mark is a request written into the file and the script.": "Volitelné, v každém režimu. Mapa se hraje stejně; značka je žádost zapsaná do souboru a do skriptu.",
  "Options without an in-game test are on: test this map before publishing.": "Jsou zapnuté možnosti nevyzkoušené ve hře: před zveřejněním tuto mapu otestuj.",
  "Preset loaded: {0}": "Předvolba načtena: {0}",
  "Preset saved: {0}": "Předvolba uložena: {0}",
