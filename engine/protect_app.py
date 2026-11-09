@@ -691,6 +691,7 @@ class Api:
         self._cancels = {}
         self._n = 0
         self._release = None
+        self._installing = threading.Lock()
 
     def hello(self):
         return {'version': self._version, 'app': APP, 'map': self._initial, 'options': default_options(),
@@ -716,10 +717,15 @@ class Api:
         import updater
         if not self._release:
             return False
+        if not self._installing.acquire(False):
+            return True
         try:
             installed = updater.install(self._release)
-        except OSError:
+        except Exception:
+            updater.open_page(self._release)
             return False
+        finally:
+            self._installing.release()
         if installed:
             self._window.destroy()
             return True
