@@ -168,7 +168,7 @@ def _raw(a, bi, sector):
     ntab = nsec + 1 + (1 if fl & F_CRC else 0)
     if cs < 4 * ntab:
         return None
-    offs = struct.unpack_from('<%dI' % ntab, a.d, p)
+    offs = struct.unpack_from('<%dI' % ntab, a.d[p:p + 4 * ntab])
     if offs[0] != 4 * ntab or offs[-1] != cs or any(offs[k] > offs[k + 1] for k in range(ntab - 1)):
         return None
     return p, cs
