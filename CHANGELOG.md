@@ -3,6 +3,19 @@
 What each version of DevoProtect brought, the newest first. The downloads are on the
 [Releases](https://github.com/devoltzz/devoprotect/releases) page.
 
+## 0.1.20 (2026-11-09)
+
+- The Cancel button works. Since it was added in 0.1.18 it sat inside the part of the window that is locked while a
+  protection runs, so the click never arrived: a running protection could not be stopped, in the program or in the
+  browser version. The button is now outside that part. After the click it turns off and the window keeps saying
+  "Cancelling..." until the job stops; before, the next progress step wiped the message.
+- A failed update is said. When the new version cannot be downloaded or installed, the window says so and opens the
+  release page; it used to stay on "Updating..." for good. No protection can start while an update downloads, and the
+  program installs one update at a time.
+- The window no longer stays on "Working..." with everything locked when the end of a job does not reach it. Cancel
+  on such a job ends it on the window's side, with a note to check the output folder, and a result that cannot be
+  drawn still gives the window back.
+
 ## 0.1.19 (2026-10-31)
 
 - The "Mark the map as not allowed to edit" option no longer stops the map from appearing in the game. The mark used to
