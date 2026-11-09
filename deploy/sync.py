@@ -18,7 +18,7 @@ AGENT = 'devo-sync'
 
 
 def log(text):
-    print(time.strftime('%Y-%m-%d %H:%M:%S ') + text, flush=True)
+    print(time.strftime('%Y-%m-%d %H:%M:%S ') + REPOSITORY.split('/')[-1] + ': ' + text, flush=True)
 
 
 def get(url, binary=False):
@@ -98,13 +98,25 @@ def once():
     return tag
 
 
+def sites(text=None):
+    text = os.environ.get('SITES', '') if text is None else text
+    pairs = [p.strip().split('=', 1) for p in text.split(',') if p.strip()]
+    return [(r.strip(), w.strip()) for r, w in pairs] or [(REPOSITORY, WWW)]
+
+
 def main(argv):
-    log('devo-sync: %s every %d s into %s' % (REPOSITORY, INTERVAL, WWW))
+    global REPOSITORY, WWW
+    only = [a.split('=', 1)[1] for a in argv if a.startswith('--only=')]
+    todo = [s for s in sites() if not only or s[0] in only]
+    if not todo:
+        print('no site %s' % only[0], flush=True)
+        return 2
     while True:
-        try:
-            once()
-        except Exception as e:
-            log('check failed: %s: %s' % (type(e).__name__, e))
+        for REPOSITORY, WWW in todo:
+            try:
+                once()
+            except Exception as e:
+                log('check failed: %s: %s' % (type(e).__name__, e))
         if '--once' in argv:
             return 0
         time.sleep(INTERVAL)
