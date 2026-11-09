@@ -68,9 +68,10 @@
       <label class="tog" style="margin:0"><input type="checkbox" data-opt="no_edit"> Mark the map as not allowed to edit: tools that respect the mark refuse to unprotect or change it<span class="why" id="w-no_edit"></span></label>
       <div class="hint" style="margin-top:2px">Optional, in every mode. The map plays the same; the mark is a request written into the file and the script.</div>
     </section>
+  </fieldset>
 
     <div class="layout">
-      <div id="groups">
+      <fieldset id="groups">
         <section class="card grp">
           <div class="gh">
             <label class="sw"><input type="checkbox" data-opt="shuffle"> Shuffle object IDs</label>
@@ -243,7 +244,7 @@
             <div class="hint" style="margin-top:2px">The same map and the same seed give the same IDs. Empty: the seed comes from the map itself.</div>
           </div>
         </section>
-      </div>
+      </fieldset>
 
       <aside class="card panel" id="side">
         <div class="title">Map check</div>
@@ -271,7 +272,6 @@
         <div style="margin-top:8px"><button class="btn small" id="togglelog" hidden>Show details</button></div>
       </aside>
     </div>
-  </fieldset>
 
   <pre id="log" hidden></pre>
   </main>
@@ -292,6 +292,9 @@
   var SEM_PROVA = ['to_dds', 'ac_globals'];
 
   var JOB = null;
+  var PHASE = 'idle';
+  function setPhase(p){ PHASE = p; RUNNING = p !== 'idle'; setRunnable(); }
+  var LOST_JOB_WAIT = 1500;
   var KEY = null, KEY_CAMPAIGN = false;
   var BATCH = null, DEFAULTS = {};
   var MAPINFO = null;
@@ -320,8 +323,11 @@
     $('loadpreset').disabled = RUNNING;
     $('pickout').disabled = !(MAP || BATCH) || RUNNING;
     $('form').disabled = RUNNING;
-    $('cancel').hidden = !RUNNING;
-    $('cancel').disabled = !RUNNING;
+    $('groups').disabled = RUNNING;
+    var job = PHASE === 'starting' || PHASE === 'running';
+    $('cancel').hidden = !(job || PHASE === 'cancelling');
+    $('cancel').disabled = !job;
+    $('updatebtn').disabled = RUNNING;
     document.querySelectorAll('input[name="mode"]').forEach(function(r){ r.disabled = RUNNING; });
     $('pickkey').disabled = RUNNING || !OPTIONS['shuffle'];
     $('clearkey').disabled = RUNNING;
@@ -763,9 +769,14 @@
         $('update').hidden = false;
       });
       $('updatebtn').addEventListener('click', function(){
-        $('updatebtn').disabled = true;
+        if(PHASE !== 'idle') return;
+        setPhase('updating');
         $('updatetext').textContent = 'Updating...';
-        a.update();
+        var done = function(ok){
+          setPhase('idle');
+          if(ok !== true){ $('updatetext').textContent = 'The update failed. The release page opened instead.'; }
+        };
+        Promise.resolve().then(function(){ return a.update(); }).then(done, function(){ done(false); });
       });
     }
   }
@@ -887,7 +898,8 @@
 
   $('run').addEventListener('click', async function(){
     if(!(MAP || BATCH) || RUNNING) return;
-    RUNNING = true; setRunnable();
+    JOB = null;
+    setPhase('starting');
     remember();
     clearLog(); sumEl.textContent = 'Working...'; outEl.hidden = true; traceWrap.hidden = true;
     NOTES = []; renderNotes();
@@ -895,25 +907,39 @@
     if(barEl.classList){ barEl.classList.add('indet'); }
     barFill.style.width = '';
     PROG = 0;
-    $('cancel').hidden = false;
-    JOB = null;
     try{
       JOB = await api().start(BATCH ? {folder: BATCH.folder, maps: BATCH.maps, out: OUT || BATCH.out, options: OPTIONS}
                                     : {map: MAP, out: OUT, options: OPTIONS});
       if(!JOB){ throw new Error('busy: a job is already running'); }
+      if(PHASE === 'starting'){ setPhase('running'); }
+      else if(PHASE === 'cancelling'){ sendCancel(JOB); }
       if(barEl.classList){ barEl.classList.remove('indet'); }
       barFill.style.width = '8%';
     }catch(e){
       addLine('bad', 'ERROR: ' + (e && e.message ? e.message : e));
       showLog(true);
-      sumEl.textContent = 'Failed.'; RUNNING = false; setRunnable();
+      sumEl.textContent = 'Failed.'; setPhase('idle');
     }
   });
-  $('cancel').addEventListener('click', async function(){
-    if(!RUNNING) return;
+  $('cancel').addEventListener('click', function(){
+    if(PHASE !== 'starting' && PHASE !== 'running') return;
+    var back = PHASE;
+    setPhase('cancelling');
     sumEl.textContent = 'Cancelling...';
-    try{ await api().cancel(JOB); }catch(e){ }
+    return sendCancel(JOB, back);
   });
+  async function sendCancel(job, back){
+    var known;
+    try{ known = await api().cancel(job); }
+    catch(e){ if(back && PHASE === 'cancelling'){ setPhase(back); } return; }
+    if(known !== false || !job){ return; }
+    setTimeout(function(){
+      if(PHASE !== 'cancelling' || JOB !== job){ return; }
+      sumEl.textContent = 'The job ended and its result did not reach this window: check the output folder.';
+      barEl.hidden = true;
+      setPhase('idle');
+    }, LOST_JOB_WAIT);
+  }
 
   var PROG = 0;
   window.onJob = function(payload){
@@ -921,26 +947,30 @@
     if(JOB && ev.job && ev.job !== JOB){ return; }
     if(ev.type === 'progress'){
       if(ev.text){
-        addLine('prog', ev.text); sumEl.textContent = ev.text;
+        addLine('prog', ev.text);
+        if(PHASE !== 'cancelling'){ sumEl.textContent = ev.text; }
         PROG++; barFill.style.width = Math.min(92, 8 + PROG * 3) + '%';
       }
     }
     else if(ev.type === 'error'){
-      addLine('bad', 'ERROR: ' + (ev.message||'')); showLog(true);
-      sumEl.textContent = 'Failed.';
-      if(ev.trace){ traceBox.textContent = ev.trace; traceWrap.hidden = false; }
-      RUNNING = false; barEl.hidden = true; setRunnable();
+      try{
+        addLine('bad', 'ERROR: ' + (ev.message||'')); showLog(true);
+        sumEl.textContent = 'Failed.';
+        if(ev.trace){ traceBox.textContent = ev.trace; traceWrap.hidden = false; }
+        barEl.hidden = true;
+      }finally{ setPhase('idle'); }
     }
     else if(ev.type === 'result'){
-      (ev.lines||[]).forEach(function(l){ addLine(l[0], (l[0]==='bad'?'! ':'') + l[1]); });
-      var s = ev.summary || '';
-      if(ev.cancelled){ s = 'Cancelled.'; }
-      sumEl.textContent = s;
-      barFill.style.width = '100%';
-      setTimeout(function(){ barEl.hidden = true; }, 600);
-      showOutcome(ev);
-      if(!ev.ok && !ev.cancelled){ showLog(true); }
-      RUNNING=false; setRunnable();
+      try{
+        (ev.lines||[]).forEach(function(l){ addLine(l[0], (l[0]==='bad'?'! ':'') + l[1]); });
+        var s = ev.summary || '';
+        if(ev.cancelled){ s = 'Cancelled.'; }
+        sumEl.textContent = s;
+        barFill.style.width = '100%';
+        setTimeout(function(){ barEl.hidden = true; }, 600);
+        showOutcome(ev);
+        if(!ev.ok && !ev.cancelled){ showLog(true); }
+      }finally{ setPhase('idle'); }
     }
   };
 
