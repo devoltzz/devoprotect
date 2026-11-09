@@ -3,6 +3,7 @@ import bz2
 import collections
 import struct
 import zlib
+import sys
 import os
 
 import mpqlib as M
@@ -304,14 +305,113 @@ def listfile_names(a):
             if lx.strip()]
 
 
+ON_DISK_MIN = 200 << 20
+
+
+def _on_disk_min():
+    v = os.environ.get('DOCTOR_MPQ_ON_DISK')
+    if v:
+        return int(v)
+    return ON_DISK_MIN if sys.platform == 'emscripten' else None
+
+
+class BytesOnDisk:
+    WINDOW = 1 << 20
+    whole_copies = 0
+
+    def __init__(self, path):
+        self.path = path
+        self._identity = _file_identity(path)
+        self._size = os.path.getsize(path)
+        self._window_start, self._window = 0, b''
+
+    def _from_disk(self, begin, n):
+        if _file_identity(self.path) != self._identity:
+            raise M.MPQError('the file changed while it was open: %s' % self.path)
+        with open(self.path, 'rb') as f:
+            f.seek(begin)
+            return f.read(n)
+
+    def _read(self, begin, n):
+        if n > self.WINDOW // 4:
+            return self._from_disk(begin, n)
+        details = begin - self._window_start
+        if details < 0 or details + n > len(self._window):
+            self._window_start = begin - begin % 4096
+            self._window = self._from_disk(self._window_start, self.WINDOW)
+            details = begin - self._window_start
+        return self._window[details:details + n]
+
+    def __len__(self):
+        return self._size
+
+    def __bytes__(self):
+        BytesOnDisk.whole_copies += 1
+        return self._read(0, self._size)
+
+    def __buffer__(self, flags):
+        return memoryview(bytes(self))
+
+    def __getitem__(self, k):
+        if isinstance(k, slice):
+            begin, end_pos, step = k.indices(self._size)
+            if step != 1:
+                return bytes(self)[k]
+            return self._read(begin, max(0, end_pos - begin))
+        i = k + self._size if k < 0 else k
+        if not 0 <= i < self._size:
+            raise IndexError('index out of range')
+        return self._read(i, 1)[0]
+
+    def __iter__(self):
+        return iter(bytes(self))
+
+    def __eq__(self, other):
+        return len(self) == len(other) and bytes(self) == bytes(other)
+
+    __hash__ = None
+
+    def find(self, sub, begin=0, end_pos=None, _piece_size=1 << 16):
+        end_pos = self._size if end_pos is None else min(end_pos, self._size)
+        begin = max(begin + self._size if begin < 0 else begin, 0)
+        while begin < end_pos:
+            until = min(end_pos, begin + _piece_size + len(sub))
+            i = self._read(begin, until - begin).find(sub)
+            if i >= 0:
+                return begin + i
+            if until >= end_pos:
+                break
+            begin += _piece_size
+            _piece_size = min(_piece_size * 2, 1 << 24)
+        return -1
+
+    def __getattr__(self, fname):
+        return getattr(bytes(self), fname)
+
+
+def bytes_of_map(path):
+    ceiling = _on_disk_min()
+    if ceiling is not None and os.path.getsize(path) >= ceiling:
+        return BytesOnDisk(path)
+    with open(path, 'rb') as f:
+        return f.read()
+
+
+def sector_slice(d, begin, end_pos):
+    return d[begin:end_pos] if isinstance(d, BytesOnDisk) else memoryview(d)[begin:end_pos]
+
+
 class Archive:
     VALIDATED_LIMIT = 1 << 17
 
     def __init__(self, path):
         self.path = path
         self._identity = _file_identity(path)
-        self.d = open(path, 'rb').read()
-        self.h, self.skipped = M.find_header(self.d, path)
+        self.d = bytes_of_map(path)
+        if isinstance(self.d, BytesOnDisk):
+            self.h, self.skipped = M.file_header(path)
+        else:
+            self.h, self.skipped = M.find_header(self.d, path)
         if self.h is None:
             raise M.MPQError('no valid MPQ header')
         if M.header_sector(self.h.block_shift) == 0:
@@ -725,7 +825,7 @@ class Archive:
             return False
         if not a[1]:
             return True
-        return memoryview(self.d)[a[0]:a[0] + a[1]] == memoryview(other.d)[b[0]:b[0] + b[1]]
+        return sector_slice(self.d, a[0], a[0] + a[1]) == sector_slice(other.d, b[0], b[0] + b[1])
 
 
 def end_by_sector_table(a, bi, fname):
