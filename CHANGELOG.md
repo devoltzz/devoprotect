@@ -3,6 +3,15 @@
 What each version of DevoProtect brought, the newest first. The downloads are on the
 [Releases](https://github.com/devoltzz/devoprotect/releases) page.
 
+## 0.1.21 (2026-11-17)
+
+- "Mark the map as not allowed to edit" writes one more mark, in the archive header of a single map. Tools that
+  respect the mark find it even when the other two were taken out. It was tested in Reforged: the marked map shows in
+  the map list and plays. MPQ Editor opens a marked map read-only.
+- The mark no longer leaves the old copy of the map script inside the archive. When the marked script did not fit
+  where the old one was, the old one stayed behind as an orphan block, readable and taking space (14 KB on a test
+  map). Its place is now cleared.
+
 ## 0.1.20 (2026-11-09)
 
 - The Cancel button works. Since it was added in 0.1.18 it sat inside the part of the window that is locked while a
