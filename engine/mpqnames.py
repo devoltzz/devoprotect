@@ -264,7 +264,8 @@ def referenced_closure(a, seeds=None, log=None, mines=None):
                     d = a.read(n, bi=r[1])
                 except Exception:
                     return
-                if not d or not content_matches(n, d):
+                if d is None or (d and not content_matches(n, d)) or (
+                        not d and not n.lower().endswith(('.txt', '.slk'))):
                     return
             keys.add(k)
             seen[n] = r[1]
@@ -272,7 +273,7 @@ def referenced_closure(a, seeds=None, log=None, mines=None):
 
     for n in seeds:
         accept(n.replace('/', '\\'))
-    for n in GAME_NAMES:
+    for n in GAME_NAMES + TERRAIN_TEXTURES:
         accept(n, from_game=True)
     round_num = 0
     while work_queue:
@@ -420,4 +421,58 @@ GAME_NAMES = tuple(
     + ['Units\\%sSkin.txt' % n for n in ('Unit', 'Item', 'Ability', 'Upgrade', 'Destructable')]
     + ['Doodads\\DoodadSkins.txt']
 )
+
+_TERRAIN = {
+    'Ashenvale': 'Ashen_Cliff0 Ashen_Cliff1 Ashen_Dirt Ashen_DirtGrass Ashen_DirtRough Ashen_Grass Ashen_GrassLumpy  '
+        'Ashen_leaves Ashen_Rock Ashen_Vines',
+    'Barrens': 'Barrens_Cliff0 Barrens_Cliff1 Barrens_Desert Barrens_DesertDark Barrens_Dirt Barrens_DirtGrass  '
+        'Barrens_DirtRough Barrens_Grass Barrens_Pebbles Barrens_Rock',
+    'BlackCitadel': 'Citadel_Cliff0 Citadel_Cliff1 Citadel_DarkTiles Citadel_Dirt Citadel_DirtLight  '
+        'Citadel_FlatStones Citadel_LargeBricks Citadel_RoughDirt Citadel_SmallBricks Citadel_SquareTiles',
+    'Cityscape': 'City_BlackMarble City_BrickTiles City_Dirt City_DirtRough City_Grass City_GrassTrim  '
+        'City_RoundTiles City_SquareTiles City_WhiteMarble',
+    'CityScape': 'City_Cliff0 City_Cliff1',
+    'CityscapeRuins': 'Cruins_BlackMarble Cruins_BrickTiles Cruins_Cliff0 Cruins_Cliff1 Cruins_Dirt  '
+        'Cruins_DirtRough Cruins_Grass Cruins_GrassTrim Cruins_RoundTiles Cruins_SquareTiles Cruins_WhiteMarble',
+    'Dalaran': 'Dalaran_BlackMarble Dalaran_BrickTiles Dalaran_Cliff0 Dalaran_Cliff1 Dalaran_Dirt Dalaran_DirtRough  '
+        'Dalaran_Grass Dalaran_GrassTrim Dalaran_RoundTiles Dalaran_SquareTiles Dalaran_WhiteMarble',
+    'DalaranRuins': 'DRuins_BlackMarble DRuins_BrickTiles DRuins_Cliff0 DRuins_Cliff1 DRuins_Dirt DRuins_DirtRough  '
+        'DRuins_Grass DRuins_GrassTrim DRuins_RoundTiles DRuins_SquareTiles DRuins_WhiteMarble',
+    'Dungeon2': 'GBrick GCliff0 GCliff1 GDarkRocks GDirt GGreyStones GLava GLavaCracks GRedStones GSquareTiles',
+    'Dungeon': 'Cave_Brick Cave_Cliff0 Cave_Cliff1 Cave_DarkRocks Cave_Dirt Cave_GreyStones Cave_Lava  '
+        'Cave_LavaCracks Cave_RedStones Cave_SquareTiles',
+    'Felwood': 'Felwood_Cliff0 Felwood_Cliff1 Felwood_Dirt Felwood_DirtRough Felwood_Grass Felwood_Leaves  '
+        'Felwood_Poison Felwood_Rock Felwood_Vines',
+    'Icecrown': 'Ice_BlackBricks Ice_BlackSquares Ice_Cliff0 Ice_Cliff1 Ice_DarkIce Ice_Dirt Ice_DirtRough Ice_Ice  '
+        'Ice_RuneBricks Ice_Snow Ice_TiledBricks',
+    'LordaeronCapital': 'Lordc_BlueMarble Lordc_BrickTiles Lordc_Cliff0 Lordc_Cliff1 Lordc_CobbleTiles  '
+        'Lordc_DiamondTiles Lordc_Dirt Lordc_DirtRough Lordc_Grass Lordc_GrassTrim Lordc_RedMarble Lordc_RoundTiles '
+        'Lordc_SlabBricks Lordc_SquareTiles Lordc_WhiteMarble',
+    'LordaeronCapitalRuins': 'LordCruins_BlueMarble LordCruins_BrickTiles LordCruins_Cliff0 LordCruins_Cliff1  '
+        'LordCruins_CobbleTiles LordCruins_DiamondTiles LordCruins_Dirt LordCruins_DirtRough LordCruins_Grass '
+        'LordCruins_GrassTrim LordCruins_RedMarble LordCruins_RoundTiles LordCruins_SlabBricks '
+        'LordCruins_SquareTiles LordCruins_WhiteMarble',
+    'LordaeronFall': 'Lordf_Cliff0 Lordf_Cliff1 Lordf_Dirt Lordf_DirtGrass Lordf_DirtRough Lordf_Grass  '
+        'Lordf_GrassDark Lordf_Rock',
+    'LordaeronSummer': 'Lords_Cliff0 Lords_Cliff1 Lords_Dirt Lords_DirtGrass Lords_DirtRough Lords_Grass  '
+        'Lords_GrassDark Lords_Rock',
+    'LordaeronWinter': 'Lordw_Cliff0 Lordw_Cliff1 Lordw_Dirt Lordw_DirtRough Lordw_Grass Lordw_Rock Lordw_Snow  '
+        'Lordw_SnowGrass',
+    'Misc': 'alpha Alpha_Cliff0 misc_CharredEarth misc_ScorchedEarth',
+    'Northrend': 'North_Cliff0 North_Cliff1 North_dirt North_dirtdark North_Grass North_ice North_rock North_Snow  '
+        'North_SnowRock',
+    'Outland': 'Outland_Abyss Outland_Cliff0 Outland_Cliff1 Outland_Dirt Outland_DirtCracked Outland_DirtLight  '
+        'Outland_FlatStones Outland_FlatStonesLight Outland_Rock Outland_RoughDirt',
+    'Ruins': 'Ruins_Cliff0 Ruins_Cliff1 Ruins_Dirt Ruins_DirtGrass Ruins_DirtRough Ruins_Grass Ruins_GrassDark  '
+        'Ruins_LargeBricks Ruins_RoundTiles Ruins_Sand Ruins_SmallBricks',
+    'Undercity': 'UC_BrickTiles UC_BrokenMarble UC_CircularTiles UC_Cliff0 UC_Cliff1 UC_Dirt UC_Dirt_rough  '
+        'UC_GlyphBricks UC_Naxx_BrickTiles UC_Naxx_MetalTiles UC_SewerBricks',
+    'Village': 'Village_Cliff0 Village_Cliff1 Village_CobblePath Village_Crops Village_Dirt Village_DirtRough  '
+        'Village_GrassShort Village_GrassThick Village_Rocks Village_StonePath',
+    'VillageFall': 'VillageFall_CobblePath VillageFall_Crops VillageFall_Dirt VillageFall_DirtRough  '
+        'VillageFall_GrassShort VillageFall_GrassThick VillageFall_Rocks VillageFall_StonePath VillagFall_Cliff0 '
+        'VillagFall_Cliff1',
+}
+TERRAIN_TEXTURES = tuple('TerrainArt\\%s\\%s.blp' % (folder, fname) for folder, name_list in sorted(_TERRAIN.items())
+                         for fname in name_list.split())
 
