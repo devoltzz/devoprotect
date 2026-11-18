@@ -13,6 +13,7 @@ TEXT = ('The author of this map does not allow it to be edited. Tools that respe
 SCRIPT_TEXT = 'Protected with DevoProtect. Do not edit.'
 SCRIPT_RX = re.compile(rb'--|//|["\']|\[')
 SCRIPT_NL_RX = re.compile(rb'[\r\n]')
+HEADER_SIZE = 0x54505644
 HEADER_SECTOR = 0xD4
 HEADER_HASH = 0xE
 HEADER_BLOCK = 0xA
@@ -28,8 +29,9 @@ def _result(marks, text=TEXT):
 
 def of_header(h):
     try:
-        marked = ((h.block_shift >> 8) & 0xFF) == HEADER_SECTOR and \
-                 ((h.hash_n >> 28) & 0xF) == HEADER_HASH and ((h.block_n >> 28) & 0xF) == HEADER_BLOCK
+        marked = (h.header_size == HEADER_SIZE and h.version == 0) or (
+            ((h.block_shift >> 8) & 0xFF) == HEADER_SECTOR and
+            ((h.hash_n >> 28) & 0xF) == HEADER_HASH and ((h.block_n >> 28) & 0xF) == HEADER_BLOCK)
     except Exception:
         return None
     return _result(['header']) if marked else None
