@@ -3,7 +3,7 @@ import hashlib
 import os
 import struct
 
-from no_edit import NAME, SCRIPT_TEXT, content, map_script_entry, of_archive, read, script_marked
+from no_edit import HEADER_SIZE, NAME, SCRIPT_TEXT, content, map_script_entry, of_archive, read, script_marked
 
 
 FREE, DELETED = 0xFFFFFFFF, 0xFFFFFFFE
@@ -16,6 +16,16 @@ def mark_script(name, data):
     eol = b'\r\n' if b'\r\n' in data else b'\r' if b'\r' in data else b'\n'
     good = b'\xef\xbb\xbf' if data.startswith(b'\xef\xbb\xbf') else b''
     return good + line + eol + data[len(good):]
+
+
+def mark_header(data, fname=None):
+    import mpqlib
+    h, _skipped = mpqlib.find_header(data, fname)
+    if h.version != 0:
+        return None
+    out = bytearray(data)
+    struct.pack_into('<I', out, h.offset + 4, HEADER_SIZE)
+    return bytes(out)
 
 
 def _encrypt_packed(packed, key, fsize, sector):
@@ -54,6 +64,11 @@ def _replace_script(path, name, bi, content):
         p = (a.h.offset + fpos) & 0xFFFFFFFF
         data[p:p + len(packed)] = packed
     else:
+        old_start = (a.h.offset + old_fpos) & 0xFFFFFFFF
+        shared = any(i != bi and cs and pos < old_fpos + old_csize and old_fpos < pos + cs
+                     for i, (pos, cs, _fs, _fl) in enumerate(a.blocks))
+        if not shared and old_start + old_csize <= len(data):
+            data[old_start:old_start + old_csize] = bytes(old_csize)
         data += packed
         struct.pack_into('<I', data, a.h.offset + 8, len(data) - a.h.offset)
     a.bt[bi * 4:bi * 4 + 4] = [fpos, len(packed), len(content), flags]
@@ -133,6 +148,8 @@ def mark_copy(src, dst, log=None):
     if read(src):
         raise SystemExit('the map already carries the mark')
     a = mpqread.Archive(src)
+    campaign = a.find('war3campaign.w3f') is not None and a.find('war3map.w3i') is None
+    header = not campaign and a.h.version == 0
     cut = a.hash_n_read < a.hash_n
     live = [a.ht[i * 4 + 3] for i in range(a.hash_n_read)]
     full = not any(bi in (FREE, DELETED) for bi in live)
@@ -159,7 +176,7 @@ def mark_copy(src, dst, log=None):
     special = set(mpqread._hashes3(n)[1:] for n in ('(attributes)', '(listfile)'))
     if script_name:
         special.add(mpqread._hashes3(script_name)[1:])
-    expected = ['file'] + (['script'] if script_name else [])
+    expected = ['file'] + (['script'] if script_name else []) + (['header'] if header else [])
     tmp = '%s.part%s' % os.path.splitext(dst)
     try:
         with open(tmp, 'wb') as f:
@@ -181,6 +198,14 @@ def mark_copy(src, dst, log=None):
             with open(tmp, 'wb') as f:
                 f.write(truncated)
             log('the hash table cut again')
+        if header:
+            with open(tmp, 'rb') as f:
+                marked = mark_header(f.read(), tmp)
+            if marked is None:
+                raise SystemExit('the written copy no longer has a format-0 header: nothing written')
+            with open(tmp, 'wb') as f:
+                f.write(marked)
+            del marked
         c = mpqread.Archive(tmp)
         final = of_archive(c)
         if final is None or set(final['marks']) != set(expected):
